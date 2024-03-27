@@ -340,6 +340,8 @@ namespace AeonHacs.Components
 
         #endregion Retrieved device values
 
+        static HacsLog SystemLog => Hacs.SystemLog;
+
         /// <summary>
         /// 
         /// </summary>
@@ -442,6 +444,9 @@ namespace AeonHacs.Components
             if (done)
             {
                 a.OperationFailed = State == OperationState.Failed;
+                if (a.OperationFailed)
+                    SystemLog.Record($"{operation?.Name} {a.Name} failed.");
+
                 if (a.Device.Active) a.Device.Active = false;
                 State = OperationState.Free;
                 if (LogEverything) Log?.Record("Operation done.");
@@ -453,11 +458,12 @@ namespace AeonHacs.Components
         OperationState InitiateOperation(ICpwActuator a)
         {
             SetServiceValues($"n{ChannelNumber} c");
-
             operation = a.ValidateOperation(a.FindOperation(ServiceRequest ?? ""));
             a.Device.Operation = operation;
             stopping = false;
             a.Device.Active = true;
+
+            SystemLog.Record($"{operation?.Name} {a.Name}");
 
             if (LogEverything)
             {

@@ -11,7 +11,13 @@ namespace AeonHacs
 			set => eventLog = value; 
 		}
 		static HacsLog eventLog;
-		public static bool Connected { get; private set; }
+        public static HacsLog SystemLog
+        {
+            get => systemLog ??= new HacsLog("System log.txt") { ArchiveDaily = true };
+            set => systemLog = value;
+        }
+        static HacsLog systemLog;
+        public static bool Connected { get; private set; }
 		public static bool Initialized { get; private set; }
 		public static bool Started { get; private set; }
 		public static bool Stopping { get; private set; }
