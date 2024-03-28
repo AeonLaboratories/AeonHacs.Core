@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using AeonHacs;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -367,10 +368,12 @@ namespace AeonHacs
 
 	public static class ActionExtensions
 	{
-		public static void ParallelInvoke(this Action action)
+		public static void AsyncInvoke(this Action action)
 		{
-			var actions = action.GetInvocationList().Cast<Action>().ToArray();
-			Parallel.Invoke(actions);
+			List<Task> all = new List<Task>();
+			action.GetInvocationList().Cast<Action>().ToList().ForEach(
+				a => all.Add(Task.Factory.StartNew(a, TaskCreationOptions.LongRunning)));
+			Task.WhenAll(all).Wait();
 		}
 	}
 	
