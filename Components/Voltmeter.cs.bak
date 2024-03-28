@@ -79,7 +79,7 @@ namespace AeonHacs.Components
         double? maximumVoltage;
 
         public virtual new bool OverRange => base.OverRange || Voltage > MaximumVoltage;
-        public virtual new bool UnderRange => base.UnderRange || Voltage < MinimumVoltage;
+        public virtual new bool UnderRange => base.OverRange || Voltage < MinimumVoltage;
 
         public Voltmeter(IHacsDevice d = null) : base(d) { }
 

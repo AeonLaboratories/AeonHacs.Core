@@ -45,41 +45,41 @@ namespace AeonHacs
 
 		public static void Connect()
 		{
-			OnPreConnect?.ParallelInvoke();
-			OnConnect?.ParallelInvoke();
-			OnPostConnect?.ParallelInvoke();
+			OnPreConnect?.AsyncInvoke();
+			OnConnect?.AsyncInvoke();
+			OnPostConnect?.AsyncInvoke();
             Connected = true;
 		}
 
 		public static void Initialize()
 		{
-			OnPreInitialize?.ParallelInvoke();
-			OnInitialize?.ParallelInvoke();
-			OnPostInitialize?.ParallelInvoke();
+			OnPreInitialize?.AsyncInvoke();
+			OnInitialize?.AsyncInvoke();
+			OnPostInitialize?.AsyncInvoke();
 			Initialized = true;
 		}
 
 		public static void Start()
 		{
-			OnPreStart?.ParallelInvoke();
-			OnStart?.ParallelInvoke();
-			OnPostStart?.ParallelInvoke();
+			OnPreStart?.AsyncInvoke();
+			OnStart?.AsyncInvoke();
+			OnPostStart?.AsyncInvoke();
             Started = true;
 		}
 
 		public static void Update()
 		{
-			OnPreUpdate?.ParallelInvoke();
-			OnUpdate?.ParallelInvoke();
-			OnPostUpdate?.ParallelInvoke();
+			OnPreUpdate?.AsyncInvoke();
+			OnUpdate?.AsyncInvoke();
+			OnPostUpdate?.AsyncInvoke();
 		}
 
 		public static void Stop()
 		{
 			Stopping = true;
-			OnPreStop?.ParallelInvoke();
-			OnStop?.ParallelInvoke();
-			OnPostStop?.ParallelInvoke();
+			OnPreStop?.AsyncInvoke();
+			OnStop?.AsyncInvoke();
+			OnPostStop?.AsyncInvoke();
 			HacsLog.List.ForEach(log => { if (log != EventLog) log.Close(); });
 			// Event log should be closed immediately before Application exits.
 			Stopped = true;
