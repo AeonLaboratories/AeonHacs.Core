@@ -119,7 +119,7 @@ namespace AeonHacs.Components
         {
             try
             {
-                UpdateTimer.Dispose();
+                UpdateTimer?.Dispose();
 
                 StopLogging = true;
                 SystemLogSignal.Set();

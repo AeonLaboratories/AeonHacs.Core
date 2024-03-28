@@ -104,11 +104,9 @@ namespace AeonHacs.Components
             get => chambers;
             set
             {
-                if (value == null) 
-                    ;
                 Ensure(ref chambers, value, NotifyPropertyChanged);
-                Manometer = chambers?.Find(x => x != null && x.Manometer != null) is Chamber mc ? mc.Manometer : default;
-                Thermometer = chambers?.Find(x => x != null && x.Thermometer != null) is Chamber tc ? tc.Thermometer : default;
+                Manometer = chambers.Find(x => x.Manometer != null) is Chamber mc ? mc.Manometer : default;
+                Thermometer = chambers.Find(x => x.Thermometer != null) is Chamber tc ? tc.Thermometer : default;
             }
         }
         List<IChamber> chambers;
