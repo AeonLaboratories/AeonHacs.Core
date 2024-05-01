@@ -70,7 +70,6 @@ namespace AeonHacs.Components
         }
         SerialDevice serialDevice;
 
-
         void UpdateSerialDeviceLog()
         {
             if (SerialDevice == null) return;
@@ -206,19 +205,20 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// This counter is incremented whenever a response fails to arrive
-        /// before the ResponseTimeout period. It is reset to zero on 
-        /// receipt of any response, so it functions as a check of
-        /// "too many consecutive response timeouts."
+        /// Returns true if the device is Ready and the current number of consecutive 
+        /// ResponseTimeouts is less than TooManyResponseTimeouts."
         /// </summary>
         public bool Responsive => Ready && ResponseTimeouts < TooManyResponseTimeouts;
+        /// <summary>
+        /// The number of consecutive ResponseTimeouts used to consider the device unresponsive.
+        /// </summary>
         [JsonProperty, DefaultValue(5)]
         public int TooManyResponseTimeouts
         { 
             get => tooManyResponseTimeouts; 
             set => Ensure(ref tooManyResponseTimeouts, value); 
         }
-        int tooManyResponseTimeouts = 5;       // TODO: magic number
+        int tooManyResponseTimeouts = 5;
 
         /// <summary>
         /// The device is not Ready or there is nothing to do
@@ -370,6 +370,11 @@ namespace AeonHacs.Components
         /// The current ServiceCommand fragment.
         /// </summary>
         public string CommandMessage { get; private set; } = "";
+        /// <summary>
+        /// The ResponseTimeouts counter is incremented whenever a response 
+        /// fails to arrive before the ResponseTimeout period. It is reset 
+        /// to zero on receipt of any response.
+        /// </summary>
         public int ResponseTimeouts { get; private set; } = 0;
         object responseTimeoutsLocker = new object();
 

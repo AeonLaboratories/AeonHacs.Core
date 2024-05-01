@@ -579,6 +579,7 @@ namespace AeonHacs.Components
         new Oven.IConfig Config { get; }
     }
 
+
     public interface ITubeFurnace : IOven
     {
         new TubeFurnace.IDevice Device { get; }
