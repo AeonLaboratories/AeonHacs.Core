@@ -3190,19 +3190,31 @@ namespace AeonHacs.Components
 
         public void CalibrateManualHeater(IHeater h, IThermocouple tc)
         {
-            var minute = 60000;
-            double pvTarget = 830;
+            var oneSecond = 1000;       // milliseconds
+            var oneMinute = 60 * oneSecond;
+            double pvTarget = 850;  // degrees C
+            double pvLimit = 1000;  // degrees C
 
             if (!h.Config.ManualMode)
             {
-                Announce("Invalid heater selected.", $"{h.Name} is not a manual-mode heater.");
+                Announce("Invalid heater mode.", $"{h.Name} is not a manual-mode heater.");
                 return;
             }
 
+            if (tc == null)
+            {
+                Announce("Missing thermocouple.", "No calibration thermocouple provided.");
+                return;
+            }
+
+            if (!Notice.Ok("Operator Needed", $"Move the calibration thermocouple to {h.Name}."))
+                return;
+
             if (tc.Temperature > pvTarget - 50)
             {
-                ProcessStep.Start($"Waiting for calibration thermocouple to cool below {pvTarget - 50:0} °C");
-                if (!WaitFor(() => tc.Temperature < pvTarget - 50, minute, 1000))
+                h.TurnOff();
+                ProcessStep.Start($"Waiting for tCcal ({tc.Temperature:0} °C) to cool below {pvTarget - 50:0} °C");
+                if (!WaitFor(() => tc.Temperature < pvTarget - 50, oneMinute, oneSecond))
                 {
                     Announce("Error", "Calibration thermocouple is too hot.");
                     ProcessStep.End();
@@ -3211,57 +3223,48 @@ namespace AeonHacs.Components
                 ProcessStep.End();
             }
 
-            if (!Notice.Ok("Operator Needed", $"Move the calibration thermocouple to {h.Name}."))
-                return;
+            ProcessStep.Start($"Calibrating {h.Name} power level");
+            SampleLog.Record($"Calibrating {h.Name}'s PowerLevel");
 
-            ProcessStep.Start($"Calibrate {h.Name}");
-
-            ProcessSubStep.Start("Pre-heat furnace");
-            h.PowerLevel = Math.Min(15, h.Config.MaximumPowerLevel);
+            var pvIncreasing = tc.Temperature * 0.90323 + 102.42;        // +25 @ 800 C, +100 @ 25 C
+            ProcessSubStep.Start($"Pre-heat furnace: wait for {pvIncreasing:0} °C");
+            h.PowerLevel = Math.Min(24, h.Config.MaximumPowerLevel);
             h.TurnOn();
-            if (!(WaitFor(() => tc.Temperature > 100, minute, 1000)))
+
+            SampleLog.Record($"{h.Name} calibration: Temperature = {tc.Temperature:0.00} °C; PowerLevel = {h.Config.PowerLevel}; Waiting for {pvIncreasing:0.00} °C.");
+            if (!(WaitFor(() => tc.Temperature > pvIncreasing, 2 * oneMinute, oneSecond)))
             {
                 h.TurnOff();
                 Pause($"{h.Name} calibration aborted", $"Temperature isn't rising fast enough. Is the calibration thermocouple in {h.Name}?");
                 return;
             }
-            WaitFor(() => tc.Temperature > pvTarget - 10, 5 * minute, 1000);
+            ProcessSubStep.End();
+            ProcessSubStep.Start($"Wait for {pvTarget - 10:0} °C");
+            WaitFor(() => tc.Temperature > pvTarget - 10, 5 * oneMinute, oneSecond);
             ProcessSubStep.End();
 
-            h.PowerLevel = 7;
-            double delta = 3;           // for a first guess of 10
-
+            double delta = 3;           // start at max
             while (!Stopping && Math.Abs(delta) > 0)
             {
-                var co = h.Config.PowerLevel + delta;
-                if (co > h.MaximumPowerLevel)
-                {
-                    Abort($"{h.Name} calibration stopped", $"{h.Name}: co ({co:0.00}) > MaxPowerLevel {h.MaximumPowerLevel:0.00}.");
-                    break;
-                }
-
-                h.PowerLevel = h.Config.PowerLevel + delta;
-                SampleLog.Record($"{h.Name} calibration: {tc.Temperature:0.00} °C: setting PowerLevel to {h.Config.PowerLevel:0.00}.");
-
-                double tooHigh = 10;
-                double tooLong = 2;
+                double tooMuchError = 10;
+                double tooLong = 1;
                 double error = 0;
+
+                ProcessSubStep.Start($"PowerLevel = {h.Config.PowerLevel:0.00}; delta = {delta:0.00}; waiting to adjust.");
                 bool changeNeeded()
                 {
-                    if (tc.Temperature > 1000) return true;
+                    if (tc.Temperature > pvLimit) return true;
                     error = tc.Temperature - pvTarget;
                     ProcessSubStep.CurrentStep.Description =
                         $"{h.Config.PowerLevel:0.00}: {tc.Temperature:0.00} error={error:0.0}";
-                    return ProcessSubStep.Elapsed.TotalMinutes > 1 && Math.Abs(error) > tooHigh;
+                    return ProcessSubStep.Elapsed.TotalSeconds > 30 && Math.Abs(error) > tooMuchError;
                 }
-
-                ProcessSubStep.Start($"PowerLevel = {h.Config.PowerLevel:0.00}; delta = {delta:0.00}; waiting to adjust.");
-                WaitFor(changeNeeded, (int)(tooLong * minute), 1000);
+                WaitFor(changeNeeded, (int)(tooLong * oneMinute), oneSecond);
                 ProcessSubStep.End();
 
-                if (tc.Temperature > 1000)
+                if (tc.Temperature > pvLimit)
                 {
-                    Abort($"{h.Name} calibration stopped", $"Temperature exceeded 1000 °C.");
+                    RecordAlert($"{h.Name} calibration stopped", $"Temperature exceeded 1000 °C.");
                     break;
                 }
 
@@ -3270,21 +3273,30 @@ namespace AeonHacs.Components
                 if (delta < 0 && delta > -0.01) delta = -0.01;
                 if (delta > 3) delta = 3;
                 if (delta < -3) delta = -3;
+
+                var co = h.Config.PowerLevel + delta;
+                if (co > h.MaximumPowerLevel && ProcessStep.Elapsed.TotalMinutes > 10)
+                {
+                    RecordAlert($"{h.Name} calibration stopped", $"{h.Name}: co ({co:0.00}) > MaxPowerLevel {h.MaximumPowerLevel:0.00}.");
+                    break;
+                }
+
+                h.PowerLevel = Math.Min(h.MaximumPowerLevel, h.Config.PowerLevel + delta);
+                SampleLog.Record($"{h.Name} calibration: {tc.Temperature:0.00} °C: setting PowerLevel to {h.Config.PowerLevel:0.00}.");
             }
             h.TurnOff();
 
             if (delta == 0)
             {
-                SampleLog.Record($"{h.Name} calibration complete: PowerLevel is {h.Config.PowerLevel:0.00}.");
-                Alert($"Calibration complete", $"{h.Name}'s PowerLevel is {h.Config.PowerLevel:0.00}.");
+                RecordAlert($"{h.Name} calibration complete", $"{h.Name}'s PowerLevel is {h.Config.PowerLevel:0.00}.");
             }
             else
             {
-                Pause($"{h.Name} calibration unsuccessful", $"Check the sample data log for details.");
+                Alert($"{h.Name} calibration unsuccessful", $"Check the sample data log for details.");
             }
             ProcessStep.End();
 
-            void Abort(string caption, string message)
+            void RecordAlert(string caption, string message)
             {
                 Alert(caption, message);
                 SampleLog.Record(caption + ". " + message);
