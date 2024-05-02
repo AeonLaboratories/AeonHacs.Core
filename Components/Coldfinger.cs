@@ -560,8 +560,10 @@ namespace AeonHacs.Components
 			{
 				case TargetStates.Standby:
 					Target = AirTemperature;
-                    LNOff();
-					AirOff();
+					//These are called when Standby() happens. Is there really a need to constantly enforce them?
+					//They have been temporarily? commented out to make integration easier.
+                    //LNOff();
+					//AirOff();
 					break;
 				case TargetStates.Thaw:
 					Target = AirTemperature - NearAirTemperature;

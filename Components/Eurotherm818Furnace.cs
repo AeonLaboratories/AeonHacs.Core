@@ -6,7 +6,7 @@ using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
-    public class Eurotherm818Furnace : TubeFurnace, IEurotherm818Furnace,
+    public class Eurotherm818Furnace : SerialTubeFurnace, IEurotherm818Furnace,
         Eurotherm818Furnace.IConfig, Eurotherm818Furnace.IDevice
 	{
         #region Device constants
@@ -28,7 +28,7 @@ namespace AeonHacs.Components
 
         #region Device interfaces
 
-        public new interface IDevice : TubeFurnace.IDevice
+        public new interface IDevice : SerialTubeFurnace.IDevice
         {
             int Error { get; set; }
             int OutputPowerLimit { get; set; }
@@ -36,7 +36,7 @@ namespace AeonHacs.Components
             int OutputPower { get; set; }
 
         }
-        public new interface IConfig : TubeFurnace.IConfig
+        public new interface IConfig : SerialTubeFurnace.IConfig
         {
             int OutputPowerLimit { get;  }
         }

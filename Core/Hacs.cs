@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Threading;
 
 namespace AeonHacs
 {
-	public static class Hacs
+    public static class Hacs
 	{
 		public static HacsLog EventLog
 		{

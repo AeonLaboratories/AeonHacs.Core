@@ -4,7 +4,7 @@ using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
-    public class MtiFurnace : TubeFurnace, IMtiFurnace,
+    public class MtiFurnace : SerialTubeFurnace, IMtiFurnace,
         MtiFurnace.IConfig, MtiFurnace.IDevice
     {
         #region Device constants
@@ -19,9 +19,9 @@ namespace AeonHacs.Components
 
         #region Device interfaces
 
-        public new interface IDevice : TubeFurnace.IDevice { }
+        public new interface IDevice : SerialTubeFurnace.IDevice { }
 
-        public new interface IConfig : TubeFurnace.IConfig { }
+        public new interface IConfig : SerialTubeFurnace.IConfig { }
 
         public new IDevice Device => this;
         public new IConfig Config => this;

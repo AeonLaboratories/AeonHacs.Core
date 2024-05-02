@@ -39,7 +39,6 @@ namespace AeonHacs.Components
             // check that the essentials are found
             //CegsNeeds(Power, nameof(Power));
             CegsNeeds(Ambient, nameof(Ambient));
-            CegsNeeds(VacuumSystem, nameof(VacuumSystem));
             CegsNeeds(IM, nameof(IM));
             CegsNeeds(VTT, nameof(VTT));
             CegsNeeds(MC, nameof(MC));
@@ -189,12 +188,12 @@ namespace AeonHacs.Components
 
         #region Data Logs
         public virtual DataLog AmbientLog { get; set; }
-        public virtual DataLog VMPressureLog { get; set; }
+        public virtual DataLog VM1PressureLog { get; set; }
+        public virtual DataLog VM2PressureLog { get; set; }
         public virtual HacsLog SampleLog { get; set; }
         #endregion Data Logs
 
         public virtual IChamber Ambient { get; set; }
-        public virtual IVacuumSystem VacuumSystem { get; set; }
 
         public virtual ISection IM { get; set; }
         public virtual ISection CT { get; set; }
@@ -659,9 +658,13 @@ namespace AeonHacs.Components
             EventLog.Record("System Failure: Mains Power Failure");
             Alert("System Failure", "Mains Power Failure");
             Notice.Send("System Failure", "Mains Power Failure", Notice.Type.Tell);
-            AbortRunningProcess();
-            VacuumSystem.Isolate();
-            VacuumSystem.IsolateManifold();
+            FindAll<VacuumSystem>().ForEach(vs =>
+            {
+                vs.Isolate();
+                vs.IsolateManifold();
+            });
+
+            // TODO shut down
         }
 
         protected virtual void OnOverflowDetected() =>
@@ -944,13 +947,10 @@ namespace AeonHacs.Components
 
         #region Support and general purpose functions
         
-        protected virtual void WaitForPressure(double pressure) => 
-            VacuumSystem?.WaitForPressure(pressure);
-
-        protected virtual void WaitForStablePressure(double pressure, int seconds = 5)
+        protected virtual void WaitForStablePressure(IVacuumSystem vacuumSystem, double pressure, int seconds = 5)
         {
-            ProcessSubStep.Start($"Wait for stable pressure below {pressure} {VacuumSystem.Manometer.UnitSymbol}");
-            VacuumSystem.WaitForStablePressure(pressure, seconds);
+            ProcessSubStep.Start($"Wait for stable pressure below {pressure} {vacuumSystem.Manometer.UnitSymbol}");
+            vacuumSystem.WaitForStablePressure(pressure, seconds);
             ProcessSubStep.End();
         }
 
@@ -1060,7 +1060,7 @@ namespace AeonHacs.Components
             // adequate for perfect combustion -- equates to 0.01% inert gas.
             // The admitted O2 pressure always exceeds 1000 Torr; 
             // 0.01% of 1000 is 0.1 Torr.
-            WaitForPressure(0.1);
+            im.VacuumSystem.WaitForPressure(0.1);
             InletPort.Close();
         }
 
@@ -1331,7 +1331,7 @@ namespace AeonHacs.Components
             GM.Isolate();
             grs.ForEach(gr => gr.Open());
             GM.OpenAndEvacuate(OkPressure);
-            WaitForStablePressure(OkPressure);        // this might be excessive
+            WaitForStablePressure(GM.VacuumSystem, OkPressure);        // this might be excessive
             ProcessSubStep.End();
 
             ProcessSubStep.Start($"Zero GR manometers.");
@@ -1374,7 +1374,7 @@ namespace AeonHacs.Components
 
             ProcessStep.Start("Evacuate & Flush GRs with inert gas");
             Flush(GM, 2);
-            WaitForPressure(OkPressure);
+            GM.VacuumSystem.WaitForPressure(OkPressure);
             ProcessStep.End();
 
 
@@ -1457,10 +1457,10 @@ namespace AeonHacs.Components
             IM.Isolate();
             ips.ForEach(ip => ip.Open());
             IM.Evacuate(OkPressure);
-            WaitForStablePressure(OkPressure);        // this might be excessive
+            WaitForStablePressure(IM.VacuumSystem, OkPressure);        // this might be excessive
 
             Flush(IM, 3);
-            WaitForPressure(CleanPressure);
+            IM.VacuumSystem.WaitForPressure(CleanPressure);
 
             ProcessStep.End();
 
@@ -1524,9 +1524,6 @@ namespace AeonHacs.Components
 
         #region Vacuum System
 
-        protected virtual void Evacuate() => VacuumSystem.Evacuate();
-        protected virtual void Evacuate(double pressure) => VacuumSystem.Evacuate(pressure);
-
         protected virtual void EvacuateIP(double pressure)
         {
             if (!IpIm(out ISection im)) return;
@@ -1566,8 +1563,8 @@ namespace AeonHacs.Components
         /// </summary>
         protected virtual void EnsureProcessStartConditions()
         {
-            VacuumSystem.AutoManometer = true;
-            //GasSupplies.Values.ToList().ForEach(gs => gs.ShutOff());
+            VacuumSystems.Values.ToList().ForEach(vs => vs.AutoManometer = true);
+            //FindAll<GasSupply>().ForEach(gs => gs.ShutOff());
         }
 
         protected virtual void RunSample()
@@ -1703,7 +1700,7 @@ namespace AeonHacs.Components
             if (aliquots < 3)
                 MC.Ports[1].Close();
 
-            WaitForPressure(CleanPressure);
+            MC.VacuumSystem.WaitForPressure(CleanPressure);
             ZeroMC();
             ProcessStep.End();
 
@@ -1734,9 +1731,9 @@ namespace AeonHacs.Components
             im.Isolate();
             InletPort.Open();
             im.Evacuate(OkPressure);
-            WaitForStablePressure(OkPressure);
+            WaitForStablePressure(im.VacuumSystem, OkPressure);
             Flush(im, 3);
-            WaitForPressure(CleanPressure);
+            im.VacuumSystem.WaitForPressure(CleanPressure);
             ProcessStep.End();
 
             InletPort.Close();
@@ -1762,7 +1759,7 @@ namespace AeonHacs.Components
             Flush(im, 3, InletPort);
 
             ProcessStep.Start($"Wait for pVM < {CleanPressure:0.0e0} Torr");
-            WaitForPressure(CleanPressure);
+            im.VacuumSystem.WaitForPressure(CleanPressure);
 
             gs.Admit();
             gs.WaitForPressure(PressureOverAtm);
@@ -1887,7 +1884,7 @@ namespace AeonHacs.Components
 
             ProcessStep.Start($"Evacuate {im.Name}");
             im.Evacuate(CleanPressure);
-            WaitForStablePressure(CleanPressure);
+            WaitForStablePressure(im.VacuumSystem, CleanPressure);
             ProcessStep.End();
 
             ProcessStep.Start($"Evacuate and Freeze {trap.Name}");
@@ -1941,11 +1938,11 @@ namespace AeonHacs.Components
             ProcessSubStep.Start($"Maintain {trap.Name} pressure near {bleedPressure:0.00} Torr");
 
             // disable ion gauge while low vacuum flow is expected
-            var pVSWasAuto = VacuumSystem.AutoManometer;
-            VacuumSystem.AutoManometer = false;
-            VacuumSystem.DisableManometer();
+            var pVSWasAuto = trap.VacuumSystem.AutoManometer;
+            trap.VacuumSystem.AutoManometer = false;
+            trap.VacuumSystem.DisableManometer();
 
-            VacuumSystem.Evacuate();    // use low vacuum or high vacuum as needed
+            trap.VacuumSystem.Evacuate();    // use low vacuum or high vacuum as needed
 
             trap.FlowManager.Start(bleedPressure);
 
@@ -1956,7 +1953,7 @@ namespace AeonHacs.Components
             WaitFor(() => !trap.FlowManager.Busy);
 
             // return ion gauge control to the VacuumSystem
-            VacuumSystem.AutoManometer = pVSWasAuto;
+            trap.VacuumSystem.AutoManometer = pVSWasAuto;
 
             ProcessSubStep.End();
         }
@@ -2220,7 +2217,7 @@ namespace AeonHacs.Components
                 MC.OpenPorts();
                 ftcMC.RaiseLN();
                 MC.JoinToVacuum();
-                Evacuate(CleanPressure);
+                MC.VacuumSystem.Evacuate(CleanPressure);
 
                 ZeroMC();
                 if (Sample.AliquotsCount < 3)
@@ -2577,7 +2574,7 @@ namespace AeonHacs.Components
                 ProcessSubStep.End();
             }
 
-            WaitForPressure(OkPressure);
+            section.VacuumSystem.WaitForPressure(OkPressure);
             section.Dirty = false;
             ProcessStep.End();
         }
@@ -2773,9 +2770,9 @@ namespace AeonHacs.Components
                     Open_d13CPort(d13CPort);
                 }
             }
-            VacuumSystem.IsolateExcept(toBeOpened);
+            gm.VacuumSystem.IsolateExcept(toBeOpened);
             toBeOpened.Open();
-            Evacuate(CleanPressure);
+            gm.VacuumSystem.Evacuate(CleanPressure);
             ProcessStep.End();
 
             ProcessStep.Start("Expand the sample");
@@ -2898,7 +2895,7 @@ namespace AeonHacs.Components
                 ProcessSubStep.Start("Evacuate incondensables.");
                 mc_gm.OpenAndEvacuate(CleanPressure);
                 gr.Open();
-                WaitForPressure(CleanPressure);
+                mc_gm.VacuumSystem.WaitForPressure(CleanPressure);
                 mc_gm.IsolateFromVacuum();
                 ProcessSubStep.End();
             }
@@ -2949,7 +2946,7 @@ namespace AeonHacs.Components
             im.IsolateFromVacuum();
             Split.Evacuate();
             im.JoinToVacuum();
-            WaitForPressure(0);
+            im.VacuumSystem.WaitForPressure(0);
             ProcessStep.End();
 
             ProcessStep.Start($"Transfer CO2 from MC to {InletPort.Name}");
@@ -2957,7 +2954,7 @@ namespace AeonHacs.Components
             Notice.Send("Operator needed", $"Almost ready for LN on {InletPort.Name}.\r\n" +
                 $"Press Ok to continue, then raise LN onto {InletPort.Name} coldfinger");
 
-            VacuumSystem.Isolate();
+            im.VacuumSystem.Isolate();
             MC_Split.Open();
 
             ProcessSubStep.Start($"Wait {MinutesString(CO2TransferMinutes)} for CO2 to freeze into {InletPort.Name}");
@@ -3358,7 +3355,6 @@ namespace AeonHacs.Components
                 $"Remove LN from {InletPort.Name} and thaw the coldfinger.\r\n" +
                 "Press Ok to continue");
 
-            VacuumSystem.Evacuate();
             Collect();
             Extract();
             Measure();
@@ -3391,7 +3387,7 @@ namespace AeonHacs.Components
                 gs.Admit();       // dunno, 1000-1500 Torr?
                 Wait(1000);
                 gs.ShutOff();
-                VacuumSystem.Isolate();
+                im.VacuumSystem.Isolate();
                 im.JoinToVacuum();      // one cycle might keep ~10% in the IM
                 WaitSeconds(3);
             //im.Isolate();
@@ -3420,7 +3416,7 @@ namespace AeonHacs.Components
                 gs.Admit();       // dunno, 1000-1500 Torr?
                 Wait(1000);
                 gs.ShutOff();
-                VacuumSystem.Isolate();
+                im.VacuumSystem.Isolate();
                 im.JoinToVacuum();      // one cycle might keep ~10% in the IM
                 Wait(2000);
                 im.Isolate();
@@ -3498,7 +3494,7 @@ namespace AeonHacs.Components
             {
                 VTT.Dirty = false;  // keep cold
                 OpenLine();
-                WaitForPressure(CleanPressure);
+                MC.VacuumSystem.WaitForPressure(CleanPressure);
                 AdmitDeadCO2();
             }
 

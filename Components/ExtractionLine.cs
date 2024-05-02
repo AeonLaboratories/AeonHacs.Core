@@ -61,7 +61,7 @@ namespace AeonHacs.Components
 		#endregion HacsComponent
 
 		[JsonProperty] public Cegs CEGS { get; set; }
-		[JsonProperty] public TubeFurnace TubeFurnace { get; set; }
+		[JsonProperty] public SerialTubeFurnace TubeFurnace { get; set; }
 		[JsonProperty] public VacuumSystem VacuumSystem { get; set; }
 		[JsonProperty] public IManometer TubeFurnaceManometer { get; set; }
 		[JsonProperty] public MassFlowController MFC { get; set; }

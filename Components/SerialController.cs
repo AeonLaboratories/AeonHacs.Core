@@ -1,11 +1,10 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Text;
 using System.Threading;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
@@ -15,7 +14,7 @@ namespace AeonHacs.Components
 
         #region HacsComponent
 
-        [HacsStart]
+        [HacsPostStart]
         protected virtual void PostStart()
         {
             if (LogEverything) Log?.Record($"SerialController {Name}: Starting...");
@@ -274,7 +273,6 @@ namespace AeonHacs.Components
             (SerialDevice?.Ready ?? false);
 
         public override bool HasWork =>
-            base.HasWork ||
             Hurry == true ||
             !ServiceCommand.IsBlank() ||
             AwaitingResponses > 0 ||
@@ -283,7 +281,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// The device is Responsive and doing work.
         /// </summary>
-        public override bool Busy => base.Busy || Responsive && HasWork;
+        public override bool Busy => Responsive && HasWork;
 
         protected virtual void ManageState() =>
             SendCommandMessages();
@@ -431,7 +429,6 @@ namespace AeonHacs.Components
                 //  an invalid response was received (so, awaitingReponses > 0), or
                 //  a valid response was received (so, awaitingResponses == 0) and 
                 //      the new command is nonempty
-
 
                 AwaitingResponses = ResponsesExpected;
                 if (AwaitingResponses > 0)

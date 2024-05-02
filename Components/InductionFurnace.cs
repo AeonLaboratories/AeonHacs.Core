@@ -6,7 +6,7 @@ using System.Text;
 
 namespace AeonHacs.Components
 {
-    public class InductionFurnace : TubeFurnace, IInductionFurnace,
+    public class InductionFurnace : SerialTubeFurnace, IInductionFurnace,
         InductionFurnace.IConfig, InductionFurnace.IDevice
     {
         #region HacsComponent
@@ -145,7 +145,7 @@ namespace AeonHacs.Components
 
         #region Device interfaces
 
-        public new interface IDevice : TubeFurnace.IDevice
+        public new interface IDevice : SerialTubeFurnace.IDevice
         {
             int PowerLevel { get; set; }
             int PowerLimit { get; set; }
@@ -157,7 +157,7 @@ namespace AeonHacs.Components
             string InterfaceBoardRevision { get; set; }
         }
 
-        public new interface IConfig : TubeFurnace.IConfig
+        public new interface IConfig : SerialTubeFurnace.IConfig
         {
             ControlModeCode ControlMode { get; }
             int PowerLevel { get; }

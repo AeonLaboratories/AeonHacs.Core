@@ -87,6 +87,8 @@ namespace AeonHacs.Components
             InternalValves = FindAll<IValve>(internalValveNames);
             PathToVacuum = FindAll<IValve>(pathToVacuumValveNames);
             PathToVacuumIsolation = FindAll<IValve>(pathToVacuumIsolationValveNames);
+            FlowManager = Find<IFlowManager>(flowManagerName);
+
         }
 
         #endregion HacsComponent
@@ -263,17 +265,19 @@ namespace AeonHacs.Components
         public double Temperature => Thermometer?.Temperature ?? 0;
 
         /// <summary>
-        /// If the Section comprises a single FlowChamber, this is its flow valve.
+        /// The flow valve controlled by FlowManager.
         /// </summary>
-        public IRxValve FlowValve =>
-            Chambers.Count == 1 && Chambers[0] is IFlowChamber c ? c.FlowValve : default;
+        public IRxValve FlowValve => FlowManager?.FlowValve;
 
+        [JsonProperty("FlowManager")]
+        string FlowManagerName { get => FlowManager?.Name; set => flowManagerName = value; }
+        string flowManagerName;
         /// <summary>
-        /// If the Section comprises a single FlowChamber, this is its FlowManager.
+        /// If the Section contains a FlowValve, this is its FlowManager.
         /// </summary>
         public IFlowManager FlowManager
         {
-            get => flowManager ?? (Chambers.Count == 1 && Chambers[0] is IFlowChamber c ? c.FlowManager : default);
+            get => flowManager;
             set => Ensure(ref flowManager, value);
         }
         IFlowManager flowManager;

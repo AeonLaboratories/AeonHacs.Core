@@ -124,7 +124,8 @@ namespace AeonHacs.Components
 						Log?.Record($"StateManager {Name}: StateLoop is waiting for StateSignal" + 
 							(timeout == Timeout.Infinite ? "..." : $" or {timeout} ms..."));
 
-					StateSignalReceived = StateSignal.WaitOne(timeout);
+					if (Stopping) timeout = Math.Min(timeout, 30);
+                    StateSignalReceived = StateSignal.WaitOne(timeout);
 
 					if (LogEverything)
 					{

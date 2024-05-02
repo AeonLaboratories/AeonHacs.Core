@@ -1,19 +1,15 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
-	public class Meter : HacsDevice, IMeter, Meter.IDevice, Meter.IConfig
+    public class Meter : HacsDevice, IMeter, Meter.IDevice, Meter.IConfig
 	{
-//		public static LogFile MetersLog = new LogFile("Meters.txt");
-
         #region static
 
         public static implicit operator double(Meter x)
@@ -30,13 +26,13 @@ namespace AeonHacs.Components
 			}
 		}
 		static double ratiometricValue = 5.0;
-		public static double RatiometricCorrection { get; set; } = 1.0; 
+		public static double RatiometricCorrection { get; set; } = 1.0;
 
 		#endregion static
 
-		#region Device interfaces
+        #region Device interfaces
 
-		public new interface IDevice : HacsDevice.IDevice
+        public new interface IDevice : HacsDevice.IDevice
 		{ 
 			double Value { get; set; }
 		}
@@ -49,6 +45,7 @@ namespace AeonHacs.Components
         public double RawValue { get; private set; }
         public double FilteredValue { get; private set; }
         public double PriorValue { get; private set; }
+		public double CalibratedValue { get; private set; }
         public double ConvertedValue { get; private set; }
         public double ResolvedValue { get; private set; }
 
@@ -162,7 +159,14 @@ namespace AeonHacs.Components
 		}
 		DigitalFilter filter;
 
-		/// <summary>
+        /// <summary>
+        /// An optional PCHIP interpolator that maps input onto a curve that fits
+        /// selected test data.
+        /// </summary>
+        [JsonProperty]
+        public PchipInterpolator Interpolator { get; set; }
+
+        /// <summary>
         /// The set of arithmetic operations that converts the input data
         /// provided via Update() into Value, the dynamic quantity of interest.
         /// </summary>
@@ -234,17 +238,17 @@ namespace AeonHacs.Components
 		public virtual bool IsRising => RateOfChange != null && 
 			RateOfChange >= Rising;
 
-		// add additional, similar RateOfChange conditions for VTT and IP?
+        // add additional, similar RateOfChange conditions for VTT and IP?
 
-		/// <summary>
-		/// Update Value with a new input, based on the configuration and present 
-		/// state of the Meter. The value may be digitally filtered, scaled,
-		/// converted to different units, and normalized for sensitivity and
-		/// resolution.
-		/// </summary>
-		/// <param name="value">a new input value</param>
-		/// <returns>the resultant output Value</returns>
-		public virtual double Update(double value)
+        /// <summary>
+        /// Update Value with a new input, based on the configuration and present 
+        /// state of the Meter. The value may be digitally filtered, scaled,
+        /// converted to different units, and normalized for sensitivity and
+        /// resolution.
+        /// </summary>
+        /// <param name="value">a new input value</param>
+        /// <returns>the resultant output Value</returns>
+        public virtual double Update(double value)
 		{
 			++UpdatesReceived;
 			//if (ratiometric) value *= RatiometricCorrection;
@@ -271,9 +275,10 @@ namespace AeonHacs.Components
 					}
 				}
 			}
-			PriorValue = FilteredValue;	// save for next Zeroing "toomuch" check
+			PriorValue = FilteredValue; // save for next Zeroing "toomuch" check
 
-			ConvertedValue = value = Conversion?.Execute(value) ?? value;
+            CalibratedValue = value = Interpolator?.Interpolate(value) ?? value;
+            ConvertedValue = value = Conversion?.Execute(value) ?? value;
 
 			if (Resolution > 0)
             {

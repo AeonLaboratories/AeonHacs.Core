@@ -7,7 +7,7 @@ using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
-    public class EurothermFurnace : TubeFurnace, IEurothermFurnace,
+    public class EurothermFurnace : SerialTubeFurnace, IEurothermFurnace,
         EurothermFurnace.IConfig, EurothermFurnace.IDevice
     {
 
@@ -41,7 +41,7 @@ namespace AeonHacs.Components
 
         #region Device interfaces
 
-        public new interface IDevice : TubeFurnace.IDevice
+        public new interface IDevice : SerialTubeFurnace.IDevice
         {
             int SetpointRateLimit { get; set; }
             SetpointRateLimitUnitsCode SetpointRateLimitUnits { get; set; }
@@ -59,7 +59,7 @@ namespace AeonHacs.Components
             ControlTypeCode ControlType { get; set; }
 
         }
-        public new interface IConfig : TubeFurnace.IConfig
+        public new interface IConfig : SerialTubeFurnace.IConfig
         {
             int SetpointRateLimit { get; }
             SetpointRateLimitUnitsCode SetpointRateLimitUnits { get; }

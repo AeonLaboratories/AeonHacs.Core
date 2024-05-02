@@ -10,7 +10,7 @@ using System.Xml.Serialization;
 
 namespace AeonHacs
 {
-	public static class IntExtensions
+    public static class IntExtensions
 	{
 		/// <summary>
 		/// The least significant byte of an integer.
@@ -372,8 +372,20 @@ namespace AeonHacs
 			var actions = action.GetInvocationList().Cast<Action>().ToArray();
 			Parallel.Invoke(actions);
 		}
+
+		public static void ParallelInvoke(this Action action)
+		{
+			var actions = action.GetInvocationList().Cast<Action>().ToArray();
+			Parallel.Invoke(actions);
+		}
+
+		public static void ParallelInvoke(this Action action)
+		{
+			var actions = action.GetInvocationList().Cast<Action>().ToArray();
+			Parallel.Invoke(actions);
+		}
 	}
-	
+
 	public static class ColorExtensions
 	{
 		public static Color Blend(this Color color1, Color color2, double percent)

@@ -579,13 +579,19 @@ namespace AeonHacs.Components
         new Oven.IConfig Config { get; }
     }
 
+    public interface ISerialTubeFurnace : IOven, ITubeFurnace
+    {
+        new SerialTubeFurnace.IDevice Device { get; }
+        new SerialTubeFurnace.IConfig Config { get; }
+        SerialController SerialController { get; set; }
+        bool Ready { get; }
+    }
 
     public interface ITubeFurnace : IOven
     {
         new TubeFurnace.IDevice Device { get; }
         new TubeFurnace.IConfig Config { get; }
 
-        SerialController SerialController { get; set; }
         double TimeLimit { get; set; }
         bool UseTimeLimit { get; set; }
         double RampingSetpoint { get; }
@@ -595,9 +601,9 @@ namespace AeonHacs.Components
         new bool TurnOn();
         new bool TurnOff();
         void TurnOn(double setpoint, double minutes);
-        bool Ready { get; }
     }
-    public interface IEurotherm818Furnace : ITubeFurnace
+
+    public interface IEurotherm818Furnace : ISerialTubeFurnace
     {
         new Eurotherm818Furnace.IDevice Device { get; }
         new Eurotherm818Furnace.IConfig Config { get; }
@@ -608,7 +614,7 @@ namespace AeonHacs.Components
         int OutputPower { get; }
     }
 
-    public interface IEurothermFurnace : ITubeFurnace
+    public interface IEurothermFurnace : ISerialTubeFurnace
     {
         new EurothermFurnace.IDevice Device { get; }
         new EurothermFurnace.IConfig Config { get; }
@@ -623,7 +629,7 @@ namespace AeonHacs.Components
         new void TurnOn(double setpoint);
     }
 
-    public interface IMtiFurnace : ITubeFurnace 
+    public interface IMtiFurnace : ISerialTubeFurnace 
     {
         new MtiFurnace.IDevice Device { get; }
         new MtiFurnace.IConfig Config { get; }
@@ -631,7 +637,7 @@ namespace AeonHacs.Components
         byte InstrumentId { get; set; }
     }
 
-    public interface IInductionFurnace : ITubeFurnace 
+    public interface IInductionFurnace : ISerialTubeFurnace 
     {
         new InductionFurnace.IDevice Device { get; }
         new InductionFurnace.IConfig Config { get; }
@@ -2474,7 +2480,7 @@ namespace AeonHacs.Components
     public interface IExtractionLine : IProcessManager
     {
         Cegs CEGS { get; set; }
-        TubeFurnace TubeFurnace { get; set; }
+        SerialTubeFurnace TubeFurnace { get; set; }
         VacuumSystem VacuumSystem { get; set; }
         IManometer TubeFurnaceManometer { get; set; }
         MassFlowController MFC { get; set; }
