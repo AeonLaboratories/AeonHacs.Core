@@ -372,18 +372,6 @@ namespace AeonHacs
 			var actions = action.GetInvocationList().Cast<Action>().ToArray();
 			Parallel.Invoke(actions);
 		}
-
-		public static void ParallelInvoke(this Action action)
-		{
-			var actions = action.GetInvocationList().Cast<Action>().ToArray();
-			Parallel.Invoke(actions);
-		}
-
-		public static void ParallelInvoke(this Action action)
-		{
-			var actions = action.GetInvocationList().Cast<Action>().ToArray();
-			Parallel.Invoke(actions);
-		}
 	}
 
 	public static class ColorExtensions

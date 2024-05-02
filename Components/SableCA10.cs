@@ -1,12 +1,18 @@
-﻿using static AeonHacs.Utilities.Utility;
-using static LabJack.LabJackUD.LJUD;
+﻿using AeonHacs.Utilities;
+using static AeonHacs.Components.CegsPreferences;
+using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {
+    /// <summary>
+    /// Sable model CA10 carbon dioxide analyzer.
+    /// </summary>
     public class SableCA10 : SerialController
     {
+        Command StatusCommand { get; set; } = new Command() { Message = "?", ResponsesExpected = 1, Hurry = false };
+
         /// <summary>
-        /// Carbon dioxide percentage, pressure corrected % to 0.00001% (>= 1000 ppm) or 0.00001% (< 1000 ppm)
+        /// Carbon dioxide percentage, pressure corrected % to 0.0001% (&gt;= 1000 ppm) or 0.00001% (&lt; 1000 ppm)
         /// </summary>
         public double CO2Percent
         {
@@ -16,7 +22,12 @@ namespace AeonHacs.Components
         double co2Percent;
 
         /// <summary>
-        /// Carbon dioxide partial pressure in kPa to 0.0001 kPa (>= 1 kPa) or 0.00001 kPa (< 1 kPa)
+        /// Carbon dioxide content in parts per million
+        /// </summary>
+        public double CO2Ppm => CO2Percent * 10000; // 1000000 / 100 == 10000
+
+        /// <summary>
+        /// Carbon dioxide partial pressure in kPa to 0.0001 kPa (&gt;= 1 kPa) or 0.00001 kPa (&lt; 1 kPa)
         /// </summary>
         public double CO2PartialPressurekPa
         {
@@ -50,22 +61,16 @@ namespace AeonHacs.Components
         /// </summary>
         public SableCA10()
         {
-            DefaultCommand.Message = "?";
-            DefaultCommand.ResponsesExpected = 1;
-            DefaultCommand.Hurry = false;
-
             SelectServiceHandler = SelectService;
             ResponseProcessor = ValidateResponse;
         }
 
         /// <summary>
-        /// Always returns the DefaultCommand object Command("?", 1, false).
+        /// Always returns the StatusCommand.
         /// </summary>
-        /// <returns>Command("?", 1, false)</returns>
-        protected virtual Command SelectService()
-        {
-            return DefaultCommand;
-        }
+        /// <returns>Command { Message = &quot;?&quot;, ResponsesExpected = 1, Hurry = false }</returns>
+        protected virtual Command SelectService() => Stopping ? DefaultCommand : StatusCommand;
+
 
         #region controller response validation helpers
 
@@ -92,11 +97,11 @@ namespace AeonHacs.Components
         #endregion controller response validation helpers
 
         /// <summary>
-        /// 
+        /// Interprets the response and determines whether it is valid.
         /// </summary>
         /// <param name="response"></param>
-        /// <param name="which"></param>
-        /// <returns></returns>
+        /// <param name="which: when multiple responses are recieved, which one"></param>
+        /// <returns>Whether the response was valid.</returns>
         protected virtual bool ValidateResponse(string response, int which)
         {
             try
@@ -105,7 +110,18 @@ namespace AeonHacs.Components
                 if (lines.Length != 1) return false;
                 var line = 1;
 
-                var values = lines[0].GetValues();
+                //            1        2
+                // 012345678901234567890123456789
+                //"0.06203,0.05216,092.288,31.104"
+                var s = lines[0].TrimEnd();
+                if (s.Length != 30)
+                {
+                    if (LogEverything)
+                        Log?.Record($"Expected 30 characters in response, not {s.Length}.");                    
+                    return false;
+                }
+
+                var values = s.Split([',']);
                 if (LengthError(values, 4, "value", $"on controller data line {line}"))
                     return false;
 
@@ -126,6 +142,15 @@ namespace AeonHacs.Components
             }
             catch { return false; }
             return true;
+        }
+
+        public override string ToString()
+        {
+            var kPaToTorr = Torr / Pascal / 1000.0;
+            return $"{Name}: CO2 {CO2Ppm:0.0} ppm\r\n" +
+                IndentLines($"CO2 Pressure {CO2PartialPressurekPa * kPaToTorr:0.0e0} Torr\r\n" +
+                            $"Gas Pressure {BarometricPressurekPa * kPaToTorr:0.0e0} Torr\r\n" +
+                            $"Sensor Temperature {CellTemperature:0.001} °C");
         }
     }
 }
