@@ -14,17 +14,27 @@ namespace AeonHacs.Components
         private TcpClient client;
         private NetworkStream stream;
 
+        public bool Connected => client?.Connected ?? false;
+
         public async Task ConnectAsync(string host, int port)
         {
-            client = new TcpClient();
-            await client.ConnectAsync(host, port);
-            stream = client.GetStream();
+            try
+            {
+                client = new TcpClient();
+                await client.ConnectAsync(host, port);
+                stream = client.GetStream();
+            }
+            catch
+            {
+                client?.Dispose();
+                stream = null;
+            }
         }
 
         public async Task SendRequest(byte[] request)
         {
-            if (stream == null)
-                throw new InvalidOperationException("Connection not established");
+            if (stream == null) return;
+                //throw new InvalidOperationException("Connection not established");
             await stream.WriteAsync(request.AsMemory(0, request.Length));
         }
 
@@ -92,24 +102,11 @@ namespace AeonHacs.Components
             Port = port;
         }
 
-        public bool Connected
-        {
-            get => connected;
-            set => Ensure(ref connected, value);
-        }
-        bool connected = false;
+        public bool Connected => client?.Connected ?? false;
 
-        public async Task Connect()
-        {
-            await client.ConnectAsync(host, port);
-            Connected = true;
-        }
+        public async Task Connect() => await client.ConnectAsync(host, port);
 
-        public async Task SendMessage(byte[] txBuffer)
-        {
-            if (Connected)
-                await client.SendRequest(txBuffer);
-        }
+        public async Task SendMessage(byte[] txBuffer) => await client.SendRequest(txBuffer);
 
         public async Task<byte[]> ReceiveMessage()
         {
@@ -119,11 +116,7 @@ namespace AeonHacs.Components
             return rxBuffer;
         }
 
-        public void Disconnect()
-        {
-            client?.Close();
-            Connected = false;
-        }
+        public void Disconnect() => client?.Close();
 
         /// <summary>
         /// The assigned method provides a command message to the controller.
@@ -157,6 +150,5 @@ namespace AeonHacs.Components
             set => Ensure(ref idleTimeout, value);
         }
         int idleTimeout = 2000;
-
     }
 }
