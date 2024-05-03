@@ -145,5 +145,5 @@ namespace AeonHacs
     public enum AnalogInputMode { SingleEnded, Differential }
     public enum ThermocoupleType { None, K, T, J, E, N, B, C, D, R, S }
     public enum MassUnits { μmol, μg, mg, g }
-    public enum InletPortType { Combustion, Needle, Manual, GasSupply, TFCombustion }
+    public enum InletPortType { Combustion, Needle, Manual, GasSupply, TFCombustion, FlowThrough }
 }
