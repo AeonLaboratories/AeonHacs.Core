@@ -39,6 +39,7 @@ namespace AeonHacs.Components
             // check that the essentials are found
             //CegsNeeds(Power, nameof(Power));
             CegsNeeds(Ambient, nameof(Ambient));
+            CegsNeeds(VacuumSystem1, nameof(VacuumSystem1));
             CegsNeeds(IM, nameof(IM));
             CegsNeeds(VTT, nameof(VTT));
             CegsNeeds(MC, nameof(MC));
@@ -189,11 +190,11 @@ namespace AeonHacs.Components
         #region Data Logs
         public virtual DataLog AmbientLog { get; set; }
         public virtual DataLog VM1PressureLog { get; set; }
-        public virtual DataLog VM2PressureLog { get; set; }
         public virtual HacsLog SampleLog { get; set; }
         #endregion Data Logs
 
         public virtual IChamber Ambient { get; set; }
+        public virtual IVacuumSystem VacuumSystem1 { get; set; }
 
         public virtual ISection IM { get; set; }
         public virtual ISection CT { get; set; }
