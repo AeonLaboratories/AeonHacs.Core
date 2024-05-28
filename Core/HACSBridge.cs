@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Resources;
 using AeonHacs.Utilities;
+using System.Collections.Generic;
 
 namespace AeonHacs
 {
@@ -65,7 +66,8 @@ namespace AeonHacs
 					DefaultValueHandling = DefaultValueHandling.Populate,
 					Formatting = Formatting.Indented,
 					NullValueHandling = NullValueHandling.Include,
-					TypeNameHandling = TypeNameHandling.Auto
+                    FloatFormatHandling = FloatFormatHandling.String,
+                    TypeNameHandling = TypeNameHandling.Auto
 				};
 			}
 			else
@@ -79,10 +81,11 @@ namespace AeonHacs
 					Formatting = Formatting.Indented,
 					NullValueHandling = NullValueHandling.Include,
 					//NullValueHandling = NullValueHandling.Ignore,
+					FloatFormatHandling = FloatFormatHandling.String,
 					TypeNameHandling = TypeNameHandling.Auto
 				};
-			}
-		}
+            }
+        }
 
 		public override void Start()
 		{

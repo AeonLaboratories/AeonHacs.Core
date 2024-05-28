@@ -1,13 +1,11 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
-    public interface INamedValue : INamedObject, IValue { }
     public interface IVoltage { double Voltage { get; } }
     public interface ITemperature { double Temperature { get; } }
     public interface IPressure { double Pressure { get; } }
@@ -1425,6 +1423,10 @@ namespace AeonHacs.Components
         string LabId { get; set; }
         IInletPort InletPort { get; set; }
         string Process { get; set; }
+        List<Parameter> Parameters { get; set; }
+        double Parameter(string name);
+        void SetParameter(Parameter parameter);
+        void RemoveParameter(string name);
         bool SulfurSuspected { get; set; }
         bool Take_d13C { get; set; }
         /// <summary>
@@ -1506,8 +1508,8 @@ namespace AeonHacs.Components
         IHeater Heater { get; set; }
         IColdfinger Coldfinger { get; set; }
         IVTColdfinger VTColdfinger { get; set; }
-        bool Dirty { get; set; }
-        Action Clean { get; set; }
+//        bool Dirty { get; set; }
+//        Action Clean { get; set; }
     }
 
     public interface IFlowChamber : IChamber
@@ -1807,10 +1809,10 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// If the section is actively cooling, first wait until it is Frozen.
-        /// Then OpenAndEvacuate to CleanPressure, Isolate, and ensure
+        /// Then OpenAndEvacuate to pressure, Isolate, and ensure
         /// the coldfinger is Freezing.
         /// </summary>
-        void EmptyAndFreeze();
+        void EmptyAndFreeze(double pressure);
 
         /// <summary>
         /// Ensure the coldfinger is fully Frozen.
@@ -2152,7 +2154,6 @@ namespace AeonHacs.Components
         void Stop();
     }
 
-
     public interface IProcessManager : IHacsBase
     {
         AlertManager AlertManager { get; set; }
@@ -2165,7 +2166,7 @@ namespace AeonHacs.Components
         StepTracker ProcessSubStep { get;  }
         string ProcessToRun { get; set; }
         ProcessManager.ProcessTypeCode ProcessType { get; }
-
+        ProcessSequence CurrentProcessSequence { get; }
         bool RunCompleted { get; }
         bool Busy { get; }
         void RunProcess(string processToRun);
@@ -2176,8 +2177,8 @@ namespace AeonHacs.Components
     public interface IProcessSequence : IHacsComponent
     {
         InletPortType PortType { get; set; }
-        List<string> CheckList { get; set; }
         List<ProcessSequenceStep> Steps { get; set; }
+        List<string> CheckList { get; set; }
         ProcessSequence Clone();
     }
 
@@ -2196,6 +2197,15 @@ namespace AeonHacs.Components
     public interface IWaitMinutesStep : IProcessSequenceStep
     {
         int Minutes { get; set; }
+    }
+
+    public interface IParameterStep : IProcessSequenceStep
+    {
+        Parameter Parameter { get; }
+    }
+    public interface IParametersStep : IProcessSequenceStep
+    {
+        List<Parameter> Parameters { get; set; }
     }
 
     public interface IVolumeCalibration : IHacsComponent

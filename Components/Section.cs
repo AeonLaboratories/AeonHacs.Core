@@ -280,19 +280,19 @@ namespace AeonHacs.Components
         }
         IFlowManager flowManager;
 
-        /// <summary>
-        /// Gets whether any of the Chambers are Dirty, or sets
-        /// them all Dirty.
-        /// </summary>
-        public bool Dirty
-        {
-            get => Chambers.Find(x => x.Dirty) is IChamber c;
-            set
-            {
-                Chambers.ForEach(x => x.Dirty = value);
-                NotifyPropertyChanged();
-            }
-        }
+        ///// <summary>
+        ///// Gets whether any of the Chambers are Dirty, or sets
+        ///// them all Dirty.
+        ///// </summary>
+        //public bool Dirty
+        //{
+        //    get => Chambers.Find(x => x.Dirty) is IChamber c;
+        //    set
+        //    {
+        //        Chambers.ForEach(x => x.Dirty = value);
+        //        NotifyPropertyChanged();
+        //    }
+        //}
 
         protected StepTracker StepTracker => StepTracker.Default; 
 
@@ -601,14 +601,14 @@ namespace AeonHacs.Components
         /// Then OpenAndEvacuate to CleanPressure, Isolate, and ensure
         /// the coldfinger is Freezing.
         /// </summary>
-        public virtual void EmptyAndFreeze()
+        public virtual void EmptyAndFreeze(double pressure)
         {
             var coldfinger = VTColdfinger?.Coldfinger ?? Coldfinger;
             if (coldfinger?.IsActivelyCooling ?? false)
                 WaitForFrozen(true);
             OpenAndEvacuate();
-            StepTracker?.Start($"Wait for {CleanPressure} Torr");
-            VacuumSystem.WaitForStablePressure(CleanPressure);
+            StepTracker?.Start($"Wait for {pressure} Torr");
+            VacuumSystem.WaitForStablePressure(pressure);
             StepTracker?.End();
             Isolate();
             Freeze();
@@ -692,7 +692,8 @@ namespace AeonHacs.Components
         {
             //TODO flesh out
             var sb = new StringBuilder();
-            sb.Append($"{Name}{(Dirty ? " (Dirty)" : "")}");
+            //sb.Append($"{Name}{(Dirty ? " (Dirty)" : "")}");
+            sb.Append($"{Name}");
             if (Manometer != null)
                 sb.Append(Environment.NewLine + Utility.IndentLines(Manometer.ToString()));
             if (Thermometer != null)

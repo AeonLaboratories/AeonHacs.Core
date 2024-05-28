@@ -59,7 +59,29 @@ namespace AeonHacs.Components
 		}
 		string process;
 
-		[JsonProperty]
+        [JsonProperty]
+        public List<Parameter> Parameters
+        {
+            get => parameters;
+            set => Ensure(ref parameters, value);
+        }
+        List<Parameter> parameters = [];
+
+        public virtual double Parameter(string name) =>
+            Parameters?.Find(x => x.ParameterName == name) is Parameter p && p.ParameterName == name ?
+                p.Value : double.NaN;
+
+        public void SetParameter(Parameter parameter)
+        {
+            RemoveParameter(parameter.ParameterName);
+            Parameters.Add(parameter);
+        }
+
+        public void RemoveParameter(string name) =>
+            Parameters.RemoveAll(p => p.ParameterName == name);
+
+
+        [JsonProperty]
 		public bool SulfurSuspected
 		{
 			get => sulfurSuspected;

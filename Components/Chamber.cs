@@ -90,13 +90,13 @@ namespace AeonHacs.Components
 		IVTColdfinger vtColdfinger;
 
 
-		[JsonProperty]
-		public virtual bool Dirty
-		{
-			get => dirty;
-			set => Ensure(ref dirty, value);
-		}
-		bool dirty;
+		//[JsonProperty]
+		//public virtual bool Dirty
+		//{
+		//	get => dirty;
+		//	set => Ensure(ref dirty, value);
+		//}
+		//bool dirty;
 
 		public virtual Action Clean { get; set; }
 
@@ -110,8 +110,9 @@ namespace AeonHacs.Components
 		{
 			//TODO flesh out
 			var sb = new StringBuilder();
-			sb.Append($"{Name}{(Dirty ? " (Dirty)" : "")}");
-			if (Manometer != null)
+            //sb.Append($"{Name}{(Dirty ? " (Dirty)" : "")}");
+            sb.Append($"{Name}");
+            if (Manometer != null)
 				sb.Append(Environment.NewLine + Utility.IndentLines(Manometer.ToString()));
 			if (Thermometer != null)
 				sb.Append(Environment.NewLine + Utility.IndentLines(Thermometer.ToString()));

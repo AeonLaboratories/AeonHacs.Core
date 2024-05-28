@@ -728,11 +728,75 @@ namespace AeonHacs.Components
         #region Process Management
 
         /// <summary>
+        /// Sets the named process control parameter to the given value.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        protected void SetParameter(string name, double value) => 
+            SetParameter(new Parameter() { ParameterName = name, Value = value });
+
+        /// <summary>
+        /// Sets a new parameter.
+        /// </summary>
+        /// <param name="parameter"></param>
+        public override void SetParameter(Parameter parameter)
+        {
+            if (Sample == null)
+                CegsPreferences.SetParameter(parameter);
+            else
+                Sample.SetParameter(parameter);
+        }
+
+        /// <summary>
+        /// Get the current value of the named parameter.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public double GetParameter(string name) => Sample?.Parameter(name) ?? CegsPreferences.Parameter(name);
+
+        /// <summary>
+        /// Sets the parameter to double.NaN.
+        /// </summary>
+        /// <param name="name"></param>
+        protected void ClearParameter(string name) => SetParameter(name, double.NaN);
+
+        public double PressureOverAtm => GetParameter("PressureOverAtm");
+        public double OkPressure => GetParameter("OkPressure");
+        public double CleanPressure => GetParameter("CleanPressure");
+        public double VPInitialHePressure => GetParameter("VPInitialHePressure");
+        public double VPErrorPressure => GetParameter("VPErrorPressure");
+        public double MaximumResidual => GetParameter("MaximumResidual");
+        public double IMO2Pressure => GetParameter("IMO2Pressure");
+        public double FirstTrapBleedPressure => GetParameter("FirstTrapBleedPressure");
+        public double FirstTrapEndPressure => GetParameter("FirstTrapEndPressure");
+        public double FirstTrapFlowBypassPressure => GetParameter("FirstTrapFlowBypassPressure");
+        public double IronPreconditionH2Pressure => GetParameter("IronPreconditionH2Pressure");
+        public double IMPluggedTorrPerSecond => GetParameter("IMPluggedTorrPerSecond");
+        public double IMLoadedTorrPerSecond => GetParameter("IMLoadedTorrPerSecond");
+        public double GRCompleteTorrPerMinute => GetParameter("GRCompleteTorrPerMinute");
+        public double RoomTemperature => GetParameter("RoomTemperature");
+        public double SulfurTrapTemperature => GetParameter("SulfurTrapTemperature");
+        public double IronPreconditioningTemperature => GetParameter("IronPreconditioningTemperature");
+        public double IronPreconditioningTemperatureCushion => GetParameter("IronPreconditioningTemperatureCushion");
+        public double CollectionMinutes => GetParameter("CollectionMinutes");
+        public double ExtractionMinutes => GetParameter("ExtractionMinutes");
+        public double CO2TransferMinutes => GetParameter("CO2TransferMinutes");
+        public double MeasurementSeconds => GetParameter("MeasurementSeconds");
+        public double IronPreconditioningMinutes => GetParameter("IronPreconditioningMinutes");
+        public double QuartzFurnaceWarmupMinutes => GetParameter("QuartzFurnaceWarmupMinutes");
+        public double SulfurTrapMinutes => GetParameter("SulfurTrapMinutes");
+        public double H2_CO2GraphitizationRatio => GetParameter("H2_CO2GraphitizationRatio");
+        public double H2DensityAdjustment => GetParameter("H2DensityAdjustment");
+        public double SmallSampleMicrogramsCarbon => GetParameter("SmallSampleMicrogramsCarbon");
+        public double MinimumUgCThatPermits_d13CSplit => GetParameter("MinimumUgCThatPermits_d13CSplit");
+        public double DilutedSampleMicrogramsCarbon => GetParameter("DilutedSampleMicrogramsCarbon");
+        public double MaximumSampleMicrogramsCarbon => GetParameter("MaximumSampleMicrogramsCarbon");
+
+        /// <summary>
         /// This method must be provided by the derived class.
         /// </summary>
         protected virtual void OverrideNeeded([CallerMemberName] string caller = default) =>
             Warn("Program Error", $"{Name} needs an override for {caller}().");
-
 
         protected virtual void SampleRecord(ISample sample) { }
         protected virtual void SampleRecord(IAliquot aliquot) {}
@@ -955,7 +1019,7 @@ namespace AeonHacs.Components
             ProcessSubStep.End();
         }
 
-        protected virtual void TurnOffIPFurnace() => 
+        protected virtual void TurnOffIPFurnaces() => 
             InletPort?.TurnOffFurnaces();
 
         protected virtual void HeatQuartz(bool openLine)
@@ -968,7 +1032,7 @@ namespace AeonHacs.Components
                 InletPort.State == LinePort.States.Prepared)
                 InletPort.State = LinePort.States.InProcess;
             if (openLine) OpenLine();
-            WaitRemaining(QuartzFurnaceWarmupMinutes);
+            WaitRemaining((int)QuartzFurnaceWarmupMinutes);
 
             if (InletPort.NotifySampleFurnaceNeeded)
             {
@@ -1348,13 +1412,13 @@ namespace AeonHacs.Components
 				gsInert.Admit(PressureOverAtm);
 				GM.Isolate();
 				WaitSeconds(10);
-				var p0 = GM.Manometer.WaitForAverage(MeasurementSeconds);
+				var p0 = GM.Manometer.WaitForAverage((int)MeasurementSeconds);
                 var gmMilliLiters = GM.CurrentVolume(true);
                 gr.Open();
                 WaitSeconds(5);
                 gr.Close();
                 WaitSeconds(5);
-                var p1 = GM.Manometer.WaitForAverage(MeasurementSeconds);
+                var p1 = GM.Manometer.WaitForAverage((int)MeasurementSeconds);
 
                 ProcessSubStep.Start($"Calibrate {gr.Manometer.Name}");
                 // TODO: make this safe and move it into AIVoltmeter
@@ -1389,7 +1453,7 @@ namespace AeonHacs.Components
                 });
                 ProcessStep.End();
 
-                int targetTemp = IronPreconditioningTemperature - IronPreconditioningTemperatureCushion;
+                int targetTemp = (int)IronPreconditioningTemperature - (int)IronPreconditioningTemperatureCushion;
                 ProcessStep.Start("Wait for GRs to reach " + targetTemp.ToString() + " °C.");
                 while (AnyUnderTemp(grs, targetTemp)) Wait();
                 ProcessStep.End();
@@ -1403,13 +1467,13 @@ namespace AeonHacs.Components
                     ProcessStep.End();
                 }
 
-                ProcessStep.Start("Precondition iron for " + MinutesString(IronPreconditioningMinutes));
+                ProcessStep.Start("Precondition iron for " + MinutesString((int)IronPreconditioningMinutes));
                 if (IronPreconditionH2Pressure > 0)
                 {
                     GM.OpenAndEvacuate(OkPressure);
                     OpenLine();
                 }
-                WaitRemaining(IronPreconditioningMinutes);
+                WaitRemaining((int)IronPreconditioningMinutes);
                 ProcessStep.End();
 
                 if (IronPreconditionH2Pressure > 0)
@@ -1618,6 +1682,8 @@ namespace AeonHacs.Components
                     Notice.Type.Tell);
                 return;
             }
+
+            CegsPreferences.DefaultParameters.ForEach(Sample.SetParameter);
 
             SampleLog.WriteLine("");
             SampleLog.Record(
@@ -1862,7 +1928,7 @@ namespace AeonHacs.Components
 
         #region Collect
 
-        protected virtual void FreezeVtt() => VTT.EmptyAndFreeze();
+        protected virtual void FreezeVtt() => VTT.EmptyAndFreeze(CleanPressure);
 
         protected virtual void IpFreezeToTrap(ISection trap)
         {
@@ -1889,7 +1955,7 @@ namespace AeonHacs.Components
             ProcessStep.End();
 
             ProcessStep.Start($"Evacuate and Freeze {trap.Name}");
-            trap.EmptyAndFreeze();
+            trap.EmptyAndFreeze(CleanPressure);
             trap.WaitForFrozen();
             ProcessStep.End();
 
@@ -1897,9 +1963,9 @@ namespace AeonHacs.Components
             im_trap.Close();
             InletPort.State = LinePort.States.InProcess;
             InletPort.Open();
-            trap.Dirty = true;
+            //trap.Dirty = true;
             im_trap.Open();
-            WaitMinutes(CollectionMinutes);
+            WaitMinutes((int)CollectionMinutes);
             trap.Isolate();
             InletPort.Close();
             InletPort.State = LinePort.States.Complete;
@@ -1920,7 +1986,7 @@ namespace AeonHacs.Components
         protected virtual void TransferCO2FromCTToVTT()
         {
             TransferCO2(FirstTrap, VTT);
-            VTT.Dirty = true;
+            //VTT.Dirty = true;
         }
 
         protected virtual void Bleed(ISection trap, double bleedPressure)
@@ -2028,7 +2094,7 @@ namespace AeonHacs.Components
             FirstTrap.Close();          // close any bypass valve
             FirstTrap.Evacuate();       // start evacuation
             InletPort.PathToFirstTrap.Last().Open();
-            FirstTrap.Dirty = true;
+            //FirstTrap.Dirty = true;
 
             // Control flow valve to maintain constant downstream pressure until flow valve is fully opened.
             //SampleLog.Record($"Bleed pressure: {FirstTrapBleedPressure} Torr");
@@ -2089,7 +2155,7 @@ namespace AeonHacs.Components
             ProcessSubStep.End();
 
             VTT_MC.Open();
-            WaitMinutes(ExtractionMinutes);
+            WaitMinutes((int)ExtractionMinutes);
             ftcMC.RaiseLN();
 
             MC.Manometer.WaitForStable(5);
@@ -2181,9 +2247,12 @@ namespace AeonHacs.Components
             WaitForMCStable();
 
             // this is the measurement; a negative sample mass confounds H2 calculation, so it is disallowed
-            double ugC = Math.Max(0, ugCinMC.WaitForAverage(MeasurementSeconds));
-            Sample.SelectedMicrogramsCarbon = ugC;
-            ApportionAliquots();
+            double ugC = Math.Max(0, ugCinMC.WaitForAverage((int)MeasurementSeconds));
+            if (Sample != null)
+            {
+                Sample.SelectedMicrogramsCarbon = ugC;
+                ApportionAliquots();
+            }
 
             string yield = "";
 
@@ -2221,10 +2290,10 @@ namespace AeonHacs.Components
                 MC.VacuumSystem.Evacuate(CleanPressure);
 
                 ZeroMC();
-                if (Sample.AliquotsCount < 3)
+                if ((Sample?.AliquotsCount ?? 1) < 3)
                 {
                     MC.Ports[1].Close();
-                    if (Sample.AliquotsCount < 2) MC.Ports[0].Close();
+                    if ((Sample?.AliquotsCount ?? 1) < 2) MC.Ports[0].Close();
                     Wait(5000);
                 }
                 ProcessStep.End();
@@ -2327,7 +2396,7 @@ namespace AeonHacs.Components
 
             ProcessStep.Start("Trap sulfur.");
             SampleLog.Record(
-                $"Trap sulfur in {gr.Name} at {SulfurTrapTemperature} °C for {MinutesString(SulfurTrapMinutes)}");
+                $"Trap sulfur in {gr.Name} at {SulfurTrapTemperature} °C for {MinutesString((int)SulfurTrapMinutes)}");
             ftc.Thaw();
             gr.TurnOn(SulfurTrapTemperature);
             ProcessSubStep.Start($"Wait for {gr.Name} to reach sulfur trapping temperature (~{SulfurTrapTemperature} °C).");
@@ -2335,8 +2404,8 @@ namespace AeonHacs.Components
                 Wait();
             ProcessSubStep.End();
 
-            ProcessSubStep.Start("Hold for " + MinutesString(SulfurTrapMinutes));
-            Wait(SulfurTrapMinutes * 60000);
+            ProcessSubStep.Start("Hold for " + MinutesString((int)SulfurTrapMinutes));
+            Wait((int)SulfurTrapMinutes * 60000);
             ProcessSubStep.End();
 
             h.TurnOff();
@@ -2396,7 +2465,7 @@ namespace AeonHacs.Components
             gs.Pressurize(initialTargetPressure);
             gs.IsolateFromVacuum();
 
-            double pInitial = meter.WaitForAverage(MeasurementSeconds);
+            double pInitial = meter.WaitForAverage((int)MeasurementSeconds);
             if (port.Coldfinger?.IsActivelyCooling ?? false)
                 port.Coldfinger.RaiseLN();
 
@@ -2406,7 +2475,7 @@ namespace AeonHacs.Components
             port.Close();
             ProcessSubStep.End();
             WaitSeconds(5);
-            double pFinal = meter.WaitForAverage(MeasurementSeconds);
+            double pFinal = meter.WaitForAverage((int)MeasurementSeconds);
             return new double[] { pInitial, pFinal };
         }
 
@@ -2494,7 +2563,7 @@ namespace AeonHacs.Components
         protected virtual void Dilute()
         {
             if (Sample == null || DilutedSampleMicrogramsCarbon <= SmallSampleMicrogramsCarbon || Sample.TotalMicrogramsCarbon > SmallSampleMicrogramsCarbon) return;
-            Clean(VTT);
+            //Clean(VTT);
             TransferCO2FromMCToVTT();
             AdmitDeadCO2(DilutedSampleMicrogramsCarbon - Sample.TotalMicrogramsCarbon);
             TransferCO2FromMCToVTT();   // add the dilution gas to the sample
@@ -2527,7 +2596,7 @@ namespace AeonHacs.Components
 
         protected virtual void Clean(ISection section)
         {
-            if (!section.Dirty) return;
+            //if (!section.Dirty) return;
 
             ProcessStep.Start($"Clean {section.Name}");
             var vtc = section.VTColdfinger;
@@ -2576,7 +2645,7 @@ namespace AeonHacs.Components
             }
 
             section.VacuumSystem.WaitForPressure(OkPressure);
-            section.Dirty = false;
+            //section.Dirty = false;
             ProcessStep.End();
         }
 
@@ -2609,7 +2678,6 @@ namespace AeonHacs.Components
                 DivideAliquots();
                 FreezeAliquots();
                 GraphitizeAliquots();
-                OpenLine();
             }
             catch (Exception e) { Notice.Send(e.ToString()); }
         }
@@ -2643,7 +2711,7 @@ namespace AeonHacs.Components
                 toSection.Freeze();
             }
             else
-                toSection.EmptyAndFreeze();
+                toSection.EmptyAndFreeze(CleanPressure);
 
             // start thawing
             fromSection.Thaw();
@@ -2658,7 +2726,7 @@ namespace AeonHacs.Components
             ProcessSubStep.End();
 
             ProcessSubStep.Start("Wait for CO2 transfer complete.");
-            WaitMinutes(CO2TransferMinutes);
+            WaitMinutes((int)CO2TransferMinutes);
             ProcessSubStep.End();
 
             if (toSection.VTColdfinger == null && toSection.Coldfinger == null)
@@ -2833,7 +2901,7 @@ namespace AeonHacs.Components
             }
             ProcessSubStep.End();
 
-            WaitMinutes(CO2TransferMinutes);
+            WaitMinutes((int)CO2TransferMinutes);
 
             grDone = false;
             d13CDone = d13CPort == null;
@@ -2958,8 +3026,8 @@ namespace AeonHacs.Components
             im.VacuumSystem.Isolate();
             MC_Split.Open();
 
-            ProcessSubStep.Start($"Wait {MinutesString(CO2TransferMinutes)} for CO2 to freeze into {InletPort.Name}");
-            WaitMinutes(CO2TransferMinutes);
+            ProcessSubStep.Start($"Wait {MinutesString((int)CO2TransferMinutes)} for CO2 to freeze into {InletPort.Name}");
+            WaitMinutes((int)CO2TransferMinutes);
             ProcessSubStep.End();
 
             Alert("Operator Needed", $"Raise {InletPort.Name} LN.");
@@ -3030,7 +3098,7 @@ namespace AeonHacs.Components
 
                 ProcessSubStep.Start($"get p0");
                 WaitMinutes(1);
-                var p0 = MC.Manometer.WaitForAverage(MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
+                var p0 = MC.Manometer.WaitForAverage((int)MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
                 ProcessSubStep.End();
 
                 // When compared to p2, p1 reveals the volume
@@ -3039,7 +3107,7 @@ namespace AeonHacs.Components
                 ProcessSubStep.Start($"get p1");
                 volumeCalibrationPortValve.Open();
                 WaitMinutes(1);
-                var p1 = MC.Manometer.WaitForAverage(MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
+                var p1 = MC.Manometer.WaitForAverage((int)MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
                 ProcessSubStep.End();
 
                 // When compared to p0, p2 reveals the valve's
@@ -3048,7 +3116,7 @@ namespace AeonHacs.Components
                 ProcessSubStep.Start($"get p2");
                 volumeCalibrationPortValve.Close();
                 WaitMinutes(1);
-                var p2 = MC.Manometer.WaitForAverage(MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
+                var p2 = MC.Manometer.WaitForAverage((int)MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
                 SampleLog.Record($"{p0:0.00000}\t{p1:0.00000}\t{p2:0.00000}");
                 t2sum += p0 / p1 - 1;
                 t3sum += p0 / p2 - 1;
@@ -3157,7 +3225,7 @@ namespace AeonHacs.Components
                 grs.ForEach(gr =>
                 {
                     WaitSeconds(30);
-                    var pInitial = gm.Manometer.WaitForAverage(MeasurementSeconds);
+                    var pInitial = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
 
                     ProcessSubStep.Start($"Admit H2 into {gr.Name}");
                     gr.Coldfinger.RaiseLN();
@@ -3167,7 +3235,7 @@ namespace AeonHacs.Components
                     WaitSeconds(60);
                     ProcessSubStep.End();
 
-                    var pFinal = gm.Manometer.WaitForAverage(MeasurementSeconds);
+                    var pFinal = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
 
                     // pFinal is the pressure in the cold GR with n particles of H2,
                     // whereas p would be the pressure if the GR were at the GM temperature.
@@ -3505,7 +3573,7 @@ namespace AeonHacs.Components
             ProcessStep.Start("Measure transfer efficiency");
             if (ugCinMC < Sample.Micrograms * 0.8)
             {
-                VTT.Dirty = false;  // keep cold
+                //VTT.Dirty = false;  // keep cold
                 OpenLine();
                 MC.VacuumSystem.WaitForPressure(CleanPressure);
                 AdmitDeadCO2();

@@ -8,7 +8,7 @@ namespace AeonHacs.Components
     /// <summary>
     /// A device capable of automatic temperature control.
     /// </summary>
-    public class Oven : Thermometer, IAuto, IOven, Oven.IDevice, Oven.IConfig
+    public class Oven : Thermometer, IOven, Oven.IDevice, Oven.IConfig
     {
         #region Device interfaces
 

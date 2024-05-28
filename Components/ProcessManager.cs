@@ -1,16 +1,14 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading;
-using AeonHacs.Utilities;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {
-	public class ProcessManager : HacsBase, IProcessManager
+    public class ProcessManager : HacsBase, IProcessManager
     {
 		#region HacsComponent
 
@@ -245,40 +243,42 @@ namespace AeonHacs.Components
 		}
 
 		#region ProcessSequences
-
-		// The derived class can implement a Combust() process
-		// (if it doesn't those steps won't do anything)
-		protected virtual void Combust(int temperature, int minutes, bool admitO2, bool openLine, bool waitForSetpoint) { }
+        public ProcessSequence CurrentProcessSequence { get; set; } = null;
 
         void RunProcessSequence()
         {
-			//TODO how was this done elsewhere (added Find(s) method to NamedObject class)
-            ProcessSequence ps = ProcessSequences.Values.ToList().Find(x => x?.Name == ProcessToRun);
+            CurrentProcessSequence = ProcessSequences.Values.ToList().Find(x => x?.Name == ProcessToRun);
 
-            if (ps == null)
+            if (CurrentProcessSequence == null)
                 throw new Exception("No such Process Sequence: \"" + ProcessToRun + "\"");
 
-            foreach (ProcessSequenceStep step in ps.Steps)
+            foreach (ProcessSequenceStep step in CurrentProcessSequence.Steps)
             {
                 ProcessStep.Start(step.Name);
                 if (step is CombustionStep cs)
                     Combust(cs.Temperature, cs.Minutes, cs.AdmitO2, cs.OpenLine, cs.WaitForSetpoint);
                 else if (step is WaitMinutesStep wms)
                     WaitMinutes(wms.Minutes);       // this is provided by ProcessManager
+                else if (step is ParameterStep sps)
+                    SetParameter(sps.Parameter);
                 else
                     ProcessDictionary[step.Name]();
                 ProcessStep.End();
             }
+            CurrentProcessSequence = null;
         }
 
+        #region parameterized process steps
+        public virtual void SetParameter(Parameter parameter) { }
 
-        #region parameterized processes
-        // these require added functionality in the ProcessSequenceStep class
+        // The derived class can implement a Combust() process
+        // (if it doesn't those steps won't do anything)
+        protected virtual void Combust(int temperature, int minutes, bool admitO2, bool openLine, bool waitForSetpoint) { }
 
         public void WaitMinutes(int minutes)
         { WaitMilliseconds("Wait " + MinutesString(minutes) + ".", minutes * 60000); }
 
-        #endregion parameterized processes
+        #endregion parameterized process steps
 
         #endregion ProcessSequences
 
