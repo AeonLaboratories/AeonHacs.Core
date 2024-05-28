@@ -62,7 +62,7 @@ namespace AeonHacs.Components
         bool useTimeLimit;
 
         /// <summary>
-        /// The "SetpointRamped" working setpoint. If no SetpointRamp 
+        /// The "SetpointRamp" working setpoint. If no SetpointRamp 
         /// has been defined, this is the same as Setpoint.
         /// </summary>
         public double RampingSetpoint => SetpointRamp?.WorkingSetpoint ?? Setpoint;

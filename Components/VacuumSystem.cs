@@ -18,6 +18,14 @@ namespace AeonHacs.Components
     /// </summary>
     public class VacuumSystem : HacsComponent, IVacuumSystem
     {
+        static List<VacuumSystem> systems { get; } = new();
+
+        public VacuumSystem()
+        {
+            systems.Add(this);
+        }
+
+
         #region HacsComponent
 
         [HacsConnect]
@@ -45,7 +53,7 @@ namespace AeonHacs.Components
         [HacsPreStop]
         protected virtual void PreStop()
         {
-            if (!BackingValve.IsOpened)
+            if (!BackingValve.IsOpened && TargetState != TargetStateCode.Standby)
                 Isolate();
         }
 

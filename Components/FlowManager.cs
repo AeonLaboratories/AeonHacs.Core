@@ -1,9 +1,9 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Threading;
-using AeonHacs.Utilities;
+using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {
@@ -240,6 +240,13 @@ namespace AeonHacs.Components
         /// </summary>
         public void Start() => Start(TargetValue);
 
+        public bool Looping
+        {
+            get => looping;
+            set => Ensure(ref looping, value);
+        }
+        bool looping;
+
         /// <summary>
         /// Start managing the flow with this new TargetValue
         /// </summary>
@@ -253,7 +260,9 @@ namespace AeonHacs.Components
                 Name = $"{FlowValve.Name} FlowManager",
                 IsBackground = true
             };
+            Looping = false;
             managerThread.Start();
+            WaitFor(() => Looping, -1, 100);
         }
 
         /// <summary>
@@ -300,8 +309,8 @@ namespace AeonHacs.Components
             var moved = false;
             var ppr = gain;         // Positions per dRateOfChange
             var gscale = 1.0;       // gain scaling factor, for adaptive gain
-            var manageRate = UseRateOfChange || Lag > secondsCycle;
 
+            Looping = true;
             while (!(stopRequested || StopOnFullyOpened && FlowValve.IsOpened || StopOnFullyClosed && FlowValve.IsClosed))
             {
                 value = Meter.Value;
@@ -309,6 +318,7 @@ namespace AeonHacs.Components
                 pos = FlowValve.Position;
 
                 var anticipatedValue = value + roc * Lag;
+                var manageRate = UseRateOfChange || Lag > secondsCycle || Math.Abs(roc) > MaximumRate;
                 var error = manageRate ?
                     (UseRateOfChange ? roc : anticipatedValue) - TargetValue :
                     value - TargetValue;
@@ -351,9 +361,12 @@ namespace AeonHacs.Components
                             ppr = DigitalFilter.WeightedUpdate(newPpr, ppr, 0.95);
                     }
 
-                    var movement = manageRate ? 
-                        ppr * (targetRate - roc) :  // manage roc   // NOTE: targetRate - roc is analogous to -error
-                        g * -error;                 // manage value
+                    var errorBasedMovement = g * -error;
+                    var rateBasedMovement = ppr * (targetRate - roc); // targetRate - roc is analogous to -error
+
+                    var movement = manageRate ?
+                        rateBasedMovement :  // manage roc   
+                        errorBasedMovement;  // manage value
 
                     ProcessStep.End();
                     if (manageRate)

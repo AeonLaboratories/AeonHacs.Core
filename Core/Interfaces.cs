@@ -63,16 +63,17 @@ namespace AeonHacs
 	}
 
 	public interface IValue { double Value { get; } }
+    public interface INamedValue : INamedObject, IValue { }
 
-	// Update(), in this interface, is for classes that provide
-	// a Value that is in some way related to supplied number, but
-	// the relationship is not necessarily a simple or direct
-	// dependency. Value might have different units than the
-	// supplied number, or it may also depend on prior values, 
-	// or on conditions not related to the supplied value.
-	// However, in all cases, the object's Value is updated 
-	// when it receives a number.
-	public interface IDoubleUpdatable : IValue
+    // Update(), in this interface, is for classes that provide
+    // a Value that is in some way related to supplied number, but
+    // the relationship is not necessarily a simple or direct
+    // dependency. Value might have different units than the
+    // supplied number, or it may also depend on prior values, 
+    // or on conditions not related to the supplied value.
+    // However, in all cases, the object's Value is updated 
+    // when it receives a number.
+    public interface IDoubleUpdatable : IValue
 	{
 		double Update(double value);
 	}

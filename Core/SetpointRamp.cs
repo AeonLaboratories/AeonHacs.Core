@@ -7,8 +7,6 @@ using AeonHacs.Utilities;
 namespace AeonHacs
 {
 
-    // TODO: Where should this class reside?
-
     /// <summary>
     /// This class ramps the Setpoint to programmed levels at 
     /// the given rate.

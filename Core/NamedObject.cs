@@ -9,222 +9,236 @@ using System.Text;
 
 namespace AeonHacs
 {
-	[JsonObject(MemberSerialization.OptIn)]
-	public class NamedObject : BindableObject, INamedObject
-	{
-		static readonly Dictionary<string, INamedObject> dict = new Dictionary<string, INamedObject>();
+    [JsonObject(MemberSerialization.OptIn)]
+    public class NamedObject : BindableObject, INamedObject
+    {
+        static readonly Dictionary<string, INamedObject> dict = new Dictionary<string, INamedObject>();
 
-		static readonly Dictionary<Type, IList> cachedLists = new Dictionary<Type, IList>();
+        static readonly Dictionary<Type, IList> cachedLists = new Dictionary<Type, IList>();
 
-		static object dictionaryLocker = new object();
+        static object dictionaryLocker = new object();
 
-		/// <summary>
-		/// Returns default if name is invalid or the named object is not the specified type.
-		/// Throws KeyNotFoundException if name is valid but not present in dictionary.
-		/// </summary>
-		public static T Find<T>(string name) where T : class
-		{
-			if (string.IsNullOrWhiteSpace(name))
-				return default;
+        /// <summary>
+        /// Returns default if name is invalid or the named object is not the specified type.
+        /// Throws KeyNotFoundException if name is valid but not present in dictionary.
+        /// </summary>
+        public static T Find<T>(string name) where T : class
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return default;
 
-			INamedObject entry = null;
+            INamedObject entry = null;
 
-			lock(dictionaryLocker)
-				if (!dict.TryGetValue(name, out entry))
-					return default;
+            lock(dictionaryLocker)
+                if (!dict.TryGetValue(name, out entry))
+                    return default;
 
-			if (entry is NamedObjectList list)
-				return (T)list.FirstOrDefault(item => item is T);
-			if (entry is T obj)
-				return obj;
+            // TODO: Is the above safe? Correct? Shouldn't it simply be this? 
+            //
+            //lock (dictionaryLocker)
+            //    dict.TryGetValue(name, out entry);
 
-			return default;
-		}
+            // or maybe this?
+            //
+            //var found = false;
+            //lock (dictionaryLocker)
+            //    found = dict.TryGetValue(name, out entry);
+            //if (!found)
+            //    return default;
 
-		public static List<INamedObject> FindAll(string name)
-		{
-			var result = new List<INamedObject>();
-			lock (dictionaryLocker)
-			{
-				if (dict.TryGetValue(name, out INamedObject item))
-				{
-					if (item is NamedObjectList list)
-						result.AddRange(list);
-					else
-						result.Add(item);
-				}
-			}
-			return result;
-		}
 
-		public static List<T> FindAll<T>() where T : INamedObject
-		{
-			var list = new List<T>();
-			lock (dictionaryLocker)
-			{
-				foreach (var obj in dict.Values)
-				{
-					if (obj is NamedObjectList l)
-						l.ForEach(item => { if (item is T li) list.Add(li); });
-					else if (obj is T i)
-						list.Add(i);
-				}
-			}
-			return list;
-		}
+            if (entry is NamedObjectList list)
+                return (T)list.FirstOrDefault(item => item is T);
+            if (entry is T obj)
+                return obj;
 
-		public static List<T> CachedList<T>() where T : INamedObject
-		{
-			var type = typeof(T);
-			List<T> result;
+            return default;
+        }
 
-			if (!cachedLists.ContainsKey(type))
-				result = (List<T>)(cachedLists[type] = FindAll<T>());
-			else
-				result = (List<T>)cachedLists[type];
+        public static List<INamedObject> FindAll(string name)
+        {
+            var result = new List<INamedObject>();
+            lock (dictionaryLocker)
+            {
+                if (dict.TryGetValue(name, out INamedObject item))
+                {
+                    if (item is NamedObjectList list)
+                        result.AddRange(list);
+                    else
+                        result.Add(item);
+                }
+            }
+            return result;
+        }
 
-			return result;
-		}
+        public static List<T> FindAll<T>() where T : INamedObject
+        {
+            var list = new List<T>();
+            lock (dictionaryLocker)
+            {
+                foreach (var obj in dict.Values)
+                {
+                    if (obj is NamedObjectList l)
+                        l.ForEach(item => { if (item is T li) list.Add(li); });
+                    else if (obj is T i)
+                        list.Add(i);
+                }
+            }
+            return list;
+        }
 
-		private static void addCached(INamedObject o)
-		{
-			if (o?.GetType() is Type t)
-			{
-				if (!cachedLists.ContainsKey(t))
-					return;
-				cachedLists[t].Add(o);
-			}
-		}
+        public static List<T> CachedList<T>() where T : INamedObject
+        {
+            var type = typeof(T);
+            List<T> result;
 
-		private static void removeCached(INamedObject o)
-		{
-			if (o?.GetType() is Type t)
-			{
-				if (!cachedLists.ContainsKey(t))
-					return;
-				cachedLists[t].Remove(o);
-			}
-		}
+            if (!cachedLists.ContainsKey(type))
+                result = (List<T>)(cachedLists[type] = FindAll<T>());
+            else
+                result = (List<T>)cachedLists[type];
 
-		/// <summary>
-		/// Returns null if names is null.
-		/// Throws an exception if any name is valid but not present in dictionary.
-		/// </summary>
-		public static List<T> FindAll<T>(List<string> names) where T : class
-		{
-			if (names is null)
-				return default;
-			var list = new List<T>();
-			names.ForEach(name => list.Add(Find<T>(name)));
-			return list;
-		}
+            return result;
+        }
 
-		public static List<T> FindAll<T>(Predicate<T> match) where T : INamedObject => FindAll<T>().FindAll(match);
+        private static void addCached(INamedObject o)
+        {
+            if (o?.GetType() is Type t)
+            {
+                if (!cachedLists.ContainsKey(t))
+                    return;
+                cachedLists[t].Add(o);
+            }
+        }
 
-		public static T FirstOrDefault<T>() where T : INamedObject => FindAll<T>().FirstOrDefault();
+        private static void removeCached(INamedObject o)
+        {
+            if (o?.GetType() is Type t)
+            {
+                if (!cachedLists.ContainsKey(t))
+                    return;
+                cachedLists[t].Remove(o);
+            }
+        }
 
-		public static T FirstOrDefault<T>(Func<T, bool> match) where T : INamedObject => FindAll<T>().FirstOrDefault(match);
+        /// <summary>
+        /// Returns null if names is null.
+        /// Throws an exception if any name is valid but not present in dictionary.
+        /// </summary>
+        public static List<T> FindAll<T>(List<string> names) where T : class
+        {
+            if (names is null)
+                return default;
+            var list = new List<T>();
+            names.ForEach(name => list.Add(Find<T>(name)));
+            return list;
+        }
 
-		private static void remove(INamedObject o)
-		{
-			var name = o?.Name;
-			if (string.IsNullOrWhiteSpace(name))
-				return;
-			lock (dictionaryLocker)
-			{
-				if (dict.ContainsKey(name))
-				{
-					if (dict[name] == o)
-						dict.Remove(name);
-					else if (dict[name] is NamedObjectList list)
-					{
-						list.Remove(o);
-						if (list.Count == 1)
-							dict[name] = list[0];
-					}
-				}
-			}
-		}
+        public static List<T> FindAll<T>(Predicate<T> match) where T : INamedObject => FindAll<T>().FindAll(match);
 
-		private static void add(INamedObject o)
-		{
-			var name = o?.Name;
-			if (string.IsNullOrWhiteSpace(name))
-			{
-				removeCached(o);
-				return;
-			}
+        public static T FirstOrDefault<T>() where T : INamedObject => FindAll<T>().FirstOrDefault();
 
-			lock (dictionaryLocker)
-			{
-				if (!dict.ContainsKey(name))
-				{
-					dict[name] = o;
-					addCached(o);
-				}
-				else
-				{
-					var o0 = dict[name];
-					if (o0 != o)
-					{
-						if (o0.GetType() == o.GetType())
-							return;
+        public static T FirstOrDefault<T>(Func<T, bool> match) where T : INamedObject => FindAll<T>().FirstOrDefault(match);
 
-						if (o0 is NamedObjectList list)
-						{
-							if (list.FirstOrDefault(x => x.GetType() == o.GetType()) != null)
-								return;
-						}
-						else
-							list = new NamedObjectList(o0);
+        private static void remove(INamedObject o)
+        {
+            var name = o?.Name;
+            if (string.IsNullOrWhiteSpace(name))
+                return;
+            lock (dictionaryLocker)
+            {
+                if (dict.ContainsKey(name))
+                {
+                    if (dict[name] == o)
+                        dict.Remove(name);
+                    else if (dict[name] is NamedObjectList list)
+                    {
+                        list.Remove(o);
+                        if (list.Count == 1)
+                            dict[name] = list[0];
+                    }
+                }
+            }
+        }
 
-						list.Add(o);
-						dict[name] = list;
-						addCached(o);
-					}
-				}
-			}
-		}
+        private static void add(INamedObject o)
+        {
+            var name = o?.Name;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                removeCached(o);
+                return;
+            }
 
-		[JsonProperty(Order = -99)]
-		public virtual string Name
-		{
-			get => name;
-			set
-			{
-				remove(this);
-				Set(ref name, value);
-				add(this);
-			}
-		}
-		string name;
+            lock (dictionaryLocker)
+            {
+                if (!dict.ContainsKey(name))
+                {
+                    dict[name] = o;
+                    addCached(o);
+                }
+                else
+                {
+                    var o0 = dict[name];
+                    if (o0 != o)
+                    {
+                        if (o0.GetType() == o.GetType())
+                            return;
 
-		~NamedObject() => remove(this);
+                        if (o0 is NamedObjectList list)
+                        {
+                            if (list.FirstOrDefault(x => x.GetType() == o.GetType()) != null)
+                                return;
+                        }
+                        else
+                            list = new NamedObjectList(o0);
 
-		public override string ToString() => Name;
+                        list.Add(o);
+                        dict[name] = list;
+                        addCached(o);
+                    }
+                }
+            }
+        }
 
-		internal class NamedObjectList : List<INamedObject>, INamedObject
-		{
+        [JsonProperty(Order = -99)]
+        public virtual string Name
+        {
+            get => name;
+            set
+            {
+                remove(this);
+                Set(ref name, value);
+                add(this);
+            }
+        }
+        string name;
 
-			public string Name
-			{ 
-				get => name;
-				set { name = value; NotifyPropertyChanged(); }
-			}
-			string name;
+        ~NamedObject() => remove(this);
 
-			public NamedObjectList(INamedObject o)
-			{
-				Name = o.Name;
-				Add(o);
-			}
+        public override string ToString() => Name;
 
-			public event PropertyChangedEventHandler PropertyChanged;
-			protected virtual void NotifyPropertyChanged([CallerMemberName] string propertyName = "") =>
-				NotifyPropertyChanged(this, PropertyChangedEventArgs(propertyName));
-			protected virtual void NotifyPropertyChanged(object sender, PropertyChangedEventArgs e) =>
-				PropertyChanged?.Invoke(sender, e);
+        internal class NamedObjectList : List<INamedObject>, INamedObject
+        {
 
-		}
-	}
+            public string Name
+            { 
+                get => name;
+                set { name = value; NotifyPropertyChanged(); }
+            }
+            string name;
+
+            public NamedObjectList(INamedObject o)
+            {
+                Name = o.Name;
+                Add(o);
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+            protected virtual void NotifyPropertyChanged([CallerMemberName] string propertyName = "") =>
+                NotifyPropertyChanged(this, PropertyChangedEventArgs(propertyName));
+            protected virtual void NotifyPropertyChanged(object sender, PropertyChangedEventArgs e) =>
+                PropertyChanged?.Invoke(sender, e);
+
+        }
+    }
 }

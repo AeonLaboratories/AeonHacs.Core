@@ -356,7 +356,7 @@ namespace AeonHacs.Components
             frame[1] = (byte)LSB(tid);
             frame[2] = 0;                           // protocol ID MSB
             frame[3] = 0;                           // protocol ID LSB
-            frame[4] = (byte)MSB(7+byteCount);      // length MSB: bytes to follow
+            frame[4] = (byte)MSB(7 + byteCount);    // length MSB: bytes to follow
             frame[5] = (byte)LSB(7 + byteCount);    // length LSB: bytes to follow
             frame[6] = 0xFF;                        // Unit ID (0xFF == not used)
             frame[7] = (byte)FunctionCode.Write;    // function code
@@ -389,6 +389,15 @@ namespace AeonHacs.Components
         }
         byte[] command = [];
 
+
+        public byte[] Response
+        {
+            get => response;
+            set => Ensure(ref response, value);
+        }
+        byte[] response = [];
+
+
         protected byte[] SelectService()
         {
             if (Device.Setpoint != Config.Setpoint)
@@ -414,6 +423,7 @@ namespace AeonHacs.Components
         {
             try
             {
+                Response = response;
                 var cmd = Command;       // TODO potential thread safety issue
                 //if (LogEverything) Log.Record("Response to command: " + cmd);
 
@@ -436,7 +446,7 @@ namespace AeonHacs.Components
                     int bytesIn = response[8];
                     int wordsIn = bytesIn / 2;
                     if (wordsIn != wordsRequested)
-                        throw new Exception("read parameter count mismatcch");
+                        throw new Exception("read parameter count mismatch");
 
                     int[] values = new int[wordsIn];
                     for (int i = 0, j = 9; i < wordsIn; i++)
@@ -486,7 +496,7 @@ namespace AeonHacs.Components
                     }
 
                     Device.OnOffState =
-                        (OperatingMode == AutoManualCode.Manual && Device.ControlOutput == 0) ||
+                        (OperatingMode == AutoManualCode.Manual && Device.ControlOutput <= 0) ||
                         (OperatingMode == AutoManualCode.Auto && Setpoint == 0) ?
                         OnOffState.Off : OnOffState.On;
                          

@@ -1,18 +1,16 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
-using AeonHacs.Utilities;
-using static AeonHacs.Components.CegsPreferences;
 
 namespace AeonHacs.Components
 {
-	// TODO Get magic numbers into settings file
-	// TODO consider deriving from a new class that wraps Chamber or Section and IStateManager (and get rid of Update())
-	// TODO incorporate post-Update() logic from CEGS.cs into this class
-	public class GraphiteReactor : Port, IGraphiteReactor
+    // TODO Get magic numbers into settings file
+    // TODO consider deriving from a new class that wraps Chamber or Section and IStateManager (and get rid of Update())
+    // TODO incorporate post-Update() logic from CEGS.cs into this class
+    public class GraphiteReactor : Port, IGraphiteReactor
 	{
 		#region HacsComponent
 		[HacsConnect]
@@ -253,7 +251,7 @@ namespace AeonHacs.Components
 					}
 					else if (elapsed >= 3.0)
 						State = States.Stop;
-					else if (PriorPressure - Pressure > GRCompleteTorrPerMinute * elapsed)
+					else if (PriorPressure - Pressure > Sample.Parameter("GRCompleteTorrPerMinute") * elapsed)
 					{
 						PriorPressure = Pressure;
 						ProgressStopwatch.Restart();
