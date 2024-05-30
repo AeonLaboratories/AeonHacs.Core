@@ -390,7 +390,10 @@ namespace AeonHacs.Components
         Stopwatch operationStateStopwatch = new Stopwatch();
         IActuatorOperation operation = null;
         bool stopping = false;
+
+        int current = 0;
         bool pushed = false;
+        
         void OperateActuator()
         {
             var a = CurrentActuator;
@@ -535,6 +538,7 @@ namespace AeonHacs.Components
                 return OperationState.AwaitingMotion;
             }
 
+            current = a.Current;
             if (LastCommand != "g")
             {
                 SetServiceValues("g");
@@ -555,7 +559,7 @@ namespace AeonHacs.Components
         // OperationState == AwaitingMotion
         OperationState CheckForMotion(ICpwActuator a)
         {
-            if (a.Current > a.IdleCurrentLimit) pushed = true;
+            if (a.Current > current + 10) pushed = true;
             if (a.InMotion || a.MotionInhibited || a is IRS232Valve v && v.EnoughMatches)
                 return OperationState.AwaitingStopped;
 
