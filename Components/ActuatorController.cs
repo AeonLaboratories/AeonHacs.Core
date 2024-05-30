@@ -398,7 +398,6 @@ namespace AeonHacs.Components
         {
             var a = CurrentActuator;
             bool done = false;
-            pushed = false;
 
             if (LogEverything && State != priorState)
 			{
@@ -412,7 +411,8 @@ namespace AeonHacs.Components
 
             switch (State)
             {
-                case OperationState.Free:                    
+                case OperationState.Free:
+                    pushed = false;
                     State = InitiateOperation(a);
                     break;
                 case OperationState.Configuring:
@@ -422,6 +422,7 @@ namespace AeonHacs.Components
                     State = ConfirmConfiguration(a);
                     break;
                 case OperationState.Going:
+                    current = a.Current;
                     State = CommandGo(a);
                     break;
                 case OperationState.AwaitingMotion:
@@ -436,6 +437,8 @@ namespace AeonHacs.Components
                 default:
                     break;
             }
+            if (a.Current > current + 10) pushed = true;
+
             if (State == OperationState.Free) done = true;
             if (State == OperationState.Failed)
             {
@@ -538,7 +541,6 @@ namespace AeonHacs.Components
                 return OperationState.AwaitingMotion;
             }
 
-            current = a.Current;
             if (LastCommand != "g")
             {
                 SetServiceValues("g");
@@ -559,7 +561,6 @@ namespace AeonHacs.Components
         // OperationState == AwaitingMotion
         OperationState CheckForMotion(ICpwActuator a)
         {
-            if (a.Current > current + 10) pushed = true;
             if (a.InMotion || a.MotionInhibited || a is IRS232Valve v && v.EnoughMatches)
                 return OperationState.AwaitingStopped;
 
