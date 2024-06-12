@@ -17,7 +17,7 @@ namespace AeonHacs.Components
             base.Connect();
             QuartzFurnace = Find<IHeater>(quartzFurnaceName);
             SampleFurnace = Find<IOven>(sampleFurnaceName);
-            PathToFirstTrap = FindAll<IValve>(pathToVTTValveNames);
+            //PathToFirstTrap = FindAll<IValve>(pathToVTTValveNames);
         }
 
         #endregion HacsComponent
@@ -76,20 +76,20 @@ namespace AeonHacs.Components
         }
         IOven sampleFurnace;
 
-        [JsonProperty("PathToFirstTrap")]
-        List<string> PathToFirstTrapValveNames { get => PathToFirstTrap?.Names(); set => pathToVTTValveNames = value; }
-        List<string> pathToVTTValveNames;
+        //[JsonProperty("PathToFirstTrap")]
+        //List<string> PathToFirstTrapValveNames { get => PathToFirstTrap?.Names(); set => pathToVTTValveNames = value; }
+        //List<string> pathToVTTValveNames;
         /// <summary>
         /// Ordered list of valves between the InletPort chamber and the
         /// CO2 collection trap chamber, including the IP port valve and 
         /// a valve on the CO2 collection chamber perimeter.
         /// </summary>
-        public List<IValve> PathToFirstTrap
-        {
-            get => pathToFirstTrap;
-            set => Ensure(ref pathToFirstTrap, value);
-        }
-        List<IValve> pathToFirstTrap;
+        //public List<IValve> PathToFirstTrap
+        //{
+        //    get => pathToFirstTrap;
+        //    set => Ensure(ref pathToFirstTrap, value);
+        //}
+        //List<IValve> pathToFirstTrap;
 
         public virtual void TurnOffFurnaces()
         {

@@ -1542,7 +1542,7 @@ namespace AeonHacs.Components
         int WarmTemperature { get; set; }
         IHeater QuartzFurnace { get; set; }
         IOven SampleFurnace { get; set; }
-        List<IValve> PathToFirstTrap { get; set; }
+        //List<IValve> PathToFirstTrap { get; set; }
         void TurnOffFurnaces();
     }
 
@@ -1658,12 +1658,12 @@ namespace AeonHacs.Components
         double CurrentVolume(bool includePorts);
 
         /// <summary>
-        /// If the Section comprises a single FlowChamber, this is its flow valve.
+        /// The flow valve controlled by FlowManager.
         /// </summary>
         IRxValve FlowValve { get; }
 
         /// <summary>
-        /// If the Section comprises a single FlowChamber, this is its FlowManager.
+        /// This FlowManager controls the flow of gas through the Section.
         /// </summary>
         IFlowManager FlowManager { get; }
 

@@ -971,12 +971,20 @@ namespace AeonHacs.Components
 
         #region Valve operations
 
-        protected virtual void ExerciseAllValves()
+        protected virtual void ExerciseAllValves() => ExerciseAllValves(0);
+        
+        protected virtual void ExerciseAllValves(int secondsBetween)
         {
             ProcessStep.Start("Exercise all opened valves");
-            foreach (var v in Valves?.Values) 
+            foreach (var v in Valves?.Values)
                 if ((v is CpwValve || v is PneumaticValve) && v.IsOpened)
+                {
+                    ProcessSubStep.Start($"Exercising {v.Name}");
                     v.Exercise();
+                    if (secondsBetween > 0 )
+                        WaitSeconds(secondsBetween);
+                    ProcessSubStep.End();
+                }
             ProcessStep.End();
         }
 
@@ -1628,7 +1636,7 @@ namespace AeonHacs.Components
         /// </summary>
         protected virtual void EnsureProcessStartConditions()
         {
-            VacuumSystems.Values.ToList().ForEach(vs => vs.AutoManometer = true);
+            //VacuumSystems.Values.ToList().ForEach(vs => vs.AutoManometer = true);
             //FindAll<GasSupply>().ForEach(gs => gs.ShutOff());
         }
 
@@ -2037,11 +2045,21 @@ namespace AeonHacs.Components
             im.ClosePorts();
             im.Isolate();
 
+            var im_trap = FirstOrDefault<Section>(s =>
+                s.Chambers?.First() == im.Chambers?.First() &&
+                s.Chambers?.Last() == FirstTrap.Chambers?.Last());
+            if (im_trap == null)
+            {
+                Warn("Configuration error", $"Can't find Section linking {im.Name} and {FirstTrap.Name}");
+                return;
+            }
+
             InletPort.State = LinePort.States.InProcess;
+            InletPort.Open();
 
             // open all but the last valve to the first trap
-            var vLast = InletPort.PathToFirstTrap?.Last();
-            InletPort.PathToFirstTrap.ForEach(v =>
+            var vLast = im_trap.InternalValves?.Last();
+            im_trap.InternalValves?.ForEach(v =>
             {
                 if (v != vLast)
                     v.OpenWait();
@@ -2093,7 +2111,20 @@ namespace AeonHacs.Components
             FirstTrap.FlowValve.CloseWait();
             FirstTrap.Close();          // close any bypass valve
             FirstTrap.Evacuate();       // start evacuation
-            InletPort.PathToFirstTrap.Last().Open();
+
+            if (!IpIm(out ISection im)) return;
+            var im_trap = FirstOrDefault<Section>(s =>
+                s.Chambers?.First() == im.Chambers?.First() &&
+                s.Chambers?.Last() == FirstTrap.Chambers?.Last());
+            if (im_trap == null)
+            {
+                Warn("Configuration error", $"Can't find Section linking {im.Name} and {FirstTrap.Name}");
+                return;
+            }
+            var vLast = im_trap.InternalValves?.Last();
+
+            // Open the last valve
+            vLast?.OpenWait();
             //FirstTrap.Dirty = true;
 
             // Control flow valve to maintain constant downstream pressure until flow valve is fully opened.
@@ -2112,8 +2143,16 @@ namespace AeonHacs.Components
             // (does nothing by default).
             FinishBleed();
 
+            // TODO: This procedure is clumsy and limiting. Replace it with a better, generalized version.
+            var v = InletPort.Valve;
+            ProcessSubStep.Start($"Waiting to close {v.Name}");
+            Wait(5000);
+            WaitFor(() => FirstTrap.Pressure < FirstTrapEndPressure && !FirstTrap.Manometer.IsRising);
+            v.CloseWait();
+            ProcessSubStep.End();
+
             // Close the Sample Source-to-VTT path
-            InletPort.PathToFirstTrap.ForEach(v =>
+            im_trap.InternalValves.ForEach(v =>
             {
                 ProcessSubStep.Start($"Waiting to close {v.Name}");
                 Wait(5000);
@@ -2121,6 +2160,7 @@ namespace AeonHacs.Components
                 v.CloseWait();
                 ProcessSubStep.End();
             });
+
 
             // Isolate the trap once the pressure has stabilized
             ProcessSubStep.Start($"Waiting to isolate {FirstTrap.Name} from vacuum");

@@ -437,6 +437,7 @@ namespace AeonHacs.Components
                 default:
                     break;
             }
+            // if the current ever goes above what it was just before 'go' was commanded
             if (a.Current > current + 10) pushed = true;
 
             if (State == OperationState.Free) done = true;
@@ -453,9 +454,9 @@ namespace AeonHacs.Components
             {
                 a.OperationFailed = State == OperationState.Failed;
                 if (a.OperationFailed)
-                    SystemLog.Record($"{operation?.Name} {a.Name} failed.");
+                    SystemLog.Record($"{operation?.Name ?? "(null)"} {a.Name} failed.");
                 else if (!pushed)
-                    SystemLog.Record($"{operation?.Name} {a.Name} didn't push.");
+                    SystemLog.Record($"{operation?.Name ?? "(null)"} {a.Name} didn't push.");
 
                 if (a.Device.Active) a.Device.Active = false;
                 State = OperationState.Free;
@@ -473,7 +474,7 @@ namespace AeonHacs.Components
             stopping = false;
             a.Device.Active = true;
 
-            SystemLog.Record($"{operation?.Name} {a.Name}");
+            SystemLog.Record($"{operation?.Name ?? "(null)"} {a.Name}");
 
             if (LogEverything)
             {

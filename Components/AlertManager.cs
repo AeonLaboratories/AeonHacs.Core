@@ -222,7 +222,10 @@ namespace AeonHacs.Components
 				if (SmtpInfo == null)
 					errorMessage += $"(No Email account configured)\r\n";
 				else
+				{
 					errorMessage += $"(Check Email configuration in '{SmtpInfo.CredentialsFilename}'.)\r\n";
+					errorMessage += $"Exception: { e.Message}\r\n";
+				}
 				errorMessage += $"\r\nRespond Ok to continue or Cancel to disable Alerts";
 				if (Notice.Send(errorCaption, errorMessage, Notice.Type.Warn).Text != "Ok")
 				{
