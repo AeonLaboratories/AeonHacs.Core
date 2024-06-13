@@ -736,19 +736,16 @@ namespace AeonHacs.Components
             SetParameter(new Parameter() { ParameterName = name, Value = value });
 
         /// <summary>
-        /// Sets a new parameter.
+        /// Sets a process control parameter for the current Sample. Ignored if
+        /// Sample is null.
         /// </summary>
         /// <param name="parameter"></param>
-        public override void SetParameter(Parameter parameter)
-        {
-            if (Sample == null)
-                CegsPreferences.SetParameter(parameter);
-            else
-                Sample.SetParameter(parameter);
-        }
+        public override void SetParameter(Parameter parameter) => 
+            Sample?.SetParameter(parameter);
 
         /// <summary>
-        /// Get the current value of the named parameter.
+        /// Return the current value of the Sample's process control parameter with the given name, 
+        /// unless Sample is null, in which case return the value from CegsPreferences instead.
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
