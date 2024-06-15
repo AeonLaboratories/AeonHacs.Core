@@ -85,7 +85,18 @@ namespace AeonHacs
 	{
 		public static int ToInt(this double n) =>
 			Convert.ToInt32(n);
-	}
+
+        /// <summary>
+        /// Whether x is a number (not NaN and not Infinity).
+        /// </summary>
+        public static bool IsANumber(this double x) => !(double.IsNaN(x) || double.IsInfinity(x));
+
+        /// <summary>
+        /// Whether x is NaN.
+        /// </summary>
+        public static bool IsNaN(this double x) => double.IsNaN(x);
+
+    }
 
     public static class CharExtensions
 	{

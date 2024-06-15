@@ -749,7 +749,15 @@ namespace AeonHacs.Components
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public double GetParameter(string name) => Sample?.Parameter(name) ?? CegsPreferences.Parameter(name);
+        public double GetParameter(string name)
+        {
+            if (ProcessSequenceIsRunning)
+                return Sample?.Parameter(name) ?? CegsPreferences.Parameter(name);
+            else if (Sample != null && !double.IsNaN(Sample.Parameter(name)))
+                return Sample.Parameter(name);
+            else
+                return CegsPreferences.Parameter(name);
+        }
 
         /// <summary>
         /// Sets the parameter to double.NaN.
@@ -1401,7 +1409,7 @@ namespace AeonHacs.Components
             GM.Isolate();
             grs.ForEach(gr => gr.Open());
             GM.OpenAndEvacuate(OkPressure);
-            WaitForStablePressure(GM.VacuumSystem, OkPressure);        // this might be excessive
+            WaitForStablePressure(GM.VacuumSystem, OkPressure);
             ProcessSubStep.End();
 
             ProcessSubStep.Start($"Zero GR manometers.");
@@ -2754,7 +2762,7 @@ namespace AeonHacs.Components
             fromSection.Thaw();
 
             ProcessStep.Start("Wait for transfer start conditions.");
-            WaitFor(() => toSection.Frozen && fromSection.Temperature > CO2TransferStartTemperature);
+            // TODO RESTORE DEBUG WaitFor(() => toSection.Frozen && fromSection.Temperature > CO2TransferStartTemperature);
             ProcessStep.End();
 
             ProcessSubStep.Start($"Join {toSection.Name} to {fromSection.Name}");

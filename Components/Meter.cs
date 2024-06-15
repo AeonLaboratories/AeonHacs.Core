@@ -293,12 +293,18 @@ namespace AeonHacs.Components
 			if (Sensitivity > 0 && Math.Abs(value) <= Sensitivity)
 				value = 0;
 
+			var wasStable = IsStable;
+			var wasFalling = IsFalling;
+			var wasRising = IsRising;
 			RateOfChange?.Update(value);
+            if (IsStable != wasStable) NotifyPropertyChanged(nameof(IsStable));
+            if (IsFalling != wasFalling) NotifyPropertyChanged(nameof(IsFalling));
+            if (IsRising != wasRising) NotifyPropertyChanged(nameof(IsRising));
 
-			//if (Name == "ugCinMC" || Name == "tMC")
-			//	MetersLog.Record($"{Name}: raw: {rawValue:0.00000000}, filtered: {filteredValue:0.00000000}, final: {finalValue:0.00000000}, roc: {RateOfChange?.Value:0.00000000}");
+            //if (Name == "ugCinMC" || Name == "tMC")
+            //	MetersLog.Record($"{Name}: raw: {rawValue:0.00000000}, filtered: {filteredValue:0.00000000}, final: {finalValue:0.00000000}, roc: {RateOfChange?.Value:0.00000000}");
 
-			Value = value;
+            Value = value;
 
             return Value;
 		}
