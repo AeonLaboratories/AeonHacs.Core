@@ -2729,7 +2729,7 @@ namespace AeonHacs.Components
 
         #endregion Sample extraction and measurement
 
-        #region Transfer CO2` between chambers
+        #region Transfer CO2 between chambers
 
         // No foolproofing. All sections and coldfingers must be defined,
         // and the combined section must be named as expected.
@@ -3039,8 +3039,6 @@ namespace AeonHacs.Components
         }
 
 
-
-
         /// This functionality is implementation-dependent.
         /// <summary>
         /// Transfer CO2 from the MC to the IP.
@@ -3221,7 +3219,7 @@ namespace AeonHacs.Components
             //});
         }
 
-        // all of the listed grs need must be on the same manifold
+        // all of the listed grs must be on the same manifold
         protected virtual void CalibrateGRH2(List<IGraphiteReactor> grs)
         {
             grs.ForEach(gr => 
