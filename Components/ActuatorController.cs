@@ -391,7 +391,8 @@ namespace AeonHacs.Components
         IActuatorOperation operation = null;
         bool stopping = false;
 
-        int current = 0;
+        int initialCurrent = 0;
+        int peakCurrent = 0;
         bool pushed = false;
         
         void OperateActuator()
@@ -412,6 +413,7 @@ namespace AeonHacs.Components
             switch (State)
             {
                 case OperationState.Free:
+                    peakCurrent = 0;
                     pushed = false;
                     State = InitiateOperation(a);
                     break;
@@ -422,7 +424,7 @@ namespace AeonHacs.Components
                     State = ConfirmConfiguration(a);
                     break;
                 case OperationState.Going:
-                    current = a.Current;
+                    initialCurrent = a.Current;
                     State = CommandGo(a);
                     break;
                 case OperationState.AwaitingMotion:
@@ -437,9 +439,6 @@ namespace AeonHacs.Components
                 default:
                     break;
             }
-            // if the current ever goes above what it was just before 'go' was commanded
-            if (a.Current > current + 10) pushed = true;
-
             if (State == OperationState.Free) done = true;
             if (State == OperationState.Failed)
             {
@@ -452,11 +451,28 @@ namespace AeonHacs.Components
             }
             if (done)
             {
+                // if the current ever went significantly above what it was just before 'go' was commanded
+                if (peakCurrent > initialCurrent + 10) pushed = true;
+
+                string sysLogEntry;
+                if (operation?.Name == ServiceRequest)
+                    sysLogEntry = $"{ServiceRequest ?? "(null)"} {a.Name}";
+                else
+                    sysLogEntry = $"{ServiceRequest} => {operation?.Name ?? "(null)"} {a.Name}";
+
                 a.OperationFailed = State == OperationState.Failed;
                 if (a.OperationFailed)
-                    SystemLog.Record($"{ServiceRequest ?? "(null)"} {a.Name} failed.");
+                    sysLogEntry += ": failed.";
                 else if (!pushed)
-                    SystemLog.Record($"{operation?.Name ?? "(null)"} {a.Name} didn't push.");
+                {
+                    sysLogEntry += " (didn't push)";
+                    //Alert(); ? Retry?
+                }
+                else // temporary, to collect typical current peaks
+                {
+                    sysLogEntry += $", current {initialCurrent} => {peakCurrent}";
+                }
+                SystemLog.Record(sysLogEntry);
 
                 if (a.Device.Active) a.Device.Active = false;
                 State = OperationState.Free;
@@ -473,11 +489,6 @@ namespace AeonHacs.Components
             a.Device.Operation = operation;
             stopping = false;
             a.Device.Active = true;
-
-            if (operation?.Name == ServiceRequest)
-                SystemLog.Record($"{ServiceRequest ?? "(null)"} {a.Name}");
-            else
-                SystemLog.Record($"{ServiceRequest} => {operation?.Name ?? "(null)"} {a.Name}");
 
             if (LogEverything)
             {
@@ -624,6 +635,8 @@ namespace AeonHacs.Components
 
             if (!aStopped)
             {
+                // monitor current here, as evidence that the actuator is working
+                if (a.Current > peakCurrent) peakCurrent = a.Current;
                 if (LastCommand != "r")
                 {
                     if (LogEverything) Log?.Record($"Waiting {20} ms for the device to stop.");
