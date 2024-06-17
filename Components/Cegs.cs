@@ -828,10 +828,29 @@ namespace AeonHacs.Components
             GasSupply("He", section) ?? GasSupply("Ar", section);
 
         /// <summary>
-        /// The first Section that contains the given port.
+        /// Find the smallest Section that contains the port and has a manometer. 
+        /// Note: It usually is, but might not actually be, a manifold.
         /// </summary>
-        protected virtual Section Manifold(IPort port) =>
-            FirstOrDefault<Section>(s => s.Ports?.Contains(port) ?? false);
+        /// <param name="port"></param>
+        /// <returns>The section found, or null if there isn't one</returns>
+        protected virtual Section Manifold(IPort port)
+        {
+            var sections = FindAll<Section>(s => (s.Ports?.Contains(port) ?? false) && s.Manometer != null);
+            if (sections == null) return null;
+            if (sections.Count == 0) return null;
+            var smallest = sections.First();
+            var smallestVolume = smallest.MilliLiters;
+            foreach (var s in sections)
+            {
+                if (s.MilliLiters > 0  && (smallestVolume <= 0 || s.MilliLiters < smallestVolume))
+                {
+                    smallest = s;
+                    smallestVolume = s.MilliLiters;
+                }
+            }
+            return smallest;
+        }
+
 
         /// <summary>
         /// Gets InletPort's manifold.

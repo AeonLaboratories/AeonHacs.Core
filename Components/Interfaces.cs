@@ -464,6 +464,7 @@ namespace AeonHacs.Components
         void WaitForStable(int seconds);
         double WaitForAverage(int seconds);
         void ZeroNow();
+        void ZeroNow(bool waitToFinish);
         bool Zeroing { get; }
     }
 

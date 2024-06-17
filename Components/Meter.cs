@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {
@@ -383,12 +384,28 @@ namespace AeonHacs.Components
 			}
 		}
 
+        /// <summary>
+        /// Start averaging the next &lt;ZerosToAverage&gt; readings, asynchronously. Returns immediately.
+		/// (Later, once the required number of readings have been averaged, the meter's zero offset is 
+		/// updated automatically.)
+        /// </summary>
+        public virtual void ZeroNow() => ZeroNow(false);
 
         /// <summary>
-        /// Reset the zero-offset value, based on the next several readings.
+        /// Reset the zero-offset value, based on the next &lt;ZerosToAverage&gt; readings.
         /// </summary>
-		public virtual void ZeroNow()
-		{ if (!Zeroing) Zeroing = true; }
+		public virtual void ZeroNow(bool waitToFinish = false)
+		{
+			if (!Zeroing)
+			{
+				Zeroing = true;
+				if (waitToFinish)
+				{
+					WaitFor(() => !Zeroing);
+					// Now, it's zeroed
+				}
+            }
+        }
 
 		void offset(double offset)
 		{
