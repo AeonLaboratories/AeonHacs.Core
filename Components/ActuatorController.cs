@@ -454,7 +454,7 @@ namespace AeonHacs.Components
             {
                 a.OperationFailed = State == OperationState.Failed;
                 if (a.OperationFailed)
-                    SystemLog.Record($"{operation?.Name ?? "(null)"} {a.Name} failed.");
+                    SystemLog.Record($"{ServiceRequest ?? "(null)"} {a.Name} failed.");
                 else if (!pushed)
                     SystemLog.Record($"{operation?.Name ?? "(null)"} {a.Name} didn't push.");
 
@@ -474,7 +474,10 @@ namespace AeonHacs.Components
             stopping = false;
             a.Device.Active = true;
 
-            SystemLog.Record($"{operation?.Name ?? "(null)"} {a.Name}");
+            if (operation?.Name == ServiceRequest)
+                SystemLog.Record($"{ServiceRequest ?? "(null)"} {a.Name}");
+            else
+                SystemLog.Record($"{ServiceRequest} => {operation?.Name ?? "(null)"} {a.Name}");
 
             if (LogEverything)
             {

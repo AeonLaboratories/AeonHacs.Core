@@ -209,7 +209,7 @@ namespace AeonHacs.Components
 					client.ServerCertificateValidationCallback = (l, j, c, m) => true;
 					client.Connect(SmtpInfo.Host, SmtpInfo.Port/*, MailKit.Security.SecureSocketOptions.SslOnConnect*/);
 					//client.AuthenticationMechanisms.Remove("XOAUTH2");
-					client.Authenticate(SmtpInfo.SenderName, SmtpInfo.Password);
+					client.Authenticate(SmtpInfo.EmailAddress, SmtpInfo.Password);
 					client.Send(mail);
 					client.Disconnect(true);
 				}
