@@ -1823,6 +1823,7 @@ namespace AeonHacs.Components
 
         protected virtual void AdmitSealedCO2IP()
         {
+            if (InletPort.State == LinePort.States.Prepared) return;    // already done
             if (!IpIm(out ISection im)) return;
 
             ProcessStep.Start($"Evacuate and flush {InletPort.Name}");
@@ -2232,11 +2233,13 @@ namespace AeonHacs.Components
 
         protected virtual void Extract()
         {
+            ProcessStep.Start($"Exctract CO2 from {VTT.Name} to {MC.Name}");
             MC.OpenAndEvacuateAll(CleanPressure);
             ZeroMC();
             MC.ClosePorts();
             MC.Isolate();
             ExtractAt(CO2ExtractionTemperature);
+            ProcessStep.End();
         }
 
         #endregion Extract
@@ -2452,7 +2455,7 @@ namespace AeonHacs.Components
                 MC.ClosePorts();
         }
 
-        // TODO: move this routine to the graphite reactor class
+        // TODO: move this routine to the graphite reactor class?
         protected virtual void TrapSulfur(IGraphiteReactor gr)
         {
             var ftc = gr.Coldfinger;
@@ -2493,7 +2496,6 @@ namespace AeonHacs.Components
             ProcessStep.End();
             Measure();
         }
-
 
         protected virtual void Freeze(Aliquot aliquot)
         {
@@ -2627,12 +2629,15 @@ namespace AeonHacs.Components
         protected virtual void Dilute()
         {
             if (Sample == null || DilutedSampleMicrogramsCarbon <= SmallSampleMicrogramsCarbon || Sample.TotalMicrogramsCarbon > SmallSampleMicrogramsCarbon) return;
+
+            ProcessStep.Start($"Dilute sample to {DilutedSampleMicrogramsCarbon}");
             //Clean(VTT);
             TransferCO2FromMCToVTT();
             AdmitDeadCO2(DilutedSampleMicrogramsCarbon - Sample.TotalMicrogramsCarbon);
             TransferCO2FromMCToVTT();   // add the dilution gas to the sample
             Extract();
             Measure();
+            ProcessStep.End();
         }
 
         protected virtual void FreezeAliquots()
@@ -2781,7 +2786,7 @@ namespace AeonHacs.Components
             fromSection.Thaw();
 
             ProcessStep.Start("Wait for transfer start conditions.");
-            // TODO RESTORE DEBUG WaitFor(() => toSection.Frozen && fromSection.Temperature > CO2TransferStartTemperature);
+            WaitFor(() => toSection.Frozen && fromSection.Temperature > CO2TransferStartTemperature);
             ProcessStep.End();
 
             ProcessSubStep.Start($"Join {toSection.Name} to {fromSection.Name}");
@@ -2830,8 +2835,10 @@ namespace AeonHacs.Components
         {
             if (gr == null) return;
             if (!GrGm(gr, out ISection gm)) return;
+
             var pathName = MC.Name + "_" + gm.Name;
             var mc_gm = Find<Section>(pathName);
+
             if (mc_gm == null)
             {
                 Warn("Configuration error", $"Can't find Section {pathName}");

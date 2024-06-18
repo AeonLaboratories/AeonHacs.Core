@@ -452,26 +452,25 @@ namespace AeonHacs.Components
             if (done)
             {
                 // if the current ever went significantly above what it was just before 'go' was commanded
-                if (peakCurrent > initialCurrent + 10) pushed = true;
+                if (peakCurrent > initialCurrent + 50) pushed = true;       // typically > 150 mA
 
-                string sysLogEntry;
-                if (operation?.Name == ServiceRequest)
-                    sysLogEntry = $"{ServiceRequest ?? "(null)"} {a.Name}";
-                else
-                    sysLogEntry = $"{ServiceRequest} => {operation?.Name ?? "(null)"} {a.Name}";
+                string sysLogEntry = $"{a.Name} ";
+                sysLogEntry += ServiceRequest.IsBlank() ? "(select)" : ServiceRequest;
+                if (operation?.Name != ServiceRequest)
+                    sysLogEntry += $" => {operation?.Name ?? "(null)"}";
 
                 a.OperationFailed = State == OperationState.Failed;
                 if (a.OperationFailed)
                     sysLogEntry += ": failed.";
-                else if (!pushed)
+
+                if (!pushed && operation?.Name != null)
                 {
                     sysLogEntry += " (didn't push)";
                     //Alert(); ? Retry?
                 }
-                else // temporary, to collect typical current peaks
-                {
-                    sysLogEntry += $", current {initialCurrent} => {peakCurrent}";
-                }
+
+                if (pushed)
+                    sysLogEntry += $" {initialCurrent} => {peakCurrent}";
                 SystemLog.Record(sysLogEntry);
 
                 if (a.Device.Active) a.Device.Active = false;
