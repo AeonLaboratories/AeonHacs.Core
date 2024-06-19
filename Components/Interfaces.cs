@@ -1495,6 +1495,7 @@ namespace AeonHacs.Components
         double MicromolesCarbon { get; }
         double InitialGmH2Pressure { get; set; }
         double FinalGmH2Pressure { get; set; }
+        double GRStartPressure { get; set; }
         double H2CO2PressureRatio { get; set; }
         double ExpectedResidualPressure { get; set; }
         double ResidualPressure { get; set; }

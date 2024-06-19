@@ -217,7 +217,9 @@ namespace AeonHacs.Components
 				case States.InProcess:
 					break;
 				case States.Start:
-					TurnOn(GraphitizingTemperature);
+					if (Aliquot.GRStartPressure == 0)
+						Aliquot.GRStartPressure = Pressure;
+                    TurnOn(GraphitizingTemperature);
 					State = States.WaitTemp;
 					break;
 				case States.WaitTemp:
