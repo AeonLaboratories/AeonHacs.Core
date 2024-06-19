@@ -1423,6 +1423,8 @@ namespace AeonHacs.Components
         /// </summary>
         string LabId { get; set; }
         IInletPort InletPort { get; set; }
+        string CoilTrap { get; set; }
+        Id13CPort d13CPort { get; set; }
         string Process { get; set; }
         List<Parameter> Parameters { get; set; }
         double Parameter(string name);
@@ -1459,7 +1461,10 @@ namespace AeonHacs.Components
         /// Carbon extracted from the sample
         /// </summary>
         double TotalMicromolesCarbon { get; set; }
-
+        /// <summary>
+        /// Number of splits (or "cuts") discarded to reduce sample size.
+        /// </summary>
+        int Discards { get; set; }
         /// <summary>
         /// Extracted carbon selected for analysis
         /// </summary>

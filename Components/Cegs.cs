@@ -1,5 +1,6 @@
 ﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
+using Org.BouncyCastle.Crypto;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -727,6 +728,7 @@ namespace AeonHacs.Components
 
         #region Process Management
 
+        #region Process Control Parameters
         /// <summary>
         /// Sets the named process control parameter to the given value.
         /// </summary>
@@ -765,6 +767,24 @@ namespace AeonHacs.Components
         /// <param name="name"></param>
         protected void ClearParameter(string name) => SetParameter(name, double.NaN);
 
+        // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+        // Parameters only need to be defined here if they are referenced within this class.
+        // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+        /// <summary>
+        /// The effective gas load below which a volume is considered leak free.
+        /// </summary>
+        public double LeakTightTorrLitersPerSecond => GetParameter("LeakTightTorrLitersPerSecond");
+
+        /// <summary>
+        /// How long to evacuate freshly serviced graphite reactors.
+        /// </summary>
+        public double GRFirstEvacuationMinutes => GetParameter("GRFirstEvacuationMinutes");
+
+        /// <summary>
+        /// Minimum Graphitization time.
+        /// </summary>
+        public double MinimumGRMinutes => GetParameter("MinimumGRMinutes");
         public double PressureOverAtm => GetParameter("PressureOverAtm");
         public double OkPressure => GetParameter("OkPressure");
         public double CleanPressure => GetParameter("CleanPressure");
@@ -797,6 +817,9 @@ namespace AeonHacs.Components
         public double DilutedSampleMicrogramsCarbon => GetParameter("DilutedSampleMicrogramsCarbon");
         public double MaximumSampleMicrogramsCarbon => GetParameter("MaximumSampleMicrogramsCarbon");
 
+        #endregion Process Control Parameters
+
+
         /// <summary>
         /// This method must be provided by the derived class.
         /// </summary>
@@ -821,11 +844,11 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// The Section's He supply, if there is one; otherwise, its Ar supply;
-        /// null if neither is found.
+        /// The Section's He supply, if there is one; otherwise, its, N2 or Ar supply;
+        /// null if none are found.
         /// </summary>
         protected virtual GasSupply InertGasSupply(ISection section) =>
-            GasSupply("He", section) ?? GasSupply("Ar", section);
+            GasSupply("He", section) ?? GasSupply("N2", section) ?? GasSupply("Ar", section);
 
         /// <summary>
         /// Find the smallest Section that contains the port and has a manometer. 
@@ -1395,6 +1418,18 @@ namespace AeonHacs.Components
             return false;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="section"></param>
+        protected virtual void HoldForLeakTightness(ISection section)
+        {
+            // ports often have higher gas loads, usually due to water
+            var leakRateLimit = 2 * LeakTightTorrLitersPerSecond;
+            while (SectionLeakRate(section, leakRateLimit) > leakRateLimit)
+                Pause("Process Exception", $"Something in the {section.Name} isn't vacuum-tight. Process Paused.");
+        }
+
         protected virtual void PreconditionGRs()
         {
             var grs = GraphiteReactors.FindAll(gr => gr.State == GraphiteReactor.States.WaitPrep);
@@ -1427,8 +1462,10 @@ namespace AeonHacs.Components
             ProcessSubStep.Start("Evacuate graphite reactors");
             GM.Isolate();
             grs.ForEach(gr => gr.Open());
-            GM.OpenAndEvacuate(OkPressure);
-            WaitForStablePressure(GM.VacuumSystem, OkPressure);
+            GM.OpenAndEvacuate();
+            WaitForStablePressure(GM.VacuumSystem, CleanPressure);
+            WaitMinutes((int)GRFirstEvacuationMinutes);
+            HoldForLeakTightness(GM);
             ProcessSubStep.End();
 
             ProcessSubStep.Start($"Zero GR manometers.");
@@ -1554,7 +1591,8 @@ namespace AeonHacs.Components
             IM.Isolate();
             ips.ForEach(ip => ip.Open());
             IM.Evacuate(OkPressure);
-            WaitForStablePressure(IM.VacuumSystem, OkPressure);        // this might be excessive
+            WaitForStablePressure(IM.VacuumSystem, CleanPressure);
+            HoldForLeakTightness(IM);
 
             Flush(IM, 3);
             IM.VacuumSystem.WaitForPressure(CleanPressure);
@@ -1576,6 +1614,8 @@ namespace AeonHacs.Components
 
             //OpenLine();
         }
+
+        protected virtual void Prepare_d13CPorts() { }
 
 
         protected virtual void ChangeSulfurFe()
@@ -2398,7 +2438,12 @@ namespace AeonHacs.Components
                 ProcessSubStep.Start("Split sample");
                 Split.IsolateFromVacuum();
                 MC_Split.Open();
-                Wait(5000);
+
+                var seconds = (int)Sample.Parameter("SplitEquilibrationSeconds");
+                ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
+                WaitSeconds(seconds);
+                ProcessSubStep.End();
+
                 MC_Split.Close();
                 ProcessSubStep.End();
 
@@ -2406,11 +2451,21 @@ namespace AeonHacs.Components
                 Split.Evacuate(CleanPressure);
                 ProcessSubStep.End();
 
+                Sample.Discards++;
                 SampleLog.Record(
-                    "Split discarded:\r\n" +
-                    $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg"
+                    $"Split discarded:\r\n\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg"
                 );
                 TakeMeasurement();
+            }
+            if (Sample.Discards > 0)
+            {
+                var splitRatio = 1 + Split.MilliLiters / MC.MilliLiters;
+                var estimatedTotal = Sample.SelectedMicrogramsCarbon * Math.Pow(splitRatio, Sample.Discards);
+                if (estimatedTotal > Sample.TotalMicrogramsCarbon)
+                {
+                    SampleLog.Record($"Updated TotalMicrogramsCarbon from {Sample.TotalMicrogramsCarbon} to {estimatedTotal}");
+                    Sample.TotalMicrogramsCarbon = estimatedTotal;
+                }
             }
             ProcessStep.End();
         }
@@ -2908,11 +2963,13 @@ namespace AeonHacs.Components
                             d13C.Isolate();
                     }
                     Open_d13CPort(d13CPort);
+                    Sample.d13CPort = d13CPort;
                 }
             }
             gm.VacuumSystem.IsolateExcept(toBeOpened);
             toBeOpened.Open();
             gm.VacuumSystem.Evacuate(CleanPressure);
+            gr.Manometer.ZeroNow(true); // wait to finish
             ProcessStep.End();
 
             ProcessStep.Start("Expand the sample");
@@ -2941,7 +2998,12 @@ namespace AeonHacs.Components
             if (d13CPort != null)
             {
                 ProcessStep.Start("Take d13C split");
-                WaitSeconds(30);    // really doesn't take so long, but the digital filters can make it look like it does
+
+                var seconds = (int)Sample.Parameter("SplitEquilibrationSeconds");
+                ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
+                WaitSeconds(seconds);
+                ProcessSubStep.End();
+
                 d13C.IsolateFrom(mc_gm);
                 Sample.Micrograms_d13C = aliquot.MicrogramsCarbon * d13C.MilliLiters / (d13C.MilliLiters + mc_gm.MilliLiters);
                 aliquot.MicrogramsCarbon -= Sample.Micrograms_d13C;
@@ -3325,6 +3387,62 @@ namespace AeonHacs.Components
         #endregion Other calibrations
 
         #region Test functions
+
+        /// <summary>
+        /// Measures the leak rate using a 2-minute rate of rise test.
+        /// </summary>
+        /// <param name="port"></param>
+        /// <returns></returns>
+        protected virtual double PortLeakRate(IPort port)
+        {
+            var manifold = Manifold(port);
+            if (manifold == null) return 0;     // can't check; assume ok
+
+            ProcessStep.Start($"Leak checking {port.Name}.");
+
+            ProcessSubStep.Start($"Evacuate {manifold.Name}+{port.Name} to below {OkPressure} Torr");
+            manifold.Isolate();
+            manifold.ClosePortsExcept(port);
+            manifold.Open();
+            port.Open();
+            // OkPressure is a convenient but high starting pressure; ideally, ror tests start at ultimate pressure.
+            manifold.Evacuate(OkPressure);
+            ProcessSubStep.End();
+
+            ProcessStep.End();
+
+            return SectionLeakRate(manifold, LeakTightTorrLitersPerSecond);
+        }
+
+        /// <summary>
+        /// Checks a section's leak rate. The section must be currently isolated and under vacuum. 
+        /// </summary>
+        /// <param name="section"></param>
+        /// <returns>Torr L/sec</returns>
+        protected double SectionLeakRate(ISection section, double leakRateLimit)
+        {
+            var testSeconds = 120;      // Aeon's standard rate-of-rise test duration
+
+            ProcessStep.Start($"Leak checking {section.Name}.");
+
+            // For completeness, PathToVacuum's equivalent set of chambers should be included, too. It's
+            // neglected for now (it would add little because all Manifold(port)'s reach their VM except for MCP1 and MCP2).
+            var liters = (section.CurrentVolume(true) + section.VacuumSystem.VacuumManifold.MilliLiters) / 1000;  // volume in Liters
+            var torr = testSeconds * leakRateLimit / liters;    // change in pressure at leakRateLimit for testSeconds
+            var torrLiters = torr * liters;
+
+            var p0 = section.VacuumSystem.Pressure;
+            section.VacuumSystem.Isolate();
+            var torrLimit = p0 + torr;
+            ProcessSubStep.Start($"Wait up to {testSeconds:0} seconds for {torrLimit:0.0e0} Torr");
+            var leaky = WaitFor(() => section.VacuumSystem.Pressure > torrLimit, testSeconds * 1000, 1000);
+            var elapsed = ProcessSubStep.Elapsed.TotalSeconds;
+            torr = section.VacuumSystem.Pressure - p0;     // actual change in pressure
+            ProcessSubStep.End();
+
+            ProcessStep.End();
+            return torr * liters / elapsed;
+        }
 
         public void CalibrateManualHeater(IHeater h, IThermocouple tc)
         {

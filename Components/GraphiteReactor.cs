@@ -127,10 +127,12 @@ namespace AeonHacs.Components
 
 		[JsonProperty]
 		public Stopwatch StateStopwatch { get; protected set; } = new Stopwatch();
-		[JsonProperty]
-		public Stopwatch ProgressStopwatch { get; protected set; } = new Stopwatch();
+        [JsonProperty]
+        public Stopwatch ProgressStopwatch { get; protected set; } = new Stopwatch();
+        [JsonProperty]
+        public Stopwatch GraphitizationStopwatch { get; protected set; } = new Stopwatch();
 
-		[JsonProperty, DefaultValue(2000)]
+        [JsonProperty, DefaultValue(2000)]
 		public double PriorPressure
 		{
 			get => pressureMinimum;
@@ -227,7 +229,8 @@ namespace AeonHacs.Components
 				case States.WaitFalling:	// wait for 15 minutes past the end of the peak pressure
 					if (!StateStopwatch.IsRunning)
 					{
-						StateStopwatch.Restart();	// mark start of WaitFalling
+						StateStopwatch.Restart();   // mark start of WaitFalling
+						GraphitizationStopwatch.Restart();		// mark start of 'graphitization'
 						PressurePeak = (int)Pressure;
 						ProgressStopwatch.Restart();	// mark pPeak updated
 					}
@@ -249,7 +252,7 @@ namespace AeonHacs.Components
 						PriorPressure = Pressure;
 						ProgressStopwatch.Restart();	// mark pMin updated
 					}
-					else if (elapsed >= 3.0)
+					else if (elapsed >= 3.0 && GraphitizationStopwatch.Elapsed.TotalMinutes >= Sample.Parameter("MinimumGRMinutes"))		// if 3 minutes have passed without a pressure decline
 						State = States.Stop;
 					else if (PriorPressure - Pressure > Sample.Parameter("GRCompleteTorrPerMinute") * elapsed)
 					{
