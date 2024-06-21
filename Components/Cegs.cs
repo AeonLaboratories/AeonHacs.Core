@@ -574,6 +574,7 @@ namespace AeonHacs.Components
             #region 1000 ms
             if (daqsOk && Started && msUpdateLoop % 1000 == 0)
             {
+                DeleteCompletedSamples();
                 RunAProvidedSample();
             }
             #endregion 1000 ms
@@ -723,6 +724,22 @@ namespace AeonHacs.Components
 
         protected virtual void ZeroPressureGauges() { }
 
+        protected virtual void DeleteCompletedSamples()
+        {
+            Samples.Values.ToList().ForEach(s =>
+            {
+                if (s.AliquotsCount < 1 && 
+                    s.d13CPort?.Sample != s && 
+                    s.InletPort?.Sample is ISample ipSample &&
+                    (ipSample != s || s.InletPort.State == LinePort.States.Complete))
+                {
+                    if (s.InletPort?.Sample == s)
+                        s.InletPort.Sample = null;
+                    s.Name = null;      // remove the sample from the NamedObject Dictionary.
+                }
+            });
+        }
+
         #endregion Periodic system activities & maintenance
 
         #region Process Management
@@ -826,7 +843,7 @@ namespace AeonHacs.Components
             Warn("Program Error", $"{Name} needs an override for {caller}().");
 
         protected virtual void SampleRecord(ISample sample) { }
-        protected virtual void SampleRecord(IAliquot aliquot) {}
+        protected virtual void SampleRecord(IAliquot aliquot) { }
 
 
         /// <summary>
@@ -1403,8 +1420,6 @@ namespace AeonHacs.Components
                 {
                     s.Aliquots.Remove(a);
                     a.Name = null;          // remove the aliquot from the NamedObject Dictionary.
-                    if (s.AliquotsCount < 1)
-                        s.Name = null;      // remove the sample from the NamedObject Dictionary.
                 }
             });
         }
