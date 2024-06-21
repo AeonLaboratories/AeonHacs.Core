@@ -1,10 +1,7 @@
-﻿using AeonHacs;
-using Newtonsoft.Json;
-using Org.BouncyCastle.Bcpg.OpenPgp;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using static AeonHacs.Components.CegsPreferences;
 
 namespace AeonHacs.Components
@@ -25,6 +22,7 @@ namespace AeonHacs.Components
 		public virtual void Connect()
 		{
 			InletPort = Find<IInletPort>(inletPortName);
+			d13CPort = Find<Id13CPort>(_d13CPortName);
 		}
 
         #endregion HacsComponent
@@ -40,8 +38,15 @@ namespace AeonHacs.Components
 		}
 		string labId;
 
+		[JsonProperty]
+		public DateTime DateTime
+		{ 
+			get => dateTime;
+			set => Ensure(ref dateTime, value);
+		}
+		DateTime dateTime;
 
-		[JsonProperty("InletPort")]
+        [JsonProperty("InletPort")]
 		string InletPortName { get => InletPort?.Name ?? ""; set => inletPortName = value; }
 		string inletPortName;
 		public IInletPort InletPort
@@ -183,6 +188,7 @@ namespace AeonHacs.Components
 			set => TotalMicrogramsCarbon = value * GramsCarbonPerMole;
 		}
 
+		[JsonProperty]
 		public int Discards
 		{
 			get => discards;

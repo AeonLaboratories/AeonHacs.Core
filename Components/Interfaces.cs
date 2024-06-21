@@ -1422,6 +1422,7 @@ namespace AeonHacs.Components
         /// Typically assigned by the laboratory to identify and track the sample.
         /// </summary>
         string LabId { get; set; }
+        DateTime DateTime { get; set; }
         IInletPort InletPort { get; set; }
         string CoilTrap { get; set; }
         Id13CPort d13CPort { get; set; }

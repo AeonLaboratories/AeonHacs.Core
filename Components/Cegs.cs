@@ -1757,6 +1757,7 @@ namespace AeonHacs.Components
             CegsPreferences.DefaultParameters.ForEach(Sample.SetParameter);
 
             SampleLog.WriteLine("");
+            Sample.DateTime = DateTime.Now;
             SampleLog.Record(
                 $"Start Process:\t{Sample.Process}\r\n" +
                 $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
