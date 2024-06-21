@@ -1790,7 +1790,7 @@ namespace AeonHacs.Components
                 return;
             }
 
-            ips.ForEach(ip => { RunSampleAt(ip); });
+            ips.ForEach(RunSampleAt);
         }
 
         protected virtual void RunSampleAt(IInletPort ip)
@@ -1799,16 +1799,32 @@ namespace AeonHacs.Components
             RunSample();
         }
 
-        protected override void ProcessEnded()
+        protected override void ProcessStarting(string message = "")
         {
-            string msg = (ProcessType == ProcessTypeCode.Sequence ? Sample.Process : ProcessToRun) + 
-                $" process {(RunCompleted ? "complete" : "aborted")}";
+            if (message.IsBlank())
+            {
+                var sequence = ProcessType == ProcessTypeCode.Sequence ? "sequence " : "";
+                var happened = "starting";
+                message = $"Process {sequence}{happened}: {ProcessToRun}";
+            }
+            base.ProcessStarting(message);
+        }
+
+        protected override void ProcessEnded(string message = "")
+        {
+            if (message.IsBlank())
+            {
+                var sequence = ProcessType == ProcessTypeCode.Sequence ? "sequence " : "";
+                var happened = RunCompleted ? "completed" : "aborted";
+                message = $"Process {sequence}{happened}: {ProcessToRun}";
+            }
 
             if (ProcessType == ProcessTypeCode.Sequence)
-            SampleLog.Record(msg + "\r\n\t" + Sample.LabId);
+                SampleLog.Record(message + "\r\n\t" + Sample.LabId);
 
-            Alert("System Status", msg);
-            base.ProcessEnded();
+            Alert("System Status", message);
+
+            base.ProcessEnded(message);
         }
 
         #endregion Running samples
