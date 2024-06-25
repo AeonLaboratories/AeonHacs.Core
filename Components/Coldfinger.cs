@@ -405,9 +405,9 @@ namespace AeonHacs.Components
         /// </summary>
 		public void Standby()
 		{
-			LNOff();
+            ChangeState(TargetStates.Standby);
+            LNOff();
 			AirOff();
-			ChangeState(TargetStates.Standby);
 		}
 
         /// <summary>

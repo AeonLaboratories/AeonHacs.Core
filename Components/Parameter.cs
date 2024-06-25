@@ -27,4 +27,5 @@ public class Parameter : BindableObject
     }
     string description;
 
+    public override string ToString() => $"{ParameterName} = {Value}";
 }

@@ -368,9 +368,9 @@ namespace AeonHacs.Components
         /// </summary>
         public void Standby()
 		{
-			HeaterOff();
+            ChangeState(TargetStates.Standby);
+            HeaterOff();
 			Coldfinger.Standby();
-			ChangeState(TargetStates.Standby);
 		}
 
         /// <summary>

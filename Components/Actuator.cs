@@ -266,7 +266,11 @@ namespace AeonHacs.Components
 
 		public virtual void DoOperation(IActuatorOperation operation)
 		{
-			lock (PendingOperationsLocker) { PendingOperations++; }
+            // If the actuator has no operations pending, short-cut
+            // the validation check.
+            if (Idle && ValidateOperation(operation) == null) return;
+
+            lock (PendingOperationsLocker) { PendingOperations++; }
 			NotifyConfigChanged(operation.Name);
 		}
 

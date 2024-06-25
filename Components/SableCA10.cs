@@ -166,10 +166,9 @@ namespace AeonHacs.Components
         public override string ToString()
         {
             return $"{Name}: CO2 {CO2Ppm.Value:0.0} ppm\r\n" +
-                IndentLines($"CO2 Partial Pressure {CO2PartialPressureTorr.Value:0.0e0} Torr\r\n" +
-                            $"Gas Pressure {BarometricPressurekPa:0.000} kPa\r\n" +
-                            $"Gas Pressure {Pressure.Value:0.0e0} Torr\r\n" +
-                            $"Sensor Temperature {Temperature.Value:0.001} °C");
+                IndentLines($"CO2 Partial Pressure: {CO2PartialPressureTorr.Value:0.0e0} Torr\r\n" +
+                            $"Ambient Pressure: {Pressure.Value:0.0e0} Torr\r\n" +
+                            $"Sensor Temperature: {Temperature.Value:0.000} °C");
         }
     }
 }

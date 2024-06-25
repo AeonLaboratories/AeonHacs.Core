@@ -33,6 +33,8 @@ namespace AeonHacs.Components
         [JsonProperty]
         public double FinalGmH2Pressure { get; set; }
         [JsonProperty]
+        public double GRStartPressure { get; set; }
+        [JsonProperty]
         public double H2CO2PressureRatio { get; set; }
         [JsonProperty]
         public double ExpectedResidualPressure { get; set; }

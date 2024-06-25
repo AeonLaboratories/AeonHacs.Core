@@ -464,6 +464,7 @@ namespace AeonHacs.Components
         void WaitForStable(int seconds);
         double WaitForAverage(int seconds);
         void ZeroNow();
+        void ZeroNow(bool waitToFinish);
         bool Zeroing { get; }
     }
 
@@ -1421,7 +1422,10 @@ namespace AeonHacs.Components
         /// Typically assigned by the laboratory to identify and track the sample.
         /// </summary>
         string LabId { get; set; }
+        DateTime DateTime { get; set; }
         IInletPort InletPort { get; set; }
+        string CoilTrap { get; set; }
+        Id13CPort d13CPort { get; set; }
         string Process { get; set; }
         List<Parameter> Parameters { get; set; }
         double Parameter(string name);
@@ -1458,7 +1462,10 @@ namespace AeonHacs.Components
         /// Carbon extracted from the sample
         /// </summary>
         double TotalMicromolesCarbon { get; set; }
-
+        /// <summary>
+        /// Number of splits (or "cuts") discarded to reduce sample size.
+        /// </summary>
+        int Discards { get; set; }
         /// <summary>
         /// Extracted carbon selected for analysis
         /// </summary>
@@ -1489,6 +1496,7 @@ namespace AeonHacs.Components
         double MicromolesCarbon { get; }
         double InitialGmH2Pressure { get; set; }
         double FinalGmH2Pressure { get; set; }
+        double GRStartPressure { get; set; }
         double H2CO2PressureRatio { get; set; }
         double ExpectedResidualPressure { get; set; }
         double ResidualPressure { get; set; }
@@ -1542,7 +1550,7 @@ namespace AeonHacs.Components
         int WarmTemperature { get; set; }
         IHeater QuartzFurnace { get; set; }
         IOven SampleFurnace { get; set; }
-        List<IValve> PathToFirstTrap { get; set; }
+        //List<IValve> PathToFirstTrap { get; set; }
         void TurnOffFurnaces();
     }
 
@@ -1658,12 +1666,12 @@ namespace AeonHacs.Components
         double CurrentVolume(bool includePorts);
 
         /// <summary>
-        /// If the Section comprises a single FlowChamber, this is its flow valve.
+        /// The flow valve controlled by FlowManager.
         /// </summary>
         IRxValve FlowValve { get; }
 
         /// <summary>
-        /// If the Section comprises a single FlowChamber, this is its FlowManager.
+        /// This FlowManager controls the flow of gas through the Section.
         /// </summary>
         IFlowManager FlowManager { get; }
 

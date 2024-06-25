@@ -1,9 +1,7 @@
-﻿using AeonHacs;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using static AeonHacs.Components.CegsPreferences;
 
 namespace AeonHacs.Components
@@ -24,6 +22,7 @@ namespace AeonHacs.Components
 		public virtual void Connect()
 		{
 			InletPort = Find<IInletPort>(inletPortName);
+			d13CPort = Find<Id13CPort>(_d13CPortName);
 		}
 
         #endregion HacsComponent
@@ -39,8 +38,15 @@ namespace AeonHacs.Components
 		}
 		string labId;
 
+		[JsonProperty]
+		public DateTime DateTime
+		{ 
+			get => dateTime;
+			set => Ensure(ref dateTime, value);
+		}
+		DateTime dateTime;
 
-		[JsonProperty("InletPort")]
+        [JsonProperty("InletPort")]
 		string InletPortName { get => InletPort?.Name ?? ""; set => inletPortName = value; }
 		string inletPortName;
 		public IInletPort InletPort
@@ -51,7 +57,27 @@ namespace AeonHacs.Components
 		IInletPort inletPort;
 
 
-		[JsonProperty]
+        [JsonProperty("CoilTrap")]
+        public string CoilTrap
+        {
+            get => coilTrap;
+            set => Ensure(ref coilTrap, value);
+        }
+        string coilTrap;
+
+
+        [JsonProperty("d13CPort")]
+        string d13CPortName { get => d13CPort?.Name ?? ""; set => _d13CPortName = value; }
+        string _d13CPortName;
+        public Id13CPort d13CPort
+        {
+            get => _d13CPort;
+            set => Ensure(ref _d13CPort, value);
+        }
+        Id13CPort _d13CPort;
+
+
+        [JsonProperty]
 		public string Process
 		{
 			get => process;
@@ -161,6 +187,14 @@ namespace AeonHacs.Components
 			get => TotalMicrogramsCarbon / GramsCarbonPerMole;
 			set => TotalMicrogramsCarbon = value * GramsCarbonPerMole;
 		}
+
+		[JsonProperty]
+		public int Discards
+		{
+			get => discards;
+			set => Ensure(ref discards, value);
+		}
+		int discards;
 
 		/// <summary>
 		/// micrograms carbon (C from the sample + ugDC) selected for analysis

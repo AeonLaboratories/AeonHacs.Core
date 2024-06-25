@@ -15,7 +15,7 @@ namespace AeonHacs.Components
         {
             get
             {
-                var ugC = Aliquot.Sample.Micrograms_d13C;
+                var ugC = Sample.Micrograms_d13C;
                 var umolC = ugC / GramsCarbonPerMole;
                 return $" {ugC:0.0} µgC = {umolC:0.00} µmol";
             }
@@ -24,7 +24,7 @@ namespace AeonHacs.Components
         {
             get
             {
-                if (Aliquot?.Sample?.LabId is string contents)
+                if (Sample?.LabId is string contents)
                     return contents + mass;
                 return "";
             }

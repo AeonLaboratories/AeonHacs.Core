@@ -271,7 +271,7 @@ namespace AeonHacs.Components
         string FlowManagerName { get => FlowManager?.Name; set => flowManagerName = value; }
         string flowManagerName;
         /// <summary>
-        /// If the Section contains a FlowValve, this is its FlowManager.
+        /// This FlowManager controls the flow of gas through the Section.
         /// </summary>
         public IFlowManager FlowManager
         {

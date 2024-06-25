@@ -76,7 +76,7 @@ namespace AeonHacs.Components
             get => description;
             set => Ensure(ref description, value);
         }
-        string description = "Process Sequence Step";
+        string description = "";
 
         public ProcessSequenceStep() { }
 

@@ -50,6 +50,7 @@ namespace AeonHacs.Components
     // TODO: should this class derive from StateManager?
     public class AlertManager : HacsComponent, IAlertManager
 	{
+        static HacsLog SystemLog => Hacs.SystemLog;
 
         #region HacsComponent
 
@@ -209,20 +210,25 @@ namespace AeonHacs.Components
 					client.ServerCertificateValidationCallback = (l, j, c, m) => true;
 					client.Connect(SmtpInfo.Host, SmtpInfo.Port/*, MailKit.Security.SecureSocketOptions.SslOnConnect*/);
 					//client.AuthenticationMechanisms.Remove("XOAUTH2");
-					client.Authenticate(SmtpInfo.SenderName, SmtpInfo.Password);
-					client.Send(mail);
+					client.Authenticate(SmtpInfo.EmailAddress, SmtpInfo.Password);
+					var response = client.Send(mail);
+					SystemLog.Record($"{response}\r\n\t{subject}\r\n\t{message}");
 					client.Disconnect(true);
 				}
 			}
 			catch (Exception e)
 			{
+                SystemLog.Record($"{e.Message}\r\n\t{subject}\r\n\t{message}");
                 var errorCaption = $"{Name}: Can't transmit Alert";
 				var errorMessage = $"Subject: '{subject}'\r\n" +
 					$"Message: '{message}'\r\n\r\n";
 				if (SmtpInfo == null)
 					errorMessage += $"(No Email account configured)\r\n";
 				else
+				{
 					errorMessage += $"(Check Email configuration in '{SmtpInfo.CredentialsFilename}'.)\r\n";
+					errorMessage += $"Exception: { e.Message}\r\n";
+				}
 				errorMessage += $"\r\nRespond Ok to continue or Cancel to disable Alerts";
 				if (Notice.Send(errorCaption, errorMessage, Notice.Type.Warn).Text != "Ok")
 				{

@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {
@@ -293,12 +294,18 @@ namespace AeonHacs.Components
 			if (Sensitivity > 0 && Math.Abs(value) <= Sensitivity)
 				value = 0;
 
+			var wasStable = IsStable;
+			var wasFalling = IsFalling;
+			var wasRising = IsRising;
 			RateOfChange?.Update(value);
+            if (IsStable != wasStable) NotifyPropertyChanged(nameof(IsStable));
+            if (IsFalling != wasFalling) NotifyPropertyChanged(nameof(IsFalling));
+            if (IsRising != wasRising) NotifyPropertyChanged(nameof(IsRising));
 
-			//if (Name == "ugCinMC" || Name == "tMC")
-			//	MetersLog.Record($"{Name}: raw: {rawValue:0.00000000}, filtered: {filteredValue:0.00000000}, final: {finalValue:0.00000000}, roc: {RateOfChange?.Value:0.00000000}");
+            //if (Name == "ugCinMC" || Name == "tMC")
+            //	MetersLog.Record($"{Name}: raw: {rawValue:0.00000000}, filtered: {filteredValue:0.00000000}, final: {finalValue:0.00000000}, roc: {RateOfChange?.Value:0.00000000}");
 
-			Value = value;
+            Value = value;
 
             return Value;
 		}
@@ -377,12 +384,28 @@ namespace AeonHacs.Components
 			}
 		}
 
+        /// <summary>
+        /// Start averaging the next &lt;ZerosToAverage&gt; readings, asynchronously. Returns immediately.
+		/// (Later, once the required number of readings have been averaged, the meter's zero offset is 
+		/// updated automatically.)
+        /// </summary>
+        public virtual void ZeroNow() => ZeroNow(false);
 
         /// <summary>
-        /// Reset the zero-offset value, based on the next several readings.
+        /// Reset the zero-offset value, based on the next &lt;ZerosToAverage&gt; readings.
         /// </summary>
-		public virtual void ZeroNow()
-		{ if (!Zeroing) Zeroing = true; }
+		public virtual void ZeroNow(bool waitToFinish = false)
+		{
+			if (!Zeroing)
+			{
+				Zeroing = true;
+				if (waitToFinish)
+				{
+					WaitFor(() => !Zeroing);
+					// Now, it's zeroed
+				}
+            }
+        }
 
 		void offset(double offset)
 		{

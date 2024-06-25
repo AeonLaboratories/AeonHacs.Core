@@ -196,7 +196,7 @@ namespace AeonHacs.Components
                                     Name = $"{Name} RunProcess"
                                 };
                                 ProcessTimer.Restart();
-                                EventLog?.Record($"Starting Process{(ProcessType == ProcessTypeCode.Sequence ? " Sequence" : "")}: \"{ProcessToRun}\"");
+                                ProcessStarting();
                                 ProcessThread.Start();
                             }
                             break;
@@ -237,9 +237,18 @@ namespace AeonHacs.Components
                 RunCompleted = true;            // if the process is aborted, RunCompleted will not be set true;
         }
 
-		protected virtual void ProcessEnded()
+        protected virtual void ProcessStarting(string message = "")
+        {
+            if (message.IsBlank())
+                message = $"Process{(ProcessType == ProcessTypeCode.Sequence ? " sequence" : "")} starting: {ProcessToRun}";
+            EventLog?.Record(message);
+        }
+
+        protected virtual void ProcessEnded(string message = "")
 		{
-			EventLog?.Record($"Process {(RunCompleted ? "completed" : "aborted")}: {ProcessToRun}");
+            if (message.IsBlank())
+                message = $"Process {(RunCompleted ? "completed" : "aborted")}: {ProcessToRun}";
+            EventLog?.Record(message);
 		}
 
 		#region ProcessSequences
