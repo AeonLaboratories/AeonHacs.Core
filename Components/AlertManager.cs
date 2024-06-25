@@ -50,6 +50,7 @@ namespace AeonHacs.Components
     // TODO: should this class derive from StateManager?
     public class AlertManager : HacsComponent, IAlertManager
 	{
+        static HacsLog SystemLog => Hacs.SystemLog;
 
         #region HacsComponent
 
@@ -210,12 +211,14 @@ namespace AeonHacs.Components
 					client.Connect(SmtpInfo.Host, SmtpInfo.Port/*, MailKit.Security.SecureSocketOptions.SslOnConnect*/);
 					//client.AuthenticationMechanisms.Remove("XOAUTH2");
 					client.Authenticate(SmtpInfo.EmailAddress, SmtpInfo.Password);
-					client.Send(mail);
+					var response = client.Send(mail);
+					SystemLog.Record($"{response}\r\n\t{subject}\r\n\t{message}");
 					client.Disconnect(true);
 				}
 			}
 			catch (Exception e)
 			{
+                SystemLog.Record($"{e.Message}\r\n\t{subject}\r\n\t{message}");
                 var errorCaption = $"{Name}: Can't transmit Alert";
 				var errorMessage = $"Subject: '{subject}'\r\n" +
 					$"Message: '{message}'\r\n\r\n";
