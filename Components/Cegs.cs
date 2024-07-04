@@ -1929,7 +1929,7 @@ namespace AeonHacs.Components
             EvacuateIP();
             Flush(im, 3, InletPort);
 
-            ProcessStep.Start($"Wait for pVM < {CleanPressure:0.0e0} Torr");
+            ProcessStep.Start($"Wait for {im.VacuumSystem.Manometer.Name} < {CleanPressure:0.0e0} Torr");
             im.VacuumSystem.WaitForPressure(CleanPressure);
 
             gs.Admit();
