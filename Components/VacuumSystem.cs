@@ -581,7 +581,7 @@ namespace AeonHacs.Components
                                 {
                                     if (AutoManometer)
                                         DisableManometer();
-                                    HighVacuumValve.Close();
+                                    HighVacuumValve.CloseWait();
                                     LowVacuumValve.CloseWait();
 
                                     // TODO need a timeout check somewhere in here with alert/failure.
@@ -592,7 +592,7 @@ namespace AeonHacs.Components
                                         RoughingValve?.CloseWait();
                                     else
                                     {
-                                        RoughingValve?.Open();
+                                        RoughingValve?.OpenWait();
 
                                         if (TurboPump?.IsOn ?? true)
                                         {
@@ -754,7 +754,7 @@ namespace AeonHacs.Components
                 else    // need to rough
                 {
                     if (BackingValve.IsOpened)
-                        BackingValve.Close();
+                        BackingValve.CloseWait();
                     LowVacuumValve.OpenWait();
                     stateChanged = true;    // roughing
                 }
