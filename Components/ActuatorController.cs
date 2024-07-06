@@ -465,7 +465,7 @@ namespace AeonHacs.Components
 
                 if (!pushed && operation?.Name != null)
                 {
-                    sysLogEntry += " (didn't push)";
+                    sysLogEntry += $" {initialCurrent} => {peakCurrent} (didn't push?)";
                     //Alert(); ? Retry?
                 }
 
