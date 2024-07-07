@@ -42,7 +42,7 @@ namespace AeonHacs.Components
         }
         public virtual bool IsOn => Switch?.IsOn ?? false;
         public virtual bool IsOff => Switch?.IsOff ?? false;
-        
+
         public virtual StopAction StopAction
         {
             get => Switch?.StopAction ?? StopAction.None;

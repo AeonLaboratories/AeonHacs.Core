@@ -8,7 +8,7 @@ namespace AeonHacs.Components
 {
     /// <summary>
     /// Implements a rudimentary "parallel" or non-interacting
-    /// PID control algorithm. This implementation was designed 
+    /// PID control algorithm. This implementation was designed
     /// for temperature management. Class properties GetSetpoint,
     /// GetProcessVariable, and SetControlOutput must be set
     /// prior to invoking Start().
@@ -38,9 +38,9 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// How often the control output should be updated after
-        /// Start() is called. Values longer than about 25% of the 
-        /// process dead time may cause sluggish responsiveness. 
-        /// Values shorter than about 10% of the dead time generally 
+        /// Start() is called. Values longer than about 25% of the
+        /// process dead time may cause sluggish responsiveness.
+        /// Values shorter than about 10% of the dead time generally
         /// do not improve responsiveness.
         /// </summary>
         [JsonProperty, DefaultValue(1000)]
@@ -71,7 +71,7 @@ namespace AeonHacs.Components
         double referencePoint = 0.0;
 
         /// <summary>
-        /// The value of the process variable (e.g., temperature) 
+        /// The value of the process variable (e.g., temperature)
         /// at the beginning of the prior control output Update.
         /// </summary>
         double priorPv;
@@ -90,7 +90,7 @@ namespace AeonHacs.Components
         /// </summary>
         public Func<double> GetSetpoint { get; set; }
         /// <summary>
-        /// A method that returns the process variable (PV, e.g., 
+        /// A method that returns the process variable (PV, e.g.,
         /// the process temperature).
         /// </summary>
         public Func<double> GetProcessVariable { get; set; }
@@ -116,7 +116,7 @@ namespace AeonHacs.Components
         double Cd => PidSetup.Derivative;
 
         /// <summary>
-        /// Cpr = 1 / gp  (= step test dPV/dCO) 
+        /// Cpr = 1 / gp  (= step test dPV/dCO)
         /// </summary>
         double Cpr => PidSetup.Preset;
 
@@ -130,7 +130,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Reads the current process variable PV, checks the setpoint SP, 
+        /// Reads the current process variable PV, checks the setpoint SP,
         /// and produces a new control output, CO.
         /// </summary>
         void Update()
@@ -140,7 +140,7 @@ namespace AeonHacs.Components
             double pv = GetProcessVariable();
             double co = Kc * (GetSetpoint() - pv);        // the p term
 
-            // The derivative term is meaningless on the first 
+            // The derivative term is meaningless on the first
             // pass. Set priorPV = pv when entering auto mode.
             co += Cd * (priorPv - pv);               // add the d term
 
@@ -165,7 +165,7 @@ namespace AeonHacs.Components
         ManualResetEvent stopSignal = new ManualResetEvent(false);
 
         /// <summary>
-        /// The minimum process variable (e.g., temperature) that the 
+        /// The minimum process variable (e.g., temperature) that the
         /// plant is capable of controlling.
         /// </summary>
         [JsonProperty, DefaultValue(0.0)]

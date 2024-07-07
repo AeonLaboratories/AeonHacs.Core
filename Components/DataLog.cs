@@ -13,7 +13,7 @@ namespace AeonHacs.Components
         #region static
 
         public static bool DefaultChanged(Column col) =>
-            col.Resolution < 0 ? 
+            col.Resolution < 0 ?
                 false :
             col.PriorValue is double p && col.Source?.Value is double v ?
                 Math.Abs(p - col.Source.Value) >= col.Resolution :
@@ -31,8 +31,8 @@ namespace AeonHacs.Components
 
             double resolution;
             /// <summary>
-            /// When the magnitude of the difference between the current value and 
-            /// the prior recorded value exceeds Resolution, a new log entry is recorded. 
+            /// When the magnitude of the difference between the current value and
+            /// the prior recorded value exceeds Resolution, a new log entry is recorded.
             /// If Resolution is less than zero, this column will never trigger a log entry.
             /// </summary>
             [JsonProperty]

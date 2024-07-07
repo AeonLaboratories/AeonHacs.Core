@@ -72,7 +72,7 @@ namespace AeonHacs.Components
 
         #region Settings
         /// <summary>
-        /// If true, temperature updates for a thermocouple are suppressed 
+        /// If true, temperature updates for a thermocouple are suppressed
         /// whenever its associated heater is receiving power.
         /// </summary>
         //public bool InterferenceSuppressionEnabled
@@ -251,8 +251,8 @@ namespace AeonHacs.Components
         #endregion IDeviceManager
 
         #region State Management
-        // State is invalid if it is inconsistent with the desired Configuration, 
-        // or if the State doesn't fully and accurately represent the state of 
+        // State is invalid if it is inconsistent with the desired Configuration,
+        // or if the State doesn't fully and accurately represent the state of
         // the controller.
         //protected override bool StateInvalid =>
         //    base.StateInvalid ||

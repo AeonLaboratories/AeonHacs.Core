@@ -8,7 +8,7 @@ using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
-    public class VTColdfinger : StateManager<VTColdfinger.TargetStates, VTColdfinger.States>, 
+    public class VTColdfinger : StateManager<VTColdfinger.TargetStates, VTColdfinger.States>,
         IVTColdfinger
     {
         #region HacsComponent
@@ -438,7 +438,7 @@ namespace AeonHacs.Components
         }
 
 
-        double heaterMaxPower => Heater.Temperature < 0 && 
+        double heaterMaxPower => Heater.Temperature < 0 &&
             WireThermometer.Temperature < WireTemperatureLimit - 10 ?
                 MaximumHeaterPower :
                 MaximumWarmHeaterPower;

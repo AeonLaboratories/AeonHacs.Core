@@ -6,7 +6,7 @@
         <Description>Hardware abstraction classes for process control systems</Description>
         <Company>Aeon Laboratories</Company>
         <Authors>Jim Wilson, Tyler Wilson</Authors>
-        <Copyright>$(Company), 2022</Copyright>        
+        <Copyright>$(Company), 2022</Copyright>
         <AssemblyName>AeonHacs.Core</AssemblyName>
         <RepositoryUrl>https://github.com/AeonLaboratories/AeonHacs.Core</RepositoryUrl>
         <RootNamespace>AeonHacs</RootNamespace>
@@ -22,7 +22,7 @@
         <DocumentationFile>$(OutputPath)</DocumentationFile>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-        
+
         <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
         <PackageId>$(AssemblyName)</PackageId>
         <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>

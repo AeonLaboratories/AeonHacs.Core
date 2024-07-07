@@ -15,7 +15,7 @@ namespace AeonHacs.Components
             int ConsecutiveMatches { get; set; }
         }
         public new interface IConfig : Valve.IConfig
-        { 
+        {
             int ConsecutiveMatches { get; }
         }
         public new IDevice Device => this;

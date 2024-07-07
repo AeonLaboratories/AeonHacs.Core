@@ -57,7 +57,7 @@ namespace AeonHacs.Components
         // Commands to retrieve information from the controller
         //
         ParameterCode Parameter = ParameterCode.Setpoint;     // default -- anything but PowerMode
-        
+
         string GetStatus()
         {
             byte[] instruction = new byte[8];
@@ -98,7 +98,7 @@ namespace AeonHacs.Components
         int EncodeTemperature(double n) => (n * 10).ToInt();
 
         /// <summary>
-        /// The OnOffState that corresponds to the specified 
+        /// The OnOffState that corresponds to the specified
         /// PowerMode parameter response. Note: 8 == Stopped,
         /// lesser values indicate the furnace is on.
         /// </summary>
@@ -118,7 +118,7 @@ namespace AeonHacs.Components
 
 
         // Setpoint is transmitted as integer in tenths of a degree C
-        string SetSetpoint() => SetParameter(ParameterCode.Setpoint, 
+        string SetSetpoint() => SetParameter(ParameterCode.Setpoint,
             EncodeTemperature(RampingSetpoint));
 
         string SetPowerEnabled() => SetParameter(ParameterCode.PowerMode,
@@ -228,7 +228,7 @@ namespace AeonHacs.Components
             catch (Exception e)
             {
                 if (LogEverything) Log.Record(e.ToString());
-                return false; 
+                return false;
             }
         }
 

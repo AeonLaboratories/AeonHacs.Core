@@ -18,7 +18,7 @@ namespace AeonHacs.Components
 
         public static double RatiometricNominal = 5.0;
         public static double RatiometricValue
-        { 
+        {
             get => ratiometricValue;
             set
             {
@@ -34,7 +34,7 @@ namespace AeonHacs.Components
         #region Device interfaces
 
         public new interface IDevice : HacsDevice.IDevice
-        { 
+        {
             double Value { get; set; }
         }
         public new interface IConfig : HacsDevice.IConfig { }
@@ -101,8 +101,8 @@ namespace AeonHacs.Components
         public virtual double MinValue { get; set; } = double.NegativeInfinity;
 
         /// <summary>
-        ///  The smallest meaningful (detectable) difference from zero that Value can be. 
-        ///  If Sensitivity is set to zero, it is ignored, in which case Value can be 
+        ///  The smallest meaningful (detectable) difference from zero that Value can be.
+        ///  If Sensitivity is set to zero, it is ignored, in which case Value can be
         ///  arbitrarily close to zero.
         /// </summary>
         [JsonProperty]
@@ -149,7 +149,7 @@ namespace AeonHacs.Components
         bool resolutionIsProportional = false;
 
         /// <summary>
-        /// A digital filter, designed to smooth irrelevant variations 
+        /// A digital filter, designed to smooth irrelevant variations
         /// in Value over time.
         /// </summary>
         [JsonProperty]
@@ -188,7 +188,7 @@ namespace AeonHacs.Components
             Value == double.PositiveInfinity;
 
         /// <summary>
-        /// True if Value is at or below MinValue or less than Sensitivity, 
+        /// True if Value is at or below MinValue or less than Sensitivity,
         /// or if it is negative and infinite, or cannot be calculated.
         /// </summary>
         public virtual bool UnderRange =>
@@ -214,7 +214,7 @@ namespace AeonHacs.Components
         }
         double stable;
 
-        public virtual bool IsStable => RateOfChange != null && 
+        public virtual bool IsStable => RateOfChange != null &&
             Math.Abs(RateOfChange) <= Stable;
 
         [JsonProperty]
@@ -225,7 +225,7 @@ namespace AeonHacs.Components
         }
         double falling;
 
-        public virtual bool IsFalling => RateOfChange != null && 
+        public virtual bool IsFalling => RateOfChange != null &&
             RateOfChange <= Falling;
 
         [JsonProperty]
@@ -236,13 +236,13 @@ namespace AeonHacs.Components
         }
         double rising;
 
-        public virtual bool IsRising => RateOfChange != null && 
+        public virtual bool IsRising => RateOfChange != null &&
             RateOfChange >= Rising;
 
         // add additional, similar RateOfChange conditions for VTT and IP?
 
         /// <summary>
-        /// Update Value with a new input, based on the configuration and present 
+        /// Update Value with a new input, based on the configuration and present
         /// state of the Meter. The value may be digitally filtered, scaled,
         /// converted to different units, and normalized for sensitivity and
         /// resolution.
@@ -356,7 +356,7 @@ namespace AeonHacs.Components
         #region Zeroing
 
         [JsonProperty, DefaultValue(300)]
-        public int ZerosToAverage 
+        public int ZerosToAverage
         {
             get => zerosToAverage;
             set => Ensure(ref zerosToAverage, value);
@@ -386,7 +386,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// Start averaging the next &lt;ZerosToAverage&gt; readings, asynchronously. Returns immediately.
-        /// (Later, once the required number of readings have been averaged, the meter's zero offset is 
+        /// (Later, once the required number of readings have been averaged, the meter's zero offset is
         /// updated automatically.)
         /// </summary>
         public virtual void ZeroNow() => ZeroNow(false);

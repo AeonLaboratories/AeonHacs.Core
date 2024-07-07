@@ -59,8 +59,8 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// If Sensor is specified, Condition is re-evaluted whenever 
-        /// Sensor's Value changes. 
+        /// If Sensor is specified, Condition is re-evaluted whenever
+        /// Sensor's Value changes.
         /// </summary>
         public ISensor Sensor
         {

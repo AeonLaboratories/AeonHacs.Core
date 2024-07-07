@@ -43,7 +43,7 @@ namespace AeonHacs.Components
         IDeviceManager AnalogInput.IDevice.Manager { get => AnalogInput.Device.Manager; set => AnalogInput.Device.Manager = value; }
 
         double AnalogInput.IDevice.Voltage
-        { 
+        {
             get => AnalogInput.Device.Voltage;
             set
             {
@@ -54,7 +54,7 @@ namespace AeonHacs.Components
         #endregion AnalogInput
 
         public override double MaximumVoltage
-        { 
+        {
             get => base.MaximumVoltage;
             set
             {
@@ -64,7 +64,7 @@ namespace AeonHacs.Components
         }
 
         public override double MinimumVoltage
-        { 
+        {
             get => base.MinimumVoltage;
             set
             {

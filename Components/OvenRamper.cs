@@ -38,16 +38,16 @@ public class OvenRamper : StateManager
         set => Ensure(ref enabled, value);
     }
     bool enabled;
-    
+
     public void Enable() => Enabled = true;
-    
+
     public void Disable() => Enabled = false;
 
     protected virtual void ManageSetpoint()
     {
         if (!(Enabled && Oven.IsOn)) return;
         if (oven.Setpoint != ramp.WorkingSetpoint)
-            oven.Setpoint = ramp.WorkingSetpoint;        
+            oven.Setpoint = ramp.WorkingSetpoint;
     }
 
     public OvenRamper()

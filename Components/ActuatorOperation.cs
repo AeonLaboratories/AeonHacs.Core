@@ -14,7 +14,7 @@ namespace AeonHacs.Components
         string name;
 
         /// <summary>
-        /// A numeric characterization of the desired motion, 
+        /// A numeric characterization of the desired motion,
         /// typically a position, movement amount, or speed.
         /// </summary>
         [JsonProperty]
@@ -26,7 +26,7 @@ namespace AeonHacs.Components
         int _value;
 
         /// <summary>
-        ///  True if the Value figure is incremental, that is, it is 
+        ///  True if the Value figure is incremental, that is, it is
         ///  intended to adjust the present condition rather than
         ///  replace it.
         /// </summary>

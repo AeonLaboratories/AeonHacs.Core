@@ -47,7 +47,7 @@ namespace AeonHacs.Utilities
         public CrcOptions() : this(0xFFFF, 0xDAAE, 0x82C0, true, false, false, 3, false) { }
 
         public CrcOptions(UInt16 init, UInt16 poly, UInt16 residue,
-            bool postInvert, bool msBitFirst, bool msByteFirst, 
+            bool postInvert, bool msBitFirst, bool msByteFirst,
             byte termchar, bool omitTermChar)
         {
             InitialValue = init;
@@ -64,7 +64,7 @@ namespace AeonHacs.Utilities
 
     public class Crc
     {
-        public CrcOptions Options 
+        public CrcOptions Options
         {
             get { return options; }
             set { options = value; Init(); }
@@ -82,10 +82,10 @@ namespace AeonHacs.Utilities
 
         public void Init()
         {
-            if (Options == null) 
+            if (Options == null)
                 Options = new CrcOptions();
             else
-                remainder = Options.InitialValue; 
+                remainder = Options.InitialValue;
         }
         public bool Good() => Options != null && remainder == Options.ExpectedResidue;
 
@@ -234,14 +234,14 @@ namespace AeonHacs.Utilities
     //////////////////////////
     // NOTES
     //////////////////////////
-    // Since RS232 is little-endian (transmitted lsb first), this CRC 
+    // Since RS232 is little-endian (transmitted lsb first), this CRC
     // code works the data in that direction, i.e., it shifts to the
     // right instead of left, and accordingly uses the Reverse version
     // of the polynomial.
     //
     ////////////////
     // CRC-CCITT = x16 + x12 + x5 + 1
-    // 
+    //
     // Normal:
     // (1)    1
     // (6) 5432 1098 7654 3210

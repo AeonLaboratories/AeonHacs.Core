@@ -54,9 +54,9 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// The number [0..15] of fractional digits of the double 
-        /// representation to be encoded as whole numbers in the integer 
-        /// representation. For example, if Precision = 3, 6.01264 would be 
+        /// The number [0..15] of fractional digits of the double
+        /// representation to be encoded as whole numbers in the integer
+        /// representation. For example, if Precision = 3, 6.01264 would be
         /// encoded as the integer 6013.
         /// </summary>
         public int Precision
@@ -84,7 +84,7 @@ namespace AeonHacs.Components
                 return Equals(this, i);
             return false;
         }
-        
+
         /// <summary>
         /// Creates a new instance of value 0 with the default precision of 0;
         /// </summary>
@@ -94,8 +94,8 @@ namespace AeonHacs.Components
         /// Creates a new instance of value 0 with the specified precision.
         /// </summary>
         /// <param name="precision">The number [0..15] of fractional digits of
-        /// the double representation to be encoded as whole numbers in the integer 
-        /// representation. For example, if precision = 3, 6.01264 would be 
+        /// the double representation to be encoded as whole numbers in the integer
+        /// representation. For example, if precision = 3, 6.01264 would be
         /// encoded as the integer 6013.</param>
         public IntEncodableDouble(int precision)
         { Precision = precision; }

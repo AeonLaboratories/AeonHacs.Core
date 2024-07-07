@@ -6,7 +6,7 @@ using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
-    
+
     // vacuum system pressure monitor
     public class DualManometer : SwitchedManometer, IDualManometer, DualManometer.IDevice, DualManometer.IConfig
     {
@@ -79,7 +79,7 @@ namespace AeonHacs.Components
         public double SwitchpointPressure { get; set; }
 
         public override StopAction StopAction
-        { 
+        {
             get => base.StopAction;
             set
             {
@@ -90,7 +90,7 @@ namespace AeonHacs.Components
         }
 
         public override int MillisecondsToValid
-        { 
+        {
             get => base.MillisecondsToValid;
             set
             {
@@ -101,7 +101,7 @@ namespace AeonHacs.Components
         }
 
         public override int MinimumMillisecondsOff
-        { 
+        {
             get => base.MinimumMillisecondsOff;
             set
             {
@@ -140,7 +140,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Automatically manage the LowPressureManometer's on/off state 
+        /// Automatically manage the LowPressureManometer's on/off state
         /// based on the pressure and settings.
         /// </summary>
         public bool ManualMode
@@ -175,8 +175,8 @@ namespace AeonHacs.Components
         bool discard = true;
         public override void OnPropertyChanged(object sender = null, PropertyChangedEventArgs e = null)
         {
-            // Both manometers trigger this method on every DAQ scan, but the 
-            // pressure should only be updated once per scan, in case there is a 
+            // Both manometers trigger this method on every DAQ scan, but the
+            // pressure should only be updated once per scan, in case there is a
             // filter, which potentially depends on the DAQ scan frequency.
             // Ideally, UpdatePressure should be called when the second of the two
             // events occurs, but there currently is no way to be sure.

@@ -77,7 +77,7 @@ namespace AeonHacs.Utilities
         public StopBits StopBits { get; set; }
         [JsonProperty]
         public Handshake Handshake { get; set; }
-        
+
         public SerialPortSettings(string portName, int baudRate, Parity parity, int dataBits, StopBits stopBits, Handshake handshake)
         {
             PortName = portName;
@@ -88,16 +88,16 @@ namespace AeonHacs.Utilities
             Handshake = handshake;
         }
 
-        public SerialPortSettings(string portName, int baudRate) : 
-            this(portName, 
-                baudRate, 
-                Parity.None, 
-                8, 
-                StopBits.One, 
+        public SerialPortSettings(string portName, int baudRate) :
+            this(portName,
+                baudRate,
+                Parity.None,
+                8,
+                StopBits.One,
                 Handshake.None)
         {}
 
-        public SerialPortSettings(string portName) : 
+        public SerialPortSettings(string portName) :
             this(portName, 115200)
         {}
 

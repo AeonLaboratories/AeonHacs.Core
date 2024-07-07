@@ -10,7 +10,7 @@ namespace AeonHacs.Components
 
         #region Device interfaces
         public new interface IDevice : HacsDevice.IDevice
-        { 
+        {
             ValveState ValveState { get; set; }
         }
         public new interface IConfig : HacsDevice.IConfig { }
@@ -22,8 +22,8 @@ namespace AeonHacs.Components
         public virtual ValveState ValveState
         {
             get => valveState;
-            protected set => Ensure(ref valveState, value); 
-        } 
+            protected set => Ensure(ref valveState, value);
+        }
         ValveState valveState = ValveState.Unknown;
         ValveState IDevice.ValveState
         {

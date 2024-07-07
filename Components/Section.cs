@@ -145,12 +145,12 @@ namespace AeonHacs.Components
         /// <summary>
         /// The ordered list of valves that isolate the Section and define
         /// its volume perimeter.
-        /// Usually, port valves should be omitted here (use the Ports list, 
-        /// instead). Valves listed here are always closed to isolate the 
-        /// section, whereas port valves are only operated explicitly as 
-        /// such, and otherwise can be omitted from or included in normal 
-        /// Section operations by managing them in the calling code, depending 
-        /// on whether any or all should be treated as part of the Section 
+        /// Usually, port valves should be omitted here (use the Ports list,
+        /// instead). Valves listed here are always closed to isolate the
+        /// section, whereas port valves are only operated explicitly as
+        /// such, and otherwise can be omitted from or included in normal
+        /// Section operations by managing them in the calling code, depending
+        /// on whether any or all should be treated as part of the Section
         /// according to the needs of the caller.
         /// </summary>
         public List<IValve> Isolation
@@ -294,7 +294,7 @@ namespace AeonHacs.Components
         //    }
         //}
 
-        protected StepTracker StepTracker => StepTracker.Default; 
+        protected StepTracker StepTracker => StepTracker.Default;
 
         /// <summary>
         /// A method for cleaning the section;
@@ -443,7 +443,7 @@ namespace AeonHacs.Components
         /// Isolate the section, join all chambers together, open all ports,
         /// and evacuate them.
         /// WARNING: Do not use this method if any of the ports might be
-        /// open to atmosphere or otherwise exposed to an essentially infinite 
+        /// open to atmosphere or otherwise exposed to an essentially infinite
         /// supply of gas.
         /// If pressure is 0, wait until pressure_baseline is reached.
         /// If pressure &lt; 0, wait 3 seconds after evacuation commences.
@@ -475,14 +475,14 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// Isolate the Section and begin evacuating it. All other 
+        /// Isolate the Section and begin evacuating it. All other
         /// valves on the VacuumSystem manifold are closed first.
         /// Wait three seconds after evacuation commences, then return.
         /// </summary>
         public void Evacuate() { Evacuate(-1); }
 
         /// <summary>
-        /// Isolate the Section and evacuate it to the given pressure. All other 
+        /// Isolate the Section and evacuate it to the given pressure. All other
         /// valves on the VacuumSystem manifold are closed first.
         /// </summary>
         /// <param name="pressure">wait until this pressure is reached</param>
@@ -494,14 +494,14 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// All internal valves are opened and the section is joined to the vacuum manifold.
-        /// Note: the section need not be evacuated, nor evacuating, just connected 
+        /// Note: the section need not be evacuated, nor evacuating, just connected
         /// to the vacuum manifold.
         /// </summary>
         public bool IsOpened
         {
             get
             {
-                return (InternalValves == null || InternalValves.IsOpened()) && 
+                return (InternalValves == null || InternalValves.IsOpened()) &&
                     (PathToVacuum == null || PathToVacuum.IsOpened());
             }
         }
@@ -578,7 +578,7 @@ namespace AeonHacs.Components
         }
 
         public virtual bool Thawed =>
-            VTColdfinger?.Coldfinger?.Thawed ?? 
+            VTColdfinger?.Coldfinger?.Thawed ??
             Coldfinger?.Thawed ??
             true;
 
@@ -614,9 +614,9 @@ namespace AeonHacs.Components
             Freeze();
         }
 
-        public virtual bool Frozen => 
-            VTColdfinger?.Frozen ?? 
-            Coldfinger?.Frozen ?? 
+        public virtual bool Frozen =>
+            VTColdfinger?.Frozen ??
+            Coldfinger?.Frozen ??
             false;
 
         /// <summary>

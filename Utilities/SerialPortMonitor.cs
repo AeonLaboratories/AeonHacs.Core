@@ -29,7 +29,7 @@ namespace AeonHacs.Utilities
 
                 portArrivalWatcher = new ManagementEventWatcher(deviceArrivalQuery);
                 portRemovalWatcher = new ManagementEventWatcher(deviceRemovalQuery);
-                
+
                 portArrivalWatcher.EventArrived += (o, args) => deviceAdded();
                 portRemovalWatcher.EventArrived += (o, args) => deviceRemoved();
 

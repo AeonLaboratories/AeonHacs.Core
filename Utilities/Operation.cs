@@ -132,7 +132,7 @@ namespace AeonHacs.Utilities
         public string Argument { get { return getArgument(); } set { setArgument(value); } }
 
         bool inputFirst = true;
-        
+
         public bool InputFirst
         {
             get { return inputFirst; }
@@ -140,7 +140,7 @@ namespace AeonHacs.Utilities
         }
 
         Operators _operator = Operators.None;
-        
+
         public Operators Operator
         {
             get { return _operator; }
@@ -148,7 +148,7 @@ namespace AeonHacs.Utilities
         }
 
         double operand;
-        
+
         public double Operand
         {
             get { return operand; }
@@ -297,7 +297,7 @@ namespace AeonHacs.Utilities
                 default:
                     break;
             }
-            
+
             exec = Expression.Lambda<Func<double, double, double>>
             (
                 execute,

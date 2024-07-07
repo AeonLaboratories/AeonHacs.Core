@@ -45,7 +45,7 @@ namespace AeonHacs.Components
         double AutoManual.IDevice.PowerLevel { get => AutoManual.Device.PowerLevel; set => AutoManual.Device.PowerLevel = value; }
 
         /// <summary>
-        /// The maximum device power level. This value protects the device 
+        /// The maximum device power level. This value protects the device
         /// from receiving potentially damaging excessive power.
         /// </summary>
         public virtual double MaximumPowerLevel { get => AutoManual.MaximumPowerLevel; set => TargetMaximumPowerLevel = value; }

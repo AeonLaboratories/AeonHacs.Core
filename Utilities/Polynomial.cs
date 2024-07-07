@@ -1,7 +1,7 @@
 ﻿namespace AeonHacs.Utilities
 {
     // The dynamic casting gyrations here are necessary because C#
-    // can't guarantee that any given operator is defined for T, and 
+    // can't guarantee that any given operator is defined for T, and
     // doesn't provide a way to constrain generic classes to
     // those types which *do* define it.
     // It would be good to benchmark this solution against the

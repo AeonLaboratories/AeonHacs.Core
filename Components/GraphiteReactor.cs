@@ -92,7 +92,7 @@ namespace AeonHacs.Components
         int graphitizingTemperature = 580;
 
         /// <summary>
-        /// The difference between the true sample temperature and the 
+        /// The difference between the true sample temperature and the
         /// HeaterTemperature when the true sample temperature is at
         /// the Graphitizing temperature.
         /// </summary>
@@ -103,7 +103,7 @@ namespace AeonHacs.Components
             set
             {
                 if (Ensure(ref sampleTemperatureOffset, value))
-                    SampleSetpoint = sampleSetpoint;    //    update Heater.Setpoint                    
+                    SampleSetpoint = sampleSetpoint;    //    update Heater.Setpoint
             }
         }
         int sampleTemperatureOffset = 0;
@@ -168,8 +168,8 @@ namespace AeonHacs.Components
 
         public void Start() { if (Aliquot != null) Aliquot.Tries++; State = States.Start; }
         public void Stop() => State = States.Stop;
-        public void Reserve(IAliquot aliquot) 
-        { 
+        public void Reserve(IAliquot aliquot)
+        {
             Aliquot = aliquot;
             if (Aliquot != null) Aliquot.GraphiteReactor = Name;
             State = States.InProcess;
@@ -177,7 +177,7 @@ namespace AeonHacs.Components
         public void Reserve(string contents)
         {
             var s = new Sample() { AliquotIds = new List<string>() { contents } };
-            Reserve(s.Aliquots[0]);    
+            Reserve(s.Aliquots[0]);
         }
         public void ServiceComplete() { Aliquot = null; State = States.WaitPrep; }
         public void PreparationComplete() => State = States.Prepared;

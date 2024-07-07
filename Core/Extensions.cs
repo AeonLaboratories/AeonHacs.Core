@@ -178,7 +178,7 @@ namespace AeonHacs
             return singular + "s";
         }
     }
-        
+
     public static class ArrayExtensions
     {
         public static Array RemoveAt(this Array source, int index)
@@ -275,7 +275,7 @@ namespace AeonHacs
     {
         public static Dictionary<string, string> KeysNames<T>(this Dictionary<string, T> source) where T : INamedObject =>
             source?.ToDictionary(x => x.Key, x => x.Value.Name);
-            
+
         /// <summary>
         /// Remove the first entry that contains the given value from the Dictionary
         /// </summary>
@@ -297,7 +297,7 @@ namespace AeonHacs
 
         public static bool IsAtomic(this Type type) =>
             type.IsValueType || type == typeof(string);
-            
+
     }
 
     public class EncodingType
@@ -306,7 +306,7 @@ namespace AeonHacs
         /// ASCII uses only 7 bits; use this 8-bit "extended ASCII" encoding
         /// </summary>
         public static Encoding ASCII8 = Encoding.GetEncoding("iso-8859-1");
-    }    
+    }
 
     public static class MemberInfoExtensions
     {
@@ -330,7 +330,7 @@ namespace AeonHacs
                 throw new Exception("Property must be of type FieldInfo or PropertyInfo");
         }
     }
-    
+
     /// <summary>
     /// Extension methods for PropertyInfo objects
     /// </summary>
@@ -406,5 +406,5 @@ namespace AeonHacs
             return Color.FromArgb(r1 + r2, g1 + g2, b1 + b2);
         }
     }
-    
+
 }

@@ -8,15 +8,15 @@ namespace AeonHacs
         /// <summary>
         /// (0x00) Null
         /// </summary>
-        NUL = 00, 
+        NUL = 00,
         /// <summary>
         /// (0x01) Start of header
         /// </summary>
-        SOH = 01, 
+        SOH = 01,
         /// <summary>
         /// (0x02) Start of text
         /// </summary>
-        STX = 02, 
+        STX = 02,
         /// <summary>
         /// (0x03) End of text
         /// </summary>

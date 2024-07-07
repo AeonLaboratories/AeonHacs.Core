@@ -39,7 +39,7 @@ namespace AeonHacs.Components
             DefaultAlertManager?.Pause(subject, message);
 
         /// <summary>
-        /// Make an entry in the EventLog, pause and give the local operator 
+        /// Make an entry in the EventLog, pause and give the local operator
         /// the option to continue. The notice is transmitted as a Warning.
         /// </summary>
         public static void Warn(string subject, string message) =>
@@ -126,8 +126,8 @@ namespace AeonHacs.Components
         public void Send(string subject, string message)
         {
             if (!AlertsEnabled ||
-                message == PriorAlertMessage && 
-                    AlertTimer.IsRunning && 
+                message == PriorAlertMessage &&
+                    AlertTimer.IsRunning &&
                     AlertTimer.Elapsed.TotalMinutes < MinutesToSuppressSameMessage)
                 return;
 
@@ -161,7 +161,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Make an entry in the EventLog, pause and give the local operator 
+        /// Make an entry in the EventLog, pause and give the local operator
         /// the option to continue. The notice is transmitted as a Warning.
         /// </summary>
         public virtual void Warn(string subject, string message)

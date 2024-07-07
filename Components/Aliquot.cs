@@ -15,8 +15,8 @@ namespace AeonHacs.Components
             set => sampleName = value;
         }
         string sampleName;
-        
-        public ISample Sample 
+
+        public ISample Sample
         {
             get => sample ??= Find<Sample>(sampleName);
             set => Ensure(ref sample, value);

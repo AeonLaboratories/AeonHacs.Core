@@ -25,7 +25,7 @@ namespace AeonHacs.Components
 
         public HacsLog EventLog => Hacs.EventLog;
 
-        [JsonProperty(Order = -98)] 
+        [JsonProperty(Order = -98)]
         public AlertManager AlertManager
         {
             get => alertManager;
@@ -54,7 +54,7 @@ namespace AeonHacs.Components
             AlertManager.Pause(subject, message);
 
         /// <summary>
-        /// Make an entry in the EventLog, pause and give the local operator 
+        /// Make an entry in the EventLog, pause and give the local operator
         /// the option to continue. The notice is transmitted as a Warning.
         /// </summary>
         public virtual void Warn(string subject, string message) =>
@@ -90,10 +90,10 @@ namespace AeonHacs.Components
         public ProcessStateCode ProcessState
         {
             get => processState;
-            protected set 
-            { 
+            protected set
+            {
                 if (Ensure(ref processState, value))
-                    Busy = processState != ProcessStateCode.Ready; 
+                    Busy = processState != ProcessStateCode.Ready;
             }
         }
         ProcessStateCode processState = ProcessStateCode.Ready;
@@ -102,9 +102,9 @@ namespace AeonHacs.Components
         {
             get => busy;
             protected set
-            { 
+            {
                 if (Ensure(ref busy, value))
-                    NotBusy = !busy; 
+                    NotBusy = !busy;
             }
         }
         bool busy = false;
@@ -164,7 +164,7 @@ namespace AeonHacs.Components
             if (ProcessThread?.IsAlive ?? false)
                 ProcessThread.Abort();
         }
-        
+
         // A Process runs in its own thread.
         // Only one Process can be executing at a time.
         protected void ManageProcess()

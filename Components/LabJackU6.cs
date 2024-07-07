@@ -94,10 +94,10 @@ namespace AeonHacs.Components
             return false;
         }
 
-        public override bool Ready => 
-            base.Ready && 
+        public override bool Ready =>
+            base.Ready &&
             ConnectedToDaq;
-        public override bool HasWork => 
+        public override bool HasWork =>
             base.HasWork ||
             !serviceQ.IsEmpty;
 
@@ -114,10 +114,10 @@ namespace AeonHacs.Components
         /// The DAQ analog input stream is running.
         /// </summary>
         public bool IsStreaming
-        { 
+        {
             get => isStreaming;
             protected set => Ensure(ref isStreaming, value);
-        } 
+        }
         bool isStreaming = false;
 
         /// <summary>
@@ -131,8 +131,8 @@ namespace AeonHacs.Components
         bool dataAcquired = false;
 
         /// <summary>
-        /// The number of scans per second in streaming mode. Each 
-        /// scan includes one new data value for each analog and 
+        /// The number of scans per second in streaming mode. Each
+        /// scan includes one new data value for each analog and
         /// digital input.
         /// </summary>
         public int ScanFrequency => scanFrequency;
@@ -142,7 +142,7 @@ namespace AeonHacs.Components
             set
             {
                 Set(ref scanFrequency, value);
-                // Digital filters on analog inputs may depend on the 
+                // Digital filters on analog inputs may depend on the
                 // DAQ scan frequency, which is obtained when the DAQ
                 // starts streaming.
                 foreach (var d in Devices.Values)
@@ -196,8 +196,8 @@ namespace AeonHacs.Components
         }
         int minimumRetrievalInterval = 40;
 
-        // If the AIN_SETTLING_TIME "channel" is not explicitly configured 
-        // via ePut(), the driver adjusts settling time based on the resolution 
+        // If the AIN_SETTLING_TIME "channel" is not explicitly configured
+        // via ePut(), the driver adjusts settling time based on the resolution
         // index and gain settings.
         [JsonProperty, DefaultValue(3)]     // LJ_SETTLINGTIME_100uS == 3
         public int SettlingTimeIndex
@@ -344,7 +344,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The amount of data currently buffered by the UD driver.
-        /// If this is increasing over time, the application is not 
+        /// If this is increasing over time, the application is not
         /// retrieving the data often enough.
         /// </summary>
         public int StreamingBacklogDriver
@@ -361,7 +361,7 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// The number of stream samples per packet. 
+        /// The number of stream samples per packet.
         /// Range 1..25. Default 25.
         /// </summary>
         public int StreamSamplesPerPacket
@@ -411,7 +411,7 @@ namespace AeonHacs.Components
         #region
 
         // These values are produced by the code, perhaps determined
-        // by consequence of configuration settings, limitations, 
+        // by consequence of configuration settings, limitations,
         // operating conditions, etc.
 
         /// <summary>
@@ -437,8 +437,8 @@ namespace AeonHacs.Components
         }
         int minimumScanTime;
         /// <summary>
-        /// The minimum command response time is ~0.6 ms if the LabJack 
-        /// goes through a USB2 hub to the USB2 host, i.e., 
+        /// The minimum command response time is ~0.6 ms if the LabJack
+        /// goes through a USB2 hub to the USB2 host, i.e.,
         /// LJ -&gt; hub -&gt; host).
         /// If the LJ is connected directly to a USB2 host port, or if any USB
         /// component in the path is &lt; USB 2.0, the minimum CRT goes up to 4 ms.
@@ -525,7 +525,7 @@ namespace AeonHacs.Components
                 return ain;
             if (Find<IAnalogOutput>(name) is IAnalogOutput aout)
                 return aout;
-            if (Find<IDigitalInput>(name) is IDigitalInput din) 
+            if (Find<IDigitalInput>(name) is IDigitalInput din)
                 return din;
             if (Find<IDigitalOutput>(name) is IDigitalOutput dout)
                 return dout;
@@ -578,7 +578,7 @@ namespace AeonHacs.Components
             //{
             //    if (!streamConfigured)
             //        ConfigureStream();
-                
+
             //    ScanMilliseconds = scanStopwatch.ElapsedMilliseconds;
             //    scanStopwatch.Restart();
 
@@ -836,7 +836,7 @@ namespace AeonHacs.Components
                 double retrievalFrequency = 1000.0 / RetrievalInterval;
 
                 // Set the scan frequency to half the retrieval frequency.
-                // New data should be available about every other attempted 
+                // New data should be available about every other attempted
                 // retrieval.
                 double scanFrequency = retrievalFrequency / 2;
 
@@ -864,13 +864,13 @@ namespace AeonHacs.Components
                     LJUD.AddRequest(lj.ljhandle, LJUD.IO.PUT_CONFIG,
                         LJUD.CHANNEL.AIN_RESOLUTION, resolutionIndex, 0, 0);
 
-                    // STREAM_READS_PER_SECOND tells the UD driver how often to 
+                    // STREAM_READS_PER_SECOND tells the UD driver how often to
                     // check for (and possibly retrieve) new data from the LabJack's
                     // hardware buffer.
                     LJUD.AddRequest(lj.ljhandle, LJUD.IO.PUT_CONFIG,
                         LJUD.CHANNEL.STREAM_READS_PER_SECOND, retrievalFrequency, 0, 0);
 
-                    // Give the driver a big enough buffer to cover random operating 
+                    // Give the driver a big enough buffer to cover random operating
                     // system latencies
                     // (2 seconds * scan frequency) = retrievalFrequency
                     LJUD.AddRequest(lj.ljhandle, LJUD.IO.PUT_CONFIG, LJUD.CHANNEL.STREAM_BUFFER_SIZE,
@@ -880,7 +880,7 @@ namespace AeonHacs.Components
                     LJUD.AddRequest(lj.ljhandle, LJUD.IO.PUT_CONFIG, LJUD.CHANNEL.STREAM_WAIT_MODE,
                         (double)LJUD.STREAMWAITMODES.ALL_OR_NONE, 0, 0);
 
-                    // If necessary, reduce the packet size to prevent the UD driver from 
+                    // If necessary, reduce the packet size to prevent the UD driver from
                     // waiting for multiple scans to complete before retrieving data from the u6.
                     if (ainCount < 25)
                         LJUD.AddRequest(lj.ljhandle, LJUD.IO.PUT_CONFIG,
@@ -894,7 +894,7 @@ namespace AeonHacs.Components
             catch (LabJackUDException e)
             {
                 LogMessage("Labjack Configuration Error:" + "\r\n" + e.ToString());
-                //handleLabJackException(e); 
+                //handleLabJackException(e);
             }
             streamConfigured = true;
             if (LogEverything) Log?.Record("...Configured.");
@@ -923,7 +923,7 @@ namespace AeonHacs.Components
 
         // Sets the daq's PGIA gain for the given meter's analog input.
         // The PGIA gain is defined by the max voltage to be sensed,
-        // like the Range setting on a multimeter. 
+        // like the Range setting on a multimeter.
         // +/- 10V => Gain = 1
         // +/- 1V => Gain = 10
         // +/- 0.1V => Gain = 100
@@ -1053,14 +1053,14 @@ namespace AeonHacs.Components
             }
             catch { IsStreaming = false; }
 
-            if (LogEverything) 
+            if (LogEverything)
                 Log?.Record($"Retrieved {Utility.ToUnitsString(scans, "scan")}");
 
             // Transfer the voltages to the analog input devices.
             if (scans > 0)
             {
 //                Meter.MetersLog?.Record("Voltages received from DAQ");
-                
+
                 ScanMilliseconds = scanStopwatch.ElapsedMilliseconds;
                 scanStopwatch.Restart();
 

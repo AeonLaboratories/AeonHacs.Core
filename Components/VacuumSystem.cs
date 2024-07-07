@@ -13,7 +13,7 @@ namespace AeonHacs.Components
 
     // TODO: make this a StateManager : IVacuumSystem and IVacuumSystem : IManometer
     /// <summary>
-    /// A high-vacuum system with a turbomolecular pump and a low-vacuum 
+    /// A high-vacuum system with a turbomolecular pump and a low-vacuum
     /// roughing pump that is also used as the backing pump for the turbo.
     /// </summary>
     public class VacuumSystem : HacsComponent, IVacuumSystem
@@ -195,12 +195,12 @@ namespace AeonHacs.Components
         }
         ISection vacuumManifold;
 
-        protected enum TargetStateCode 
-        { 
+        protected enum TargetStateCode
+        {
             /// <summary>
             /// The VacuumSystem is operationally idle. It controls no valves in this state.
             /// </summary>
-            Standby, 
+            Standby,
             /// <summary>
             /// Isolate the pumping system (turbopump and foreline) from the VacuumManifold. Provide backing vacuum to turbopump.
             /// </summary>
@@ -210,7 +210,7 @@ namespace AeonHacs.Components
             /// unless the VacuumManifold pressure is less than the HighVacuumRequired pressure, in which case,
             /// isolate the VacuumManifold from the pumping system and provide backing to the turbopump.
             /// </summary>
-            Rough, 
+            Rough,
             /// <summary>
             /// Evacuate the VacuumManifold using the roughing pump via the foreline or the turbopump, as appropriate based
             /// on the VacuumManifold and foreline pressures.
@@ -219,7 +219,7 @@ namespace AeonHacs.Components
             /// <summary>
             /// Shut down this VacuumSystem instance. Typically only used when HACS is shutting down.
             /// </summary>
-            Stop 
+            Stop
         }
         /// <summary>
         /// The desired operating state of the VacuumSystem.
@@ -269,8 +269,8 @@ namespace AeonHacs.Components
         double goodBackingPressure;  // open or close the turbopump backing valve when pForeline is less than this
 
         /// <summary>
-        ///When TargetState is Evacuate and State is neither HighVacuum nor Roughing, 
-        ///the VacuumSystem transitions to Roughing unless pVM is less than HighVacuumPreferred, 
+        ///When TargetState is Evacuate and State is neither HighVacuum nor Roughing,
+        ///the VacuumSystem transitions to Roughing unless pVM is less than HighVacuumPreferred,
         ///in which case it transitions to HighVacuum instead.
         /// </summary>
         [JsonProperty]
@@ -282,7 +282,7 @@ namespace AeonHacs.Components
         double highVacuumPreferredPressure;
 
         /// <summary>
-        /// When TargetState is Evacuate and State is Roughing, the VacuumSystem 
+        /// When TargetState is Evacuate and State is Roughing, the VacuumSystem
         /// transitions to HighVacuum if pVM is below HighVacuumRequired.
         /// </summary>
         [JsonProperty]
@@ -294,7 +294,7 @@ namespace AeonHacs.Components
         double highVacuumRequiredPressure;    // do not use LV below this pressure
 
         /// <summary>
-        /// When TargetState is Evacuate and State is HighVacuum, the VacuumSystem 
+        /// When TargetState is Evacuate and State is HighVacuum, the VacuumSystem
         /// transitions to Roughing if pVM is above LowVacuumRequired.
         /// </summary>
         [JsonProperty]
@@ -319,7 +319,7 @@ namespace AeonHacs.Components
         /// A defined operating (valve) State for the VacuumSystem.
         /// </summary>
         public enum StateCode
-        { 
+        {
             /// <summary>
             /// The VacuumSystem valve states do not correspond to any of the other
             /// defined StateCodes.
@@ -350,7 +350,7 @@ namespace AeonHacs.Components
             /// <summary>
             /// The VacuumSystem is not operational.
             /// </summary>
-            Stopped 
+            Stopped
         }
 
         /// <summary>
@@ -362,9 +362,9 @@ namespace AeonHacs.Components
             {
                 if (Stopped)
                     return StateCode.Stopped;
-                if (HighVacuumValve.IsClosed && 
-                        LowVacuumValve.IsClosed && 
-                        (turboPumpIsOn ? BackingValve.IsOpened : BackingValve.IsClosed) && 
+                if (HighVacuumValve.IsClosed &&
+                        LowVacuumValve.IsClosed &&
+                        (turboPumpIsOn ? BackingValve.IsOpened : BackingValve.IsClosed) &&
                         (roughingPumpIsOn ? (RoughingValve?.IsOpened ?? true) : (RoughingValve?.IsClosed ?? true)))
                     return StateCode.Isolated;     // and backing
                 if (HighVacuumValve.IsClosed && LowVacuumValve.IsOpened && BackingValve.IsClosed && (RoughingValve?.IsOpened ?? true))
@@ -484,7 +484,7 @@ namespace AeonHacs.Components
         /// </summary>
         public virtual void WaitForStableBaselinePressure()
         {
-            while (TimeAtBaseline.TotalSeconds < 10) 
+            while (TimeAtBaseline.TotalSeconds < 10)
                 Wait();
         }
 
@@ -554,13 +554,13 @@ namespace AeonHacs.Components
         [JsonProperty, DefaultValue(50)]
         protected int IdleTimeout { get; set; } = 50;
 
-        bool valvesReady => 
-            (HighVacuumValve?.Ready ?? true) && 
-            (LowVacuumValve?.Ready ?? true) && 
+        bool valvesReady =>
+            (HighVacuumValve?.Ready ?? true) &&
+            (LowVacuumValve?.Ready ?? true) &&
             (BackingValve?.Ready ?? true) &&
             (RoughingValve?.Ready ?? true);
 
-        // TODO: Need to monitor how long Backing has been closed, and 
+        // TODO: Need to monitor how long Backing has been closed, and
         // to periodically empty the turbo pump exhaust, or shut down the
         // turbo pump with an alert.
         void stateLoop()
@@ -786,9 +786,9 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// These event handlers are invoked whenever the desired device
-        /// configuration changes. EventArgs.PropertyName is usually the 
+        /// configuration changes. EventArgs.PropertyName is usually the
         /// name of an updated configuration property, but it may be null,
-        /// or a generalized indication of the reason the event was raised, 
+        /// or a generalized indication of the reason the event was raised,
         /// such as &quot;{Init}&quot;.
         /// </summary>
         public virtual PropertyChangedEventHandler ConfigChanged { get; set; }

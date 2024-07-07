@@ -16,7 +16,7 @@ namespace AeonHacs.Utilities
 
         public static string[] SplitIntoLines(string s)
         { return s.Split(lineTerminators, StringSplitOptions.None); }
-        
+
         // conversions for MSB-first 2-byte sequences, often encountered in serial communications
         public static int toInt(string s, int msbIndex) => toInt(s[msbIndex], s[msbIndex + 1]);
         public static int toInt(string s, int msbIndex, int lsbIndex) => toInt(s[msbIndex], s[lsbIndex]);
@@ -59,7 +59,7 @@ namespace AeonHacs.Utilities
 
         public static string IndentLines(string text)
         { return IndentLines(text, "   "); }
-        
+
         public static string ToStringLine(string name, object value)
         {
             StringBuilder sb = new StringBuilder(name);
@@ -323,7 +323,7 @@ namespace AeonHacs.Utilities
         {
             if (d < key[0] || d > key[count - 1])
             {
-                outOfRange = true; 
+                outOfRange = true;
                 return d;
             }
             outOfRange = false;

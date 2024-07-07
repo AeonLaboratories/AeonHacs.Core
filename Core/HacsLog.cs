@@ -57,7 +57,7 @@ namespace AeonHacs
 
         LogFile Log;
         public void Close() => Log?.Close();
-        
+
         [JsonProperty]
         public string FileName
         {

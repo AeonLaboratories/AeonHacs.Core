@@ -132,7 +132,7 @@ namespace AeonHacs.Components
         double deadband = 0.02;
 
         /// <summary>
-        /// If false, Deadband is a fixed constant in units of TargetValue; 
+        /// If false, Deadband is a fixed constant in units of TargetValue;
         /// if true, the dead band is the product of Deadband and TargetValue.
         /// </summary>
         [JsonProperty, DefaultValue(true)]
@@ -323,7 +323,7 @@ namespace AeonHacs.Components
                     (UseRateOfChange ? roc : anticipatedValue) - TargetValue :
                     value - TargetValue;
                 var anticipatedTimeToTarget =
-                    error == 0 ? 0.0 : 
+                    error == 0 ? 0.0 :
                     roc == 0 ? double.PositiveInfinity :
                     (TargetValue - value) / roc;
 
@@ -365,7 +365,7 @@ namespace AeonHacs.Components
                     var rateBasedMovement = ppr * (targetRate - roc); // targetRate - roc is analogous to -error
 
                     var movement = manageRate ?
-                        rateBasedMovement :  // manage roc   
+                        rateBasedMovement :  // manage roc
                         errorBasedMovement;  // manage value
 
                     ProcessStep.End();

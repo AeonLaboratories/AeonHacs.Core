@@ -55,7 +55,7 @@ namespace AeonHacs.Components
         RuleCode priorState = RuleCode.None;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public OnOffState DetectedState
         {

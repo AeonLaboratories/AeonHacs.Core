@@ -8,7 +8,7 @@ using static AeonHacs.Utilities.Utility;
 namespace AeonHacs.Components
 {
     /// <summary>
-    /// A valve whose Open and Close operations are implemented by 
+    /// A valve whose Open and Close operations are implemented by
     /// two distinct (usually pneumatic) valves.
     /// </summary>
     public class DualActionValve : HacsDevice, IDualActionValve, DualActionValve.IDevice, DualActionValve.IConfig
@@ -45,7 +45,7 @@ namespace AeonHacs.Components
         string OpenValveName { get => OpenValve?.Name; set => openValveName = value; }
         string openValveName;
         // The valve whose fluid powers the DualActionValve's Open operation.
-        public IValve OpenValve 
+        public IValve OpenValve
         {
             get => openValve;
             set => Ensure(ref openValve, value, NotifyPropertyChanged);
@@ -56,9 +56,9 @@ namespace AeonHacs.Components
         string CloseValveName { get => CloseValve?.Name; set => closeValveName = value; }
         string closeValveName;
         // The valve whose fluid powers the DualActionValve's Close operation.
-        public IValve CloseValve { 
+        public IValve CloseValve {
             get => closeValve;
-            set => Ensure(ref closeValve, value, NotifyPropertyChanged); 
+            set => Ensure(ref closeValve, value, NotifyPropertyChanged);
         }
         IValve closeValve;
 

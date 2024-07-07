@@ -98,10 +98,10 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// Integral coefficient: Ci = 1 / Ti, 
+        /// Integral coefficient: Ci = 1 / Ti,
         /// where Ti is the process time constant "dead time plus lag"
         /// in units of the control output (power level) update period.
-        /// Note that this coefficient does not depend on the process 
+        /// Note that this coefficient does not depend on the process
         /// gain term Kc.
         /// </summary>
         [JsonProperty]
@@ -141,8 +141,8 @@ namespace AeonHacs.Components
         /// <summary>
         /// Preset coefficient: Cpr = 1 / gp
         /// where the process gain gp is usually dPV/dCO where dPV and
-        /// dCO are typical changes in the process variable (e.g., 
-        /// temperature) and control output (e.g., power level) over 
+        /// dCO are typical changes in the process variable (e.g.,
+        /// temperature) and control output (e.g., power level) over
         /// a representative step test.
         /// </summary>
         [JsonProperty]

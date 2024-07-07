@@ -8,7 +8,7 @@ namespace AeonHacs
 {
 
     /// <summary>
-    /// This class ramps the Setpoint to programmed levels at 
+    /// This class ramps the Setpoint to programmed levels at
     /// the given rate.
     /// </summary>
     [JsonObject(MemberSerialization.OptIn)]

@@ -71,11 +71,11 @@ namespace AeonHacs.Components
         string LevelSensorName { get => LevelSensor?.Name; set => levelSensorName = value; }
         string levelSensorName;
         /// <summary>
-        /// The Thermometer (thermocouple) used by this device to detect the level of 
+        /// The Thermometer (thermocouple) used by this device to detect the level of
         /// liquid nitrogen in its reservoir.
         /// </summary>
         public IThermometer LevelSensor
-        { 
+        {
             get => levelSensor;
             set => Ensure(ref levelSensor, value, NotifyPropertyChanged);
         }
@@ -167,8 +167,8 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// In Raise mode, if the LNValve doesn't have a Trickle operation, this device 
-        /// will request liquid nitrogen if its Temperature is this much warmer than 
+        /// In Raise mode, if the LNValve doesn't have a Trickle operation, this device
+        /// will request liquid nitrogen if its Temperature is this much warmer than
         /// FrozenTemperature.
         /// </summary>
         [JsonProperty, DefaultValue(2)]
@@ -181,8 +181,8 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// Whenever liquid nitrogen is flowing, the FTC moves the 
-        /// LNValve (close-open cycle) every this many seconds, to prevent 
+        /// Whenever liquid nitrogen is flowing, the FTC moves the
+        /// LNValve (close-open cycle) every this many seconds, to prevent
         /// the valve from sticking open.
         /// </summary>
         [JsonProperty, DefaultValue(60)]
@@ -194,7 +194,7 @@ namespace AeonHacs.Components
         int maximumSecondsLNFlowing = 60;
 
         /// <summary>
-        /// How many seconds to wait for temperature equilibrium after the Raise state 
+        /// How many seconds to wait for temperature equilibrium after the Raise state
         /// is reached.
         /// </summary>
         [JsonProperty, DefaultValue(15)]
@@ -207,7 +207,7 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// The FTC is "near" air temperature if it is within this 
+        /// The FTC is "near" air temperature if it is within this
         /// many degrees of AirTemperature.
         /// </summary>
         [JsonProperty, DefaultValue(7.0)]
@@ -416,7 +416,7 @@ namespace AeonHacs.Components
         public void Freeze() => ChangeState(TargetStates.Freeze);
 
         /// <summary>
-        /// Reach and maintain a maximum level of liquid nitrogen, 
+        /// Reach and maintain a maximum level of liquid nitrogen,
         /// with a trickling overflow if possible.
         /// </summary>
         public void Raise() => ChangeState(TargetStates.Raise);
@@ -485,7 +485,7 @@ namespace AeonHacs.Components
                         if ((LNValve as IActuator).Operation?.Name != Trickle)
                             LNOn();
                     }
-                    else 
+                    else
                     {
                         LNOff();
                     }
@@ -531,7 +531,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Blow air through the reservoir, to eject liquid 
+        /// Blow air through the reservoir, to eject liquid
         /// nitrogen and warm the chamber.
         /// </summary>
         void AirOn()

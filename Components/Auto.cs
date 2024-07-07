@@ -11,7 +11,7 @@ namespace AeonHacs.Components
         #region Device interfaces
 
         public new interface IDevice : Switch.IDevice
-        { 
+        {
             double Setpoint { get; set; }
         }
 
@@ -53,7 +53,7 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// Trying to set the Setpoint below this 
+        /// Trying to set the Setpoint below this
         /// causes the Setpoint to be this value instead.
         /// </summary>
         [JsonProperty, DefaultValue(-999.0)]
@@ -66,7 +66,7 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// Trying to set the Setpoint above this 
+        /// Trying to set the Setpoint above this
         /// causes the Setpoint to be this value instead.
         /// </summary>
         [JsonProperty, DefaultValue(1200.0)]

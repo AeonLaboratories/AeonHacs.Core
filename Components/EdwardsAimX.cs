@@ -116,7 +116,7 @@ namespace AeonHacs.Components
         public override string ToString()
         {
             var sb = new StringBuilder(base.ToString().Replace(UnitSymbol, $"{UnitSymbol}, {IsOn.OnOff()}"));
-            if (IsOn) 
+            if (IsOn)
                 sb.Append(Utility.IndentLines($"\r\n({Voltage:0.0000} V)"));
 
             if (Error != 0)

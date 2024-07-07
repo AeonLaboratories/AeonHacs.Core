@@ -62,7 +62,7 @@ namespace AeonHacs.Components
         bool useTimeLimit;
 
         /// <summary>
-        /// The "SetpointRamp" working setpoint. If no SetpointRamp 
+        /// The "SetpointRamp" working setpoint. If no SetpointRamp
         /// has been defined, this is the same as Setpoint.
         /// </summary>
         public double RampingSetpoint => SetpointRamp?.WorkingSetpoint ?? Setpoint;
@@ -85,7 +85,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// Set the furnace temperature and turn it on.
-        /// Later, if the furnace is still on when the specified time 
+        /// Later, if the furnace is still on when the specified time
         /// elapses, it is automatically turned off.
         /// </summary>
         /// <param name="setpoint">Desired furnace temperature (°C)</param>

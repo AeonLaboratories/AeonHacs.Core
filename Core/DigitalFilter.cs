@@ -105,11 +105,11 @@ namespace AeonHacs
         public double Stability
         {
             get => oldCoeff;
-            set 
-            { 
+            set
+            {
                 if (value >= 0 && value <= 1)
                 {
-                    oldCoeff = value; 
+                    oldCoeff = value;
                     newCoeff = 1 - value;
                     NotifyPropertyChanged();
                 }
@@ -134,7 +134,7 @@ namespace AeonHacs
 
         [JsonProperty]
         public int Order
-        { 
+        {
             get => order;
             set
             {
@@ -151,7 +151,7 @@ namespace AeonHacs
             set
             {
                 if (value <= 0) value = 1.0;
-                Ensure(ref samplingFrequency, value, ConfigurationChanged); 
+                Ensure(ref samplingFrequency, value, ConfigurationChanged);
             }
         }
         double samplingFrequency = 1.0;
@@ -234,9 +234,9 @@ namespace AeonHacs
             for (int i = 0; i < n; ++i) z_zeros.Add(-1.0);    // why do it this way?
             return z_zeros;
         }
-    
+
         // On entering this function, next points to latest (most recently
-        // received) x and y values. Decrementing next <Order> times will 
+        // received) x and y values. Decrementing next <Order> times will
         // leave next pointing to the oldest values.
         public override double Filter(double x)
         {
@@ -277,9 +277,9 @@ namespace AeonHacs
         }
 
 
-        // Map the S-plane poles & zeros onto the Z-plane, 
+        // Map the S-plane poles & zeros onto the Z-plane,
         // using a bilinear transform
-        List<Complex> bilinear_transform(List<Complex> spoles) 
+        List<Complex> bilinear_transform(List<Complex> spoles)
         {
             var poles = new List<Complex>();
             foreach (Complex pole in spoles)
@@ -327,18 +327,18 @@ namespace AeonHacs
     }
 
     /// <summary>
-    /// A weighted-average filter with the weights exponentially 
-    /// dependent on the change in the rate of change. The larger 
-    /// the change in rate, the higher the weight of the new 
+    /// A weighted-average filter with the weights exponentially
+    /// dependent on the change in the rate of change. The larger
+    /// the change in rate, the higher the weight of the new
     /// value; smaller changes in rate are more heavily dampened.
     /// </summary>
     public class ExponentialFilter : DigitalFilter
     {
         [JsonProperty, DefaultValue(2.0)]
-        public double Power 
+        public double Power
         {
-            get => power; 
-            set { if (Ensure(ref power, value)) NotifyPropertyChanged(nameof(Gain)); } 
+            get => power;
+            set { if (Ensure(ref power, value)) NotifyPropertyChanged(nameof(Gain)); }
         }
         double power = 2.0;
         public override double StepChange
@@ -347,7 +347,7 @@ namespace AeonHacs
             set { base.StepChange = value; NotifyPropertyChanged(nameof(Gain)); }
         }
 
-        // Normally, 
+        // Normally,
         // Gain = 1.0 / Math.Pow(Math.Abs(StepChange), Power);
         public double Gain => 1.0 / Math.Pow(Math.Abs(StepChange), Power);
         double dV { get; set; }             // change in Value
@@ -366,9 +366,9 @@ namespace AeonHacs
             return Value = newValue;
         }
     }
-    
+
     /// <summary>
-    /// This clipping filter removes spikes and dampens 
+    /// This clipping filter removes spikes and dampens
     /// changes in rate.
     /// </summary>
     public class ClippingFilter : DigitalFilter
@@ -377,7 +377,7 @@ namespace AeonHacs
         public double Clip { get; set; }
 
         [JsonProperty, DefaultValue(1.0)]
-        public double Gain { get; set; }    // Gain < 1 => Attenuate 
+        public double Gain { get; set; }    // Gain < 1 => Attenuate
         double dV { get; set; }                // change in Value
 
         public override double Filter(double value)

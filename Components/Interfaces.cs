@@ -281,8 +281,8 @@ namespace AeonHacs.Components
         bool State { get; }
 
         /// <summary>
-        /// If Sensor is set, Condition is re-evaluted whenever 
-        /// Sensor's Value changes. 
+        /// If Sensor is set, Condition is re-evaluted whenever
+        /// Sensor's Value changes.
         /// </summary>
         Sensor Sensor { get; set; }
 
@@ -324,11 +324,11 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The rule for detection. When the Sensor.Value reaches
-        /// this condition, the Switch is changed to the 
+        /// this condition, the Switch is changed to the
         /// DetectedState. Note that the converse does NOT occur,
         /// i.e., the Switch state is not changed by the
         /// Sensor.Value no longer meeting the the condition. If
-        /// bi-directional operation is needed, use two 
+        /// bi-directional operation is needed, use two
         /// DetectorSwitches.
         /// </summary>
         DetectorSwitch.RuleCode SwitchpointRule { get; set; }
@@ -336,7 +336,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// What to do with the Switch when the SwitchpointRule
         /// is detected. Note that the Switch state is not changed
-        /// when the 
+        /// when the
         /// </summary>
         OnOffState DetectedState { get; set; }
 
@@ -400,7 +400,7 @@ namespace AeonHacs.Components
         string UnitSymbol { get; set; }
 
         /// <summary>
-        ///  The smallest meaningful (detectable) Value that is 
+        ///  The smallest meaningful (detectable) Value that is
         ///  distinctly different from zero.
         /// </summary>
         double Sensitivity { get; set; }
@@ -628,7 +628,7 @@ namespace AeonHacs.Components
         new void TurnOn(double setpoint);
     }
 
-    public interface IMtiFurnace : ISerialTubeFurnace 
+    public interface IMtiFurnace : ISerialTubeFurnace
     {
         new MtiFurnace.IDevice Device { get; }
         new MtiFurnace.IConfig Config { get; }
@@ -636,7 +636,7 @@ namespace AeonHacs.Components
         byte InstrumentId { get; set; }
     }
 
-    public interface IInductionFurnace : ISerialTubeFurnace 
+    public interface IInductionFurnace : ISerialTubeFurnace
     {
         new InductionFurnace.IDevice Device { get; }
         new InductionFurnace.IConfig Config { get; }
@@ -685,7 +685,7 @@ namespace AeonHacs.Components
         void Manual();
 
         /// <summary>
-        /// Set the power level to the specified value and enter Manual mode. 
+        /// Set the power level to the specified value and enter Manual mode.
         /// </summary>
         /// <param name="powerLevel">Power level [0..100%]</param>
         void Manual(double powerLevel);
@@ -753,7 +753,7 @@ namespace AeonHacs.Components
     /// A device manager or controller that<br></br>
     ///    1. maintains a dictionary of IManagedDevices;<br></br>
     ///    2. provides each IManagedDevice's "Device" values, which<br></br>
-    ///        generally represent real-world conditions, typically 
+    ///        generally represent real-world conditions, typically
     ///        determined via hardware communications;<br></br>
     ///    3. monitors ConfigChanged events from its IManagedDevices;<br></br>
     ///    4. works to bring its IManagedDevice's Device properties into<br></br>
@@ -816,7 +816,7 @@ namespace AeonHacs.Components
         int ScanFrequency { get; }
 
         /// <summary>
-        /// A string describing the error, or null if there is no error. This 
+        /// A string describing the error, or null if there is no error. This
         /// value persists until cleared, even if the fault is gone before then.
         /// </summary>
         string Error { get; }
@@ -1023,7 +1023,7 @@ namespace AeonHacs.Components
         bool Linked { get; }
 
         /// <summary>
-        /// The number of operations which have been submitted 
+        /// The number of operations which have been submitted
         /// to the Controller for this valve, but which have
         /// not been completed.
         /// </summary>
@@ -1061,13 +1061,13 @@ namespace AeonHacs.Components
         bool InMotion { get; }
 
         /// <summary>
-        /// Motion is inhibited by a programmed stop condition 
+        /// Motion is inhibited by a programmed stop condition
         /// (e.g., travel limit detected, time elapsed, overcurrent, etc.).
         /// </summary>
         bool MotionInhibited { get; }
 
         /// <summary>
-        /// The actuator received a Stop() request after the 
+        /// The actuator received a Stop() request after the
         /// current or prior operation started.
         /// </summary>
         bool StopRequested { get; }
@@ -1090,8 +1090,8 @@ namespace AeonHacs.Components
         IActuatorOperation FindOperation(string operationName);
 
         /// <summary>
-        /// Validates the operation. Returns the supplied operation if 
-        /// it is valid, or a valid alternative if not. Note: null is 
+        /// Validates the operation. Returns the supplied operation if
+        /// it is valid, or a valid alternative if not. Note: null is
         /// always considered valid.
         /// </summary>
         /// <param name="operation"></param>
@@ -1594,7 +1594,7 @@ namespace AeonHacs.Components
         bool ShouldBeClosed { get; }
     }
 
-    public interface ISection : IChamber 
+    public interface ISection : IChamber
     {
         /// <summary>
         /// The Chambers that together make up the Section.
@@ -1613,13 +1613,13 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The ordered list of valves that isolate the Section and define
-        /// its volume perimeter. 
-        /// Usually, port valves should be omitted here (use the Ports list, 
-        /// instead). Valves listed here are always closed to isolate the 
-        /// section, whereas port valves are only operated explicitly as 
-        /// such, and otherwise can be omitted from or included in normal 
-        /// Section operations by managing them in the calling code, depending 
-        /// on whether any or all should be treated as part of the Section 
+        /// its volume perimeter.
+        /// Usually, port valves should be omitted here (use the Ports list,
+        /// instead). Valves listed here are always closed to isolate the
+        /// section, whereas port valves are only operated explicitly as
+        /// such, and otherwise can be omitted from or included in normal
+        /// Section operations by managing them in the calling code, depending
+        /// on whether any or all should be treated as part of the Section
         /// according to the needs of the caller.
         /// </summary>
         List<IValve> Isolation { get; set; }
@@ -1653,8 +1653,8 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The approximate volume of the section, the sum of its
-        /// individual chamber volumes. This may differ slightly 
-        /// from the measured value for the joined chambers, due 
+        /// individual chamber volumes. This may differ slightly
+        /// from the measured value for the joined chambers, due
         /// to small movements of sub-volumes within the valves.
         /// </summary>
         double CurrentVolume();
@@ -1737,7 +1737,7 @@ namespace AeonHacs.Components
         /// Isolate the section, join all chambers together, open all ports,
         /// and evacuate them.
         /// WARNING: Do not use this method if any of the ports might be
-        /// open to atmosphere or otherwise exposed to an essentially infinite 
+        /// open to atmosphere or otherwise exposed to an essentially infinite
         /// supply of gas.
         /// If pressure is 0, wait until pressure_baseline is reached.
         /// If pressure &lt; 0, wait 3 seconds after evacuation commences.
@@ -1747,14 +1747,14 @@ namespace AeonHacs.Components
         void OpenAndEvacuateAll(double pressure = -1);
 
         /// <summary>
-        /// Isolate the Section and begin evacuating it. All other 
+        /// Isolate the Section and begin evacuating it. All other
         /// valves on the VacuumSystem manifold are closed first.
         /// Wait three seconds after evacuation commences, then return.
         /// </summary>
         void Evacuate();
 
         /// <summary>
-        /// Isolate the Section and evacuate it to the given pressure. All other 
+        /// Isolate the Section and evacuate it to the given pressure. All other
         /// valves on the VacuumSystem manifold are closed first.
         /// </summary>
         /// <param name="pressure">wait until this pressure is reached</param>
@@ -1762,7 +1762,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// All internal valves are opened and the section is joined to the vacuum manifold.
-        /// Note: the section need not be evacuated, nor evacuating, just connected 
+        /// Note: the section need not be evacuated, nor evacuating, just connected
         /// to the vacuum manifold.
         /// </summary>
         bool IsOpened { get; }
@@ -1919,7 +1919,7 @@ namespace AeonHacs.Components
         /// </summary>
         void Pause(string subject, string message);
         /// <summary>
-        /// Make an entry in the EventLog, pause and give the local operator 
+        /// Make an entry in the EventLog, pause and give the local operator
         /// the option to continue. The notice is transmitted as a Warning.
         /// </summary>
         void Warn(string subject, string message);
@@ -1947,7 +1947,7 @@ namespace AeonHacs.Components
         IManometer ForelineManometer { get; set; }
 
         /// <summary>
-        /// This valve connects the Vacuum Manifold to the high-vacuum pump inlet. 
+        /// This valve connects the Vacuum Manifold to the high-vacuum pump inlet.
         /// The high-vacuum pump is typically a turbomolecular pump.
         /// </summary>
         IValve HighVacuumValve { get; set; }
@@ -1963,14 +1963,14 @@ namespace AeonHacs.Components
         IValve BackingValve { get; set; }
 
         /// <summary>
-        /// This valve connects the Foreline to the low-vacuum or "roughing" 
-        /// pump inlet. The low-vacuum pump is typically a scroll, diaphragm, 
+        /// This valve connects the Foreline to the low-vacuum or "roughing"
+        /// pump inlet. The low-vacuum pump is typically a scroll, diaphragm,
         /// or rotary-vane pump.
         /// </summary>
         IValve RoughingValve { get; set; }
 
         /// <summary>
-        /// This Section of the line connects the sample processing Sections to the 
+        /// This Section of the line connects the sample processing Sections to the
         /// vacuum system.
         /// </summary>
         ISection VacuumManifold { get; set; }
@@ -2238,7 +2238,7 @@ namespace AeonHacs.Components
     }
 
 
-    // TODO: Carefully reconsider exactly which CEGS properties 
+    // TODO: Carefully reconsider exactly which CEGS properties
     // and methods should be public.
     public interface ICegs : IProcessManager, ISampleOwner
     {
@@ -2298,7 +2298,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The last graphite reactor used. The next one that will
-        /// be used is determined by starting at the one after this 
+        /// be used is determined by starting at the one after this
         /// and searching forward for an available reactor, wrapping
         /// back to the first when the end of the bank is reached.
         /// </summary>
@@ -2307,20 +2307,20 @@ namespace AeonHacs.Components
         /// <summary>
         /// A counter for the total number of graphite reactions. This
         /// number is recorded in the Sample Information data log
-        /// along with summary reaction parameters and process 
+        /// along with summary reaction parameters and process
         /// values.
         /// </summary>
         static int NextGraphiteNumber { get; set; }
 
 
         /// <summary>
-        /// Usually about 10 Torr over standard; should be slightly greater 
-        /// than the atmospheric pressure at any lab that will handle 
+        /// Usually about 10 Torr over standard; should be slightly greater
+        /// than the atmospheric pressure at any lab that will handle
         /// gaseous samples in septum-sealed vials (including external labs).
         /// </summary>
         static double PressureOverAtm { get; set; }
         /// <summary>
-        /// clean enough to join sections for drying 
+        /// clean enough to join sections for drying
         /// </summary>
         static double OkPressure { get; set; }
         /// <summary>
@@ -2371,18 +2371,18 @@ namespace AeonHacs.Components
         /// </summary>
         static double VttPressureFallingVerySlowlyRateOfChange { get; set; }
         /// <summary>
-        /// The maximum falling VTT flow rate (Torr/s) that is considered to be essentially stable. 
+        /// The maximum falling VTT flow rate (Torr/s) that is considered to be essentially stable.
         /// </summary>
         static double VttPressureBarelyFallingRateOfChange { get; set; }
         /// <summary>
-        /// The IM pressure rate of change, following a stable flow, used to detect 
+        /// The IM pressure rate of change, following a stable flow, used to detect
         /// that something has been put onto the IP needle (a vial or stopper).
         /// </summary>
         static double IMPluggedTorrPerSecond { get; set; }
         /// <summary>
-        /// An IM pressure rate of change, following "plugged" detection, that indicates the 
-        /// delayed slowing of the pressure increase characteristic of a vial being filled, 
-        /// as distinct from the rapid drop to stability that occurs when the needle is 
+        /// An IM pressure rate of change, following "plugged" detection, that indicates the
+        /// delayed slowing of the pressure increase characteristic of a vial being filled,
+        /// as distinct from the rapid drop to stability that occurs when the needle is
         /// plugged by a stopper.
         /// </summary>
         static double IMLoadedTorrPerSecond { get; set; }
@@ -2475,7 +2475,7 @@ namespace AeonHacs.Components
         /// </summary>
         static double H2_CO2GraphitizationRatio { get; set; }
         /// <summary>
-        /// Estimated appropriate initial GM H2 pressure reduction to compensate for 
+        /// Estimated appropriate initial GM H2 pressure reduction to compensate for
         /// higher density of H2 in frozen GR coldfinger.
         /// </summary>
         static double H2DensityAdjustment { get; set; }

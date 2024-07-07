@@ -175,7 +175,7 @@ namespace AeonHacs.Components
             isolateTF();
             evacuateTF();
         }
-        
+
         void turnOffTF() { TubeFurnace.TurnOff(); }
 
         void evacuateTF(double pressure)
@@ -437,7 +437,7 @@ namespace AeonHacs.Components
             TubeFurnace.Setpoint = extractTemperature;
 
             ProcessStep.Start($"Combust sample at {extractTemperature} °C for {MinutesString(extractMinutes)}");
-            {                    
+            {
                 waitForTemperatureAbove(extractTemperature - 10);
                 while (ProcessStep.Elapsed.TotalMinutes < extractMinutes)
                     Wait(1000);

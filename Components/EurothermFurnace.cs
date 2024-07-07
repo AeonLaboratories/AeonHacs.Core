@@ -101,7 +101,7 @@ namespace AeonHacs.Components
         int setpointRateLimit = -1;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public SetpointRateLimitUnitsCode SetpointRateLimitUnits
         {
@@ -146,7 +146,7 @@ namespace AeonHacs.Components
         int outputRateLimit = -1;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int ControlOutput
         {
@@ -167,7 +167,7 @@ namespace AeonHacs.Components
         int IDevice.ControlOutput
         {
             get => controlOutput;
-            set 
+            set
             {
                 Ensure(ref controlOutput, value);
                 Device.OnOffState = (controlOutput == 0 && OperatingMode == AutoManualCode.Manual) ?
@@ -176,12 +176,12 @@ namespace AeonHacs.Components
         }
         int controlOutput = -1;
 
-        AutoManualCode IConfig.OperatingMode => 
+        AutoManualCode IConfig.OperatingMode =>
             Config.State.IsOn() ? AutoManualCode.Auto : AutoManualCode.Manual;
 
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [JsonProperty("OperatingMode"), DefaultValue(AutoManualCode.Manual)]
         public AutoManualCode OperatingMode
@@ -190,13 +190,13 @@ namespace AeonHacs.Components
             protected set
             {
                 // When the Eurotherm controller switches into Manual Mode,
-                // the ControlOutput value is ignored by the controller until 
-                // a new value is written into the parameter. Meanwhile, the 
+                // the ControlOutput value is ignored by the controller until
+                // a new value is written into the parameter. Meanwhile, the
                 // actual power to the furnace, the WorkingOutput, freezes.
-                // In effect, the controller behaves as if the ControlOutput 
+                // In effect, the controller behaves as if the ControlOutput
                 // had been set to WorkingOutput. The following code invalidates
-                // the IDevice.ControlOutput whenever the operating mode 
-                // changes to Manual, so the state manager will know to update 
+                // the IDevice.ControlOutput whenever the operating mode
+                // changes to Manual, so the state manager will know to update
                 // the controller's ControlOutput parameter.
                 if (value == AutoManualCode.Manual) Device.ControlOutput = -1;
                 Ensure(ref operatingMode, value);
@@ -210,11 +210,11 @@ namespace AeonHacs.Components
         }
 
 
-        int IDevice.ProcessVariable 
+        int IDevice.ProcessVariable
         {
             get => processVariable;
-            set 
-            { 
+            set
+            {
                 Ensure(ref processVariable, value);
                 Device.Temperature = value;
             }
@@ -275,12 +275,12 @@ namespace AeonHacs.Components
         /// True if the furnace power contactor has been disengaged
         /// by this instance. The class user is responsible for resetting
         /// the contactor and updating this value accordingly.
-        /// The furnace heating element cannot receive power with the 
+        /// The furnace heating element cannot receive power with the
         /// contactor disengaged.
         /// </summary>
         public bool ContactorDisengaged
         {
-            // The class user is responsible for resetting the 
+            // The class user is responsible for resetting the
             // contactor and updating contactorDisengaged accordingly.
             // It would be better to detect whether the contactor is opened
             // by querying a some parameter.
@@ -359,9 +359,9 @@ namespace AeonHacs.Components
             return command;
         }
 
-        string CheckParameter(int param) => 
+        string CheckParameter(int param) =>
             FrameRead(param, 1);
-        string CheckParameter(ParameterCode param) => 
+        string CheckParameter(ParameterCode param) =>
             CheckParameter((int)param);
 
         #endregion Controller read commands
@@ -383,7 +383,7 @@ namespace AeonHacs.Components
         {
             var setCommand = SetParameter(ParameterCode.InstrumentMode, (int)im);
             ContactorDisengaged = true;
-            return SerialController.ServiceCommand != setCommand ? setCommand : 
+            return SerialController.ServiceCommand != setCommand ? setCommand :
                 CheckParameter(ParameterCode.InstrumentMode);
         }
 
@@ -456,9 +456,9 @@ namespace AeonHacs.Components
 
         #region Controller command generators
         //
-        // These functions construct ModBus-format commands 
+        // These functions construct ModBus-format commands
         // for communicating with a Eurotherm series 2000 controller.
-        // The constructed commands do not include the CRC code; 
+        // The constructed commands do not include the CRC code;
         // that part is automatically appended by the SerialDevice
         // class on transmission.
         //
@@ -498,9 +498,9 @@ namespace AeonHacs.Components
 
         #region Controller interactions
 
-        // Note: The ControlType cannot be altered unless the controller is 
-        // in Configuration mode, but changing to Configuration mode 
-        // releases the furnace power contactor, which requires human 
+        // Note: The ControlType cannot be altered unless the controller is
+        // in Configuration mode, but changing to Configuration mode
+        // releases the furnace power contactor, which requires human
         // intervention to reset.
         protected override SerialController.Command SelectService()
         {
@@ -553,7 +553,7 @@ namespace AeonHacs.Components
             else
             {
                 hurry = false;
-                command = //SerialController.SerialDevice.MillisecondsSinceLastTx < SerialController.IdleTimeout ? "" : 
+                command = //SerialController.SerialDevice.MillisecondsSinceLastTx < SerialController.IdleTimeout ? "" :
                     CheckStatus();
             }
 
@@ -703,8 +703,8 @@ namespace AeonHacs.Components
                         if (LogEverything) Log.Record($"Device.ParameterValue = {firstValue}");
                     }
 
-                    Device.OnOffState = 
-                        (Device.OperatingMode == AutoManualCode.Auto || 
+                    Device.OnOffState =
+                        (Device.OperatingMode == AutoManualCode.Auto ||
                          Device.ControlOutput > 0).ToOnOffState();
 
                     if (wasOn != IsOn)

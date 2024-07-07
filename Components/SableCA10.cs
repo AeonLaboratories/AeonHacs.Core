@@ -136,7 +136,7 @@ namespace AeonHacs.Components
                 if (s.Length != 30)
                 {
                     if (LogEverything)
-                        Log?.Record($"Expected 30 characters in response, not {s.Length}.");                    
+                        Log?.Record($"Expected 30 characters in response, not {s.Length}.");
                     return false;
                 }
 

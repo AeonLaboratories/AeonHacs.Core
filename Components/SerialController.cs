@@ -41,7 +41,7 @@ namespace AeonHacs.Components
         #region Settings
 
         /// <summary>
-        /// The SerialDevice that transmits and receives 
+        /// The SerialDevice that transmits and receives
         /// messages for this controller.
         /// </summary>
         [JsonProperty]
@@ -84,7 +84,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [JsonProperty, DefaultValue(false)]
         public bool LogCommands
@@ -95,7 +95,7 @@ namespace AeonHacs.Components
         bool logCommands;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [JsonProperty, DefaultValue(false)]
         public bool LogResponses
@@ -126,7 +126,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Split the ServiceCommand into space-separated 
+        /// Split the ServiceCommand into space-separated
         /// tokens and transmit them in sequence.
         /// </summary>
         [JsonProperty, DefaultValue(false)]
@@ -138,7 +138,7 @@ namespace AeonHacs.Components
         bool tokenizeCommands = false;
 
         /// <summary>
-        /// Ignore incoming messages (&quot;Responses&quot;) from the 
+        /// Ignore incoming messages (&quot;Responses&quot;) from the
         /// hardware unless they are expected.
         /// </summary>
         [JsonProperty]
@@ -150,7 +150,7 @@ namespace AeonHacs.Components
         bool ignoreUnexpectedResponses;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [JsonProperty, DefaultValue(200)]
         public int ResponseTimeout
@@ -188,23 +188,23 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The assigned method receives a response message for
-        /// processing. If the method returns true (for example, 
+        /// processing. If the method returns true (for example,
         /// if the response is valid), the SerialController will
         /// attempt to retrieve a new Command to process.
-        /// If false is returned, the controller will retry the 
+        /// If false is returned, the controller will retry the
         /// current Command.
         /// </summary>
         public Func<string, int, bool> ResponseProcessor { get; set; }
 
         /// <summary>
-        /// This event is raised if the controller's 
+        /// This event is raised if the controller's
         /// SerialDevice disconnects.
         /// </summary>
         public event EventHandler LostConnection;
 
 
         /// <summary>
-        /// Returns true if the device is Ready and the current number of consecutive 
+        /// Returns true if the device is Ready and the current number of consecutive
         /// ResponseTimeouts is less than TooManyResponseTimeouts."
         /// </summary>
         public bool Responsive => Ready && ResponseTimeouts < TooManyResponseTimeouts;
@@ -213,9 +213,9 @@ namespace AeonHacs.Components
         /// </summary>
         [JsonProperty, DefaultValue(5)]
         public int TooManyResponseTimeouts
-        { 
-            get => tooManyResponseTimeouts; 
-            set => Ensure(ref tooManyResponseTimeouts, value); 
+        {
+            get => tooManyResponseTimeouts;
+            set => Ensure(ref tooManyResponseTimeouts, value);
         }
         int tooManyResponseTimeouts = 5;
 
@@ -231,12 +231,12 @@ namespace AeonHacs.Components
         public virtual bool Free => Ready && SerialDevice.Free;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public uint CommandCount { get; private set; } = 0;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public uint ResponseCount { get; private set; } = 0;
 
@@ -288,10 +288,10 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// This value starts with the controller's ResponseTimeout, if any
-        /// responses are expected. Otherwise, it starts at 0 if Hurry is true, 
-        /// or IdleTimeout if not. Then, if multiple commands are contained in the 
-        /// ServiceCommand, inter-message pacing delays are added. 
-        /// Override this  property to customize the timeout, e.g., based 
+        /// responses are expected. Otherwise, it starts at 0 if Hurry is true,
+        /// or IdleTimeout if not. Then, if multiple commands are contained in the
+        /// ServiceCommand, inter-message pacing delays are added.
+        /// Override this  property to customize the timeout, e.g., based
         /// on specific commands.
         /// </summary>
         protected override int StateLoopTimeout
@@ -299,7 +299,7 @@ namespace AeonHacs.Components
             get
             {
                 int timeout;
-                if (SerialDevice == null || SerialDevice.ResponseCount < 1)    // give some extra time at start-up 
+                if (SerialDevice == null || SerialDevice.ResponseCount < 1)    // give some extra time at start-up
                 {
                     // TODO: magic number "FirstTimeout"? "StartupTimeout"? "Wake..."?
                     timeout = 2000;
@@ -327,8 +327,8 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// Hurry tells the controller to invoke the SelectService
-        /// method for new command as soon as the expected 
-        /// responses for the current one have been received and 
+        /// method for new command as soon as the expected
+        /// responses for the current one have been received and
         /// validated. If Hurry is false, the controller will
         /// invoke SelectService after the IdleTimeout period
         /// elapses.
@@ -369,8 +369,8 @@ namespace AeonHacs.Components
         /// </summary>
         public string CommandMessage { get; private set; } = "";
         /// <summary>
-        /// The ResponseTimeouts counter is incremented whenever a response 
-        /// fails to arrive before the ResponseTimeout period. It is reset 
+        /// The ResponseTimeouts counter is incremented whenever a response
+        /// fails to arrive before the ResponseTimeout period. It is reset
         /// to zero on receipt of any response.
         /// </summary>
         public int ResponseTimeouts { get; private set; } = 0;
@@ -379,7 +379,7 @@ namespace AeonHacs.Components
         private int priorAwaitingResponses = -1;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         protected virtual void SendCommandMessages()
         {
@@ -405,7 +405,7 @@ namespace AeonHacs.Components
                 }
             }
 
-            // command doesn't change until a valid response to 
+            // command doesn't change until a valid response to
             // the prior one is received
             if (AwaitingResponses == 0)
             {
@@ -413,7 +413,7 @@ namespace AeonHacs.Components
                 ServiceCommand = command.Message;
                 ResponsesExpected = command.ResponsesExpected;
                 Hurry = command.Hurry;
-                if (LogEverything) 
+                if (LogEverything)
                     Log?.Record($"SerialController {Name}: ServiceCommand = \"{Escape(ServiceCommand)}\", ResponsesExpected = {ResponsesExpected}, Hurry = {Hurry}");
             }
 
@@ -423,11 +423,11 @@ namespace AeonHacs.Components
             }
             else
             {
-                // either 
+                // either
                 //  this is the first command, or
-                //  the timeout occurred, or 
+                //  the timeout occurred, or
                 //  an invalid response was received (so, awaitingReponses > 0), or
-                //  a valid response was received (so, awaitingResponses == 0) and 
+                //  a valid response was received (so, awaitingResponses == 0) and
                 //      the new command is nonempty
 
                 AwaitingResponses = ResponsesExpected;
@@ -453,7 +453,7 @@ namespace AeonHacs.Components
         #region Responses
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public string Response
         {
@@ -549,7 +549,7 @@ namespace AeonHacs.Components
                 Log?.Record($"SerialController {Name}: Received \"{Escape(s)}\"");
 
             lock (responseTimeoutsLocker) ResponseTimeouts = 0;
-            
+
             ResponseCount++;
             responseQ.Enqueue(s ?? "");
             responseSignal.Set();

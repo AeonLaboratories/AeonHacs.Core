@@ -78,7 +78,7 @@ namespace AeonHacs
 
         /// <summary>
         /// A method intended to be used as a class property setter, to
-        /// (perhaps conditionally) assign a value to the property, and 
+        /// (perhaps conditionally) assign a value to the property, and
         /// if appropriate, raise a PropertyChanged event.
         /// </summary>
         /// <typeparam name="T">The property's type</typeparam>
@@ -149,9 +149,9 @@ namespace AeonHacs
         }
 
         /// <summary>
-        /// If the specified value is different from that of the referenced field, 
-        /// set the field to the new value, move the specified PropertyChanged handler 
-        /// from the old object to the new one and invoke it, and finally raise 
+        /// If the specified value is different from that of the referenced field,
+        /// set the field to the new value, move the specified PropertyChanged handler
+        /// from the old object to the new one and invoke it, and finally raise
         /// the PropertyChanged event.
         /// </summary>
         /// <typeparam name="T">The property's type</typeparam>

@@ -25,7 +25,7 @@ namespace AeonHacs.Components
 
         #region Device interfaces
         public new interface IDevice : ManagedDevice.IDevice
-        { 
+        {
             double Voltage { get; set; }
         }
 

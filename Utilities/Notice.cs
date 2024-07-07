@@ -36,10 +36,10 @@ namespace AeonHacs.Utilities
         // If the type is Tell, the notice is processed in a newly
         // spawned background thread, and control returns to the caller
         // immediately without waiting for it to complete.
-        public enum Type 
-        { 
+        public enum Type
+        {
             /// <summary>
-            /// The recipient is expected to respond with a Notice or a null value. The sender 
+            /// The recipient is expected to respond with a Notice or a null value. The sender
             /// waits until a response is received.
             /// </summary>
             Request,
@@ -50,11 +50,11 @@ namespace AeonHacs.Utilities
             /// </summary>
             OkCancel,
             /// <summary>
-            /// The recipient is expected to respond with a Notice or a null value. The sender 
+            /// The recipient is expected to respond with a Notice or a null value. The sender
             /// waits until the response is received. The recipient may (optionally) handle the Notice
-            /// as a Warning, and may return a Notice containing the text "Ok" or "Cancel". 
+            /// as a Warning, and may return a Notice containing the text "Ok" or "Cancel".
             /// </summary>
-            Warn, 
+            Warn,
             /// <summary>
             /// The Notice is transmitted to the recipient, but the response is ignored.
             /// </summary>
@@ -75,7 +75,7 @@ namespace AeonHacs.Utilities
         /// the Sender waits for a response Notice (or null value) from the recipient.
         /// </summary>
         public Type NoticeType;
-        
+
         public Notice(string text, string caption = null, Type type = Type.Request)
         {
             Caption = caption;

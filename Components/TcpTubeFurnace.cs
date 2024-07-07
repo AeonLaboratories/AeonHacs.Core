@@ -25,7 +25,7 @@ namespace AeonHacs.Components
         public enum ErrorResponseCode { IllegalDataAddress = 2, IllegalDataValue = 03 }
         public enum ParameterCode
         {
-            ProcessVariable = 1, 
+            ProcessVariable = 1,
             TargetSetpoint = 2,
             WorkingSetpoint = 5,
             WorkingOutput = 4,
@@ -80,7 +80,7 @@ namespace AeonHacs.Components
         #endregion Device interfaces
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int ControlOutput
         {
@@ -103,7 +103,7 @@ namespace AeonHacs.Components
             set
             {
                 Ensure(ref controlOutput, value);
-                Device.OnOffState = 
+                Device.OnOffState =
                     (OperatingMode == AutoManualCode.Manual && Device.ControlOutput == 0) ||
                     (OperatingMode == AutoManualCode.Auto && Setpoint == 0) ?
                     OnOffState.Off : OnOffState.On;
@@ -116,7 +116,7 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [JsonProperty("OperatingMode"), DefaultValue(AutoManualCode.Manual)]
         public AutoManualCode OperatingMode
@@ -125,13 +125,13 @@ namespace AeonHacs.Components
             protected set
             {
                 // When the Eurotherm controller switches into Manual Mode,
-                // the ControlOutput value is ignored by the controller until 
-                // a new value is written into the parameter. Meanwhile, the 
+                // the ControlOutput value is ignored by the controller until
+                // a new value is written into the parameter. Meanwhile, the
                 // actual power to the furnace, the WorkingOutput, freezes.
-                // In effect, the controller behaves as if the ControlOutput 
+                // In effect, the controller behaves as if the ControlOutput
                 // had been set to WorkingOutput. The following code invalidates
-                // the IDevice.ControlOutput whenever the operating mode 
-                // changes to Manual, so the state manager will know to update 
+                // the IDevice.ControlOutput whenever the operating mode
+                // changes to Manual, so the state manager will know to update
                 // the controller's ControlOutput parameter.
                 if (Ensure(ref operatingMode, value) && value == AutoManualCode.Manual)
                     Device.ControlOutput = -1;
@@ -318,7 +318,7 @@ namespace AeonHacs.Components
 
         #region Controller command generators
         //
-        // These functions construct ModBus-format commands 
+        // These functions construct ModBus-format commands
         // for communicating with a Eurotherm series 3000 controller.
         //
 
@@ -499,7 +499,7 @@ namespace AeonHacs.Components
                         (OperatingMode == AutoManualCode.Manual && Device.ControlOutput <= 0) ||
                         (OperatingMode == AutoManualCode.Auto && Setpoint == 0) ?
                         OnOffState.Off : OnOffState.On;
-                         
+
                     if (wasOn != IsOn)
                         StateStopwatch.Restart();
 

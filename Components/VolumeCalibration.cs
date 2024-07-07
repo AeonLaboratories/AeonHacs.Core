@@ -88,7 +88,7 @@ namespace AeonHacs.Components
         double okPressure;
         public IMeter Manometer => GasSupply.Destination.Manometer;
         public double Kelvins => GasSupply.Destination.Temperature + ZeroDegreesC;
-    
+
         public HacsLog Log { get; set; }
 
 
@@ -200,7 +200,7 @@ namespace AeonHacs.Components
             ProcessSubStep.End();
 
             valves?[0]?.OpenWait();
-            return value;    
+            return value;
         }
 
         double[][] measureExpansions(int repeats = 5)
@@ -286,8 +286,8 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// Finds and sets the volume of the GasSupply's (first) Destination
-        /// Chamber, based on the (known) volume of the first expansion in 
-        /// Expansions. This method is intended to be used with a GasSupply 
+        /// Chamber, based on the (known) volume of the first expansion in
+        /// Expansions. This method is intended to be used with a GasSupply
         /// having only one Destination Chamber. The known volume value must
         /// include the "downstream" headspace of the valve that connects
         /// it and any volume present when the valve in the opened position

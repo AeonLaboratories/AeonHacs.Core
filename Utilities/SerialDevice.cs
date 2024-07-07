@@ -24,11 +24,11 @@ namespace AeonHacs.Utilities
 
         /// <summary>
         /// Sets the operating mode for the RTS (Request To Send) signal.<br />
-        /// Enabled means set the RTS line to its active state 
-        /// when the device is opened and leave it on. 
+        /// Enabled means set the RTS line to its active state
+        /// when the device is opened and leave it on.
         /// Disabled turns it off instead.<br />
-        /// In Toggle mode, RTS is dynamically turned on when there 
-        /// are bytes in the transmit buffer, and off when the buffer 
+        /// In Toggle mode, RTS is dynamically turned on when there
+        /// are bytes in the transmit buffer, and off when the buffer
         /// is empty.<br />
         /// Default is Enabled.
         /// </summary>
@@ -102,49 +102,49 @@ namespace AeonHacs.Utilities
         int millisecondsBetweenBytes = -1;
 
         /// <summary>
-        /// The period of silence (milliseconds) to be interpreted 
+        /// The period of silence (milliseconds) to be interpreted
         /// as message termination/completion. Default 5.
         /// </summary>
         [JsonProperty, DefaultValue(5)]
         public int MaximumMillisecondsSilenceInMessage
-        { 
-            get => maximumMillisecondsSilenceInMessage; 
+        {
+            get => maximumMillisecondsSilenceInMessage;
             set { maximumMillisecondsSilenceInMessage = value; NotifyPropertyChanged(); }
         }
         int maximumMillisecondsSilenceInMessage = 5;
 
         /// <summary>
         /// If BinaryComms is true, binary sequences are recorded
-        /// in log files as printable strings of hexadecimal byte codes 
+        /// in log files as printable strings of hexadecimal byte codes
         /// separated by spaces, for example &quot;F3 9A 22 16 03&quot;.
         /// </summary>
         [JsonProperty, DefaultValue(false)]
         public bool BinaryComms
-        { 
-            get => binaryComms; 
-            set { binaryComms = value; NotifyPropertyChanged(); } 
+        {
+            get => binaryComms;
+            set { binaryComms = value; NotifyPropertyChanged(); }
         }
         bool binaryComms = false;
 
         /// <summary>
         /// If this value is true, transmitted and received data
-        /// is recorded in log files after first "escaping" a 
-        /// minimal set of special characters (\, &quot;, $, 
-        /// whitespace, etc.) by replacing them with their escape 
-        /// codes. This instructs the regular expression engine to 
-        /// interpret the characters literally rather than as 
+        /// is recorded in log files after first "escaping" a
+        /// minimal set of special characters (\, &quot;, $,
+        /// whitespace, etc.) by replacing them with their escape
+        /// codes. This instructs the regular expression engine to
+        /// interpret the characters literally rather than as
         /// metacharacters.
         /// </summary>
         [JsonProperty, DefaultValue(false)]
-        public bool EscapeLoggedData 
-        { 
-            get => escapeLoggedData; 
-            set { escapeLoggedData = value; NotifyPropertyChanged(); } 
+        public bool EscapeLoggedData
+        {
+            get => escapeLoggedData;
+            set { escapeLoggedData = value; NotifyPropertyChanged(); }
         }
         bool escapeLoggedData = false;
 
         /// <summary>
-        /// Raised when the port has been successfully 
+        /// Raised when the port has been successfully
         /// opened and configured.
         /// </summary>
         public event EventHandler Connected;
@@ -163,12 +163,12 @@ namespace AeonHacs.Utilities
         public Action<string> ResponseReceivedHandler { get; set; }
 
         /// <summary>
-        /// If true, data that fails CRC check will be forwarded to 
-        /// ResponseReceived delegate anyway (but unaltered; i.e., 
+        /// If true, data that fails CRC check will be forwarded to
+        /// ResponseReceived delegate anyway (but unaltered; i.e.,
         /// including any trailing whitespace and CRC code).
         /// </summary>
-        public bool IgnoreCRCErrors 
-        { 
+        public bool IgnoreCRCErrors
+        {
             get => ignoreCRCErrors;
             set { ignoreCRCErrors = value; NotifyPropertyChanged(); }
         }
@@ -280,7 +280,7 @@ namespace AeonHacs.Utilities
         }
 
         /// <summary>
-        /// A utility method that tries to make the string 
+        /// A utility method that tries to make the string
         /// at least somewhat human-friendly.
         /// </summary>
         /// <param name="s"></param>
@@ -421,8 +421,8 @@ namespace AeonHacs.Utilities
             catch { Disconnect(); }
         }
 
-        // Disposing the USBSerialPort makes sure it is registered by Windows 
-        // in HKEY_LOCAL_MACHINE\HARDWARE\DEVICEMAP\SERIALCOMM, so that 
+        // Disposing the USBSerialPort makes sure it is registered by Windows
+        // in HKEY_LOCAL_MACHINE\HARDWARE\DEVICEMAP\SERIALCOMM, so that
         // SerialPort.GetPortNames() can re-detect the port.
         public void Disconnect()
         {
@@ -704,7 +704,7 @@ namespace AeonHacs.Utilities
         #endregion process received bytes
 
 
-        // Transfer received bytes from the SerialPort buffer into this 
+        // Transfer received bytes from the SerialPort buffer into this
         // SerialDevice's rx buffer for processing
         static int xferBufferSize = RXBUF_SIZE;
         byte[] xferBuffer = new byte[xferBufferSize];
@@ -723,7 +723,7 @@ namespace AeonHacs.Utilities
             rxSw.Restart();
 
             // This section copies the data in one or two chunks -- the fewest possible.
-            // Two copy operations are needed if the message will wrap past the end 
+            // Two copy operations are needed if the message will wrap past the end
             // of the rx buffer. Block-copying like this is faster than a simple
             // byte-copy loop, whenever messages are >= 2 bytes long.
             int availableBytes = Rxb_head > Rxb_write ? Rxb_head - Rxb_write : RXBUF_SIZE - Rxb_write + Rxb_head;
@@ -756,10 +756,10 @@ namespace AeonHacs.Utilities
         }
 
 
-        // Serial port data-received signals often arrive several times 
+        // Serial port data-received signals often arrive several times
         // per millisecond, heralding as few as one byte each. This method
         // gives getRxData longer message fragments to process, with fewer calls.
-        // When a signal arrives, it waits until a silence occurs before calling 
+        // When a signal arrives, it waits until a silence occurs before calling
         // getRxData. This should let getRxData essentially always transfer
         // whole messages at a time.
         void Receive()

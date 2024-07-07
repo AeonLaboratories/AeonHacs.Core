@@ -6,10 +6,10 @@ namespace AeonHacs
     public class ObservableList<T> : List<T>, INotifyPropertyChanged
     {
         #region static
-        static PropertyChangedEventArgs DefaultArgs;        
+        static PropertyChangedEventArgs DefaultArgs;
         static ObservableList()
         {
-            DefaultArgs = 
+            DefaultArgs =
                 BindableObject.PropertyChangedEventArgs(string.Empty);
         }
 

@@ -69,9 +69,9 @@ namespace AeonHacs
     // a Value that is in some way related to supplied number, but
     // the relationship is not necessarily a simple or direct
     // dependency. Value might have different units than the
-    // supplied number, or it may also depend on prior values, 
+    // supplied number, or it may also depend on prior values,
     // or on conditions not related to the supplied value.
-    // However, in all cases, the object's Value is updated 
+    // However, in all cases, the object's Value is updated
     // when it receives a number.
     public interface IDoubleUpdatable : IValue
     {

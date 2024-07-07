@@ -3,7 +3,7 @@
     /// <summary>
     /// A valve moved pneumatically via an air solenoid valve,
     /// controlled by a Switchbank.
-    /// In instances of this class, the PoweredState property must reflect 
+    /// In instances of this class, the PoweredState property must reflect
     /// the valve state of the pneumatic valve when the solenoid valve is
     /// powered, and not the valve state of the solenoid valve (i.e., regardless
     /// of whether the powered solenoid valve is opened or closed, the consequent

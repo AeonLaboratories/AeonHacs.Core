@@ -118,7 +118,7 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// The controller thermocouple channel that monitors this 
+        /// The controller thermocouple channel that monitors this
         /// device's temperature.
         /// </summary>
         public int ThermocoupleChannel
@@ -261,7 +261,7 @@ namespace AeonHacs.Components
         HC6ErrorCodes errors;
 
         /// <summary>
-        /// The controller's Pid configuration for this device 
+        /// The controller's Pid configuration for this device
         /// matches the desired setup.
         /// </summary>
         public bool PidConfigured()

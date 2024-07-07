@@ -33,7 +33,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The maximum number of approximate aliquots the sample can be divided into.
-        /// This value is automatically determined from the number of ports on the 
+        /// This value is automatically determined from the number of ports on the
         /// measurement chamber (MC.Ports.Count);
         /// </summary>
         [JsonProperty, DefaultValue(3)] public static int MaximumAliquotsPerSample { get => maximumAliquotsPerSample; set => Default.Ensure(ref maximumAliquotsPerSample, value); }
@@ -134,20 +134,20 @@ namespace AeonHacs.Components
         /// <summary>
         /// A low enough value that sample pressures can easily be raised to
         /// exceed it by a large enough margin that quantitative transfer
-        /// is readily achievable. At the same time, the value should be 
-        /// high enough that its CO2 phase-equilibrium temperature can easily 
+        /// is readily achievable. At the same time, the value should be
+        /// high enough that its CO2 phase-equilibrium temperature can easily
         /// be reached.
         /// At 6e-4 Torr, CO2 solid and gas reach equilibrium at -170 °C,
         /// readily achievable. Given equal chamber volumes, for example,
         /// a transfer of 99.9% could be achieved by raising pressure of the
         /// source to 1000 times the destination pressure, or > 6e-1 Torr,
         /// by increasing its CO2 temperature to about -140 °C.
-        /// </summary>        
+        /// </summary>
         [JsonProperty, DefaultValue(6e-4)] public static double CO2FreezePressure { get => co2FreezePressure; set => Default.Ensure(ref co2FreezePressure, value); }
         static double co2FreezePressure = 6e-4; // Torr
 
         /// <summary>
-        /// When CO2 is at the specified pressure and this temperature, its 
+        /// When CO2 is at the specified pressure and this temperature, its
         /// deposition and sublimation rates are equal.
         /// </summary>
         /// <param name="pressure"></param>
@@ -156,7 +156,7 @@ namespace AeonHacs.Components
             CO2EqTable.Interpolate(pressure);
 
         /// <summary>
-        /// When CO2 is at the specified temperature and this pressure, its 
+        /// When CO2 is at the specified temperature and this pressure, its
         /// deposition and sublimation rates are equal.
         /// </summary>
         /// <param name="temperature"></param>
@@ -176,7 +176,7 @@ namespace AeonHacs.Components
         static int co2ExtractionTemperature = -140;
 
         /// <summary>
-        /// During a CO2 transfer, the source temperature above which 
+        /// During a CO2 transfer, the source temperature above which
         /// the flow has substantially begun. E.g., the CO2 phase-equilibrium
         /// temperature of a pressure 10000 times that of the destination.
         /// </summary>

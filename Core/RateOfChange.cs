@@ -26,7 +26,7 @@ namespace AeonHacs
                 else if (value > 63) filterLength = 63;
                 else if (value % 2 != 0) filterLength = value;     // make sure length is odd
                 else filterLength = value - 1;
-                
+
                 lastItem = filterLength-1;
                 n = filterLength - 3;
                 M = (filterLength - 1) / 2;
@@ -36,12 +36,12 @@ namespace AeonHacs
                 NotifyPropertyChanged();
             }
         }
-        
+
         int filterLength = 11;        // filter length == v.Length
         int lastItem = 10;
         int n = 8;                    // 2m in Holoborodko
         int M = 5;                    // middle position
-        double divisor = 256;       // A common divisor distributed out of the 
+        double divisor = 256;       // A common divisor distributed out of the
                                     // polynomial terms.
                                     // This divisor incorporates a 2 from the irregularly-spaced
                                     // data version.
@@ -99,14 +99,14 @@ namespace AeonHacs
         // See "holobordko filter.ods" for the analysis that led to this
         // algorithm and implementation.
         void createFilter()
-        {        
+        {
             c = new double[M];
             double bL, bR, b0;
-            bR = b0 = 0; 
+            bR = b0 = 0;
             for (int i = 0; i < M; i++)
             {
                 bL = Utility.binomCoeff(n, i);
-                var k = M - i;                
+                var k = M - i;
                 c[k - 1] = k * (bL - bR) / divisor;
                 bR = b0;
                 b0 = bL;
@@ -127,29 +127,29 @@ namespace AeonHacs
             var seconds = elapsed / 1000;
             if (elapsed >= MaxIntervalMilliseconds || Math.Abs(newValue - v[filterLength-2])/seconds >= Resolution)
             {
-                MillisecondsSinceLastUpdate = elapsed; 
+                MillisecondsSinceLastUpdate = elapsed;
                 sw.Restart();
-                
+
                 // store the new datapoint and the time elapsed since the prior one
                 v[lastItem] = newValue;
                 t[lastItem] = seconds;
-            
+
                 double sumT = 0;            // total time
                 double sumPT = 0;        // sum of polynomial terms
-                
+
                 for (int i = 0, j = M + 1, j2 = M; i < M; i++, j++)
                 {
                     sumT += t[j] + t[j2];
                     if (sumT > 0)
                         sumPT += c[i] * (v[j] - v[--j2]) / sumT;
                 }
-                
+
                 Value = sumPT;
                 RoC?.Update(Value);
-                
+
                 // make space for next value
                 for (int i = 0, j = 1; i < lastItem; i++, j++)
-                {                
+                {
                     v[i] = v[j];
                     t[i] = t[j];
                 }

@@ -51,7 +51,7 @@ namespace AeonHacs.Components
         {
             var propertyName = e?.PropertyName;
             if (sender == Thermometer)
-            { 
+            {
                 if (propertyName == nameof(IThermometer.Temperature))
                     NotifyPropertyChanged(propertyName);
             }

@@ -16,7 +16,7 @@ namespace AeonHacs.Components
         string FlowManagerName { get => FlowManager?.Name; set => flowManagerName = value; }
         string flowManagerName;
         public IFlowManager FlowManager
-        { 
+        {
             get => flowManager;
             set => Ensure(ref flowManager, value);
         }

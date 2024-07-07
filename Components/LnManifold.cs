@@ -210,7 +210,7 @@ namespace AeonHacs.Components
         }
         public bool SupplyEmpty => Liters != null && MinimumLiters > 0 && Liters.Value < MinimumLiters;
 
-        
+
         IThermometer AmbientThermometer;
         double ambient => AmbientThermometer?.Temperature ?? 22.0;
         double overflowTemperature => OverflowSensor?.Temperature ?? 25.0;

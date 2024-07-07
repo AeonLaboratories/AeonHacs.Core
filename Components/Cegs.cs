@@ -243,7 +243,7 @@ namespace AeonHacs.Components
         public bool Free
         {
             get => free;
-            protected set 
+            protected set
             {
                 if (Ensure(ref free, value))
                 {
@@ -470,7 +470,7 @@ namespace AeonHacs.Components
             var errorFile = "runSampleError.json";
             var activeFile = "runSampleActive.json";
 
-            try 
+            try
             {
                 try { File.Delete(activeFile); } catch { }
                 File.Move(sampleFile, activeFile, true);
@@ -728,8 +728,8 @@ namespace AeonHacs.Components
         {
             Samples.Values.ToList().ForEach(s =>
             {
-                if (s.AliquotsCount < 1 && 
-                    s.d13CPort?.Sample != s && 
+                if (s.AliquotsCount < 1 &&
+                    s.d13CPort?.Sample != s &&
                     s.InletPort?.Sample is ISample ipSample &&
                     (ipSample != s || s.InletPort.State == LinePort.States.Complete))
                 {
@@ -750,7 +750,7 @@ namespace AeonHacs.Components
         /// </summary>
         /// <param name="name"></param>
         /// <param name="value"></param>
-        protected void SetParameter(string name, double value) => 
+        protected void SetParameter(string name, double value) =>
             SetParameter(new Parameter() { ParameterName = name, Value = value });
 
         /// <summary>
@@ -758,11 +758,11 @@ namespace AeonHacs.Components
         /// Sample is null.
         /// </summary>
         /// <param name="parameter"></param>
-        public override void SetParameter(Parameter parameter) => 
+        public override void SetParameter(Parameter parameter) =>
             Sample?.SetParameter(parameter);
 
         /// <summary>
-        /// Return the current value of the Sample's process control parameter with the given name, 
+        /// Return the current value of the Sample's process control parameter with the given name,
         /// unless Sample is null, in which case return the value from CegsPreferences instead.
         /// </summary>
         /// <param name="name"></param>
@@ -867,7 +867,7 @@ namespace AeonHacs.Components
             GasSupply("He", section) ?? GasSupply("N2", section) ?? GasSupply("Ar", section);
 
         /// <summary>
-        /// Find the smallest Section that contains the port and has a manometer. 
+        /// Find the smallest Section that contains the port and has a manometer.
         /// Note: It usually is, but might not actually be, a manifold.
         /// </summary>
         /// <param name="port"></param>
@@ -1035,7 +1035,7 @@ namespace AeonHacs.Components
         #region Valve operations
 
         protected virtual void ExerciseAllValves() => ExerciseAllValves(0);
-        
+
         protected virtual void ExerciseAllValves(int secondsBetween)
         {
             ProcessStep.Start("Exercise all opened valves");
@@ -1082,7 +1082,7 @@ namespace AeonHacs.Components
         #endregion Valve operations
 
         #region Support and general purpose functions
-        
+
         protected virtual void WaitForStablePressure(IVacuumSystem vacuumSystem, double pressure, int seconds = 5)
         {
             ProcessSubStep.Start($"Wait for stable pressure below {pressure} {vacuumSystem.Manometer.UnitSymbol}");
@@ -1090,7 +1090,7 @@ namespace AeonHacs.Components
             ProcessSubStep.End();
         }
 
-        protected virtual void TurnOffIPFurnaces() => 
+        protected virtual void TurnOffIPFurnaces() =>
             InletPort?.TurnOffFurnaces();
 
         protected virtual void HeatQuartz(bool openLine)
@@ -1194,7 +1194,7 @@ namespace AeonHacs.Components
             // Residual inert gas is undesirable only to the extent that it
             // displaces O2. An O2 concentration of 99.99% -- more than
             // adequate for perfect combustion -- equates to 0.01% inert gas.
-            // The admitted O2 pressure always exceeds 1000 Torr; 
+            // The admitted O2 pressure always exceeds 1000 Torr;
             // 0.01% of 1000 is 0.1 Torr.
             im.VacuumSystem.WaitForPressure(0.1);
             InletPort.Close();
@@ -1329,7 +1329,7 @@ namespace AeonHacs.Components
                     gr.Open();
         }
 
-        protected virtual bool PreparedGRsAreOpened() => 
+        protected virtual bool PreparedGRsAreOpened() =>
             !GraphiteReactors.Any(gr => gr.Prepared && !gr.IsOpened);
 
         protected virtual void ClosePreparedGRs()
@@ -1433,7 +1433,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="section"></param>
         protected virtual void HoldForLeakTightness(ISection section)
@@ -1584,7 +1584,7 @@ namespace AeonHacs.Components
             Alert("Operator Needed", "Graphite reactor preparation complete");
         }
 
-        protected virtual void PrepareIPsForCollection() => 
+        protected virtual void PrepareIPsForCollection() =>
             PrepareIPsForCollection(null);
 
         protected virtual void PrepareIPsForCollection(List<IInletPort> ips = null)
@@ -1706,10 +1706,10 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// These conditions are assumed at the start of a process. 
+        /// These conditions are assumed at the start of a process.
         /// Sometimes they are changed during a process, which should always
         /// restore them to the "normal" state before or on completion. However,
-        /// if the process is abnormally interrupted (e.g. aborted) they can 
+        /// if the process is abnormally interrupted (e.g. aborted) they can
         /// be left in the incorrect state.
         /// </summary>
         protected virtual void EnsureProcessStartConditions()
@@ -1990,7 +1990,7 @@ namespace AeonHacs.Components
             var port = d13CPort;
             if (port == null)
             {
-                Warn("Sample Alert", 
+                Warn("Sample Alert",
                     $"Can't find d13C port for Sample {Sample.LabId} from {InletPort?.Name}");
                 return;
             }
@@ -2086,7 +2086,7 @@ namespace AeonHacs.Components
             if (FirstTrap != VTT)
                 TransferCO2FromCTToVTT();
         }
-        
+
         protected virtual void TransferCO2FromCTToVTT()
         {
             TransferCO2(FirstTrap, VTT);
@@ -2512,8 +2512,8 @@ namespace AeonHacs.Components
             // must be re-frozen from MC+MCP0+MCP1 to the MC, and then re-thawed,
             // expanding it into just the MC+MCP0 (i.e., after having closed MCP1).
             // In all other cases, the correct chambers should be opened already.
-            if (Sample.AliquotsCount == 2 &&  
-                MC.Ports.Count > 2 && 
+            if (Sample.AliquotsCount == 2 &&
+                MC.Ports.Count > 2 &&
                 MC.Ports[1].IsOpened) // MC.Ports[0].Opened can be presumed, since AliquotsCount == 2
             {
                 var ftcMC = MC.Coldfinger;
@@ -2592,13 +2592,13 @@ namespace AeonHacs.Components
                 NextGraphiteNumber++;
             }
 
-            var size = EnableSmallReactors && aliquot.MicrogramsCarbon <= SmallSampleMicrogramsCarbon ? 
-                GraphiteReactor.Sizes.Small : 
+            var size = EnableSmallReactors && aliquot.MicrogramsCarbon <= SmallSampleMicrogramsCarbon ?
+                GraphiteReactor.Sizes.Small :
                 GraphiteReactor.Sizes.Standard;
             IGraphiteReactor gr = NextGR(PriorGR, size);
             if (gr == null)
             {
-                Pause("Process exception!", 
+                Pause("Process exception!",
                     $"Can't find a suitable graphite reactor for this {aliquot.MicrogramsCarbon:0.0} µgC ({aliquot.MicromolesCarbon:0.00} µmol) aliquot.");
                 return;
             }
@@ -2651,21 +2651,21 @@ namespace AeonHacs.Components
             double pH2ratio = 0;
             for (int i = 0; i < 3; ++i)     // up to three tries
             {
-                var targetInitialH2Pressure = targetFinalH2Pressure + 
+                var targetInitialH2Pressure = targetFinalH2Pressure +
                     Pressure(nH2target, gm.MilliLiters, gm.Temperature);
 
                 // The GM pressure drifts a bit after the H2 is introduced, generally downward.
                 // This value compensates for the consequent average error, which was about -4,
                 // averaged over 14 samples in Feb-Mar 2018.
                 // The compensation is bumped by a few more Torr to shift the variance in
-                // target error toward the high side, as a slight excess of H2 is not 
+                // target error toward the high side, as a slight excess of H2 is not
                 // deleterious, whereas a deficiency could be.
                 double driftAndVarianceCompensation = 9;    // TODO this should be a setting
 
                 gm.Isolate();
                 var p = AdmitGasToPort(
                     H2,
-                    targetInitialH2Pressure + driftAndVarianceCompensation, 
+                    targetInitialH2Pressure + driftAndVarianceCompensation,
                     gr);
                 var pH2initial = p[0];
                 var pH2final = p[1];
@@ -2707,7 +2707,7 @@ namespace AeonHacs.Components
 
             if (pH2ratio < H2_CO2StoichiometricRatio * 1.05)
             {
-                Warn("Sample Alert", 
+                Warn("Sample Alert",
                     $"Not enough H2 in {aliquot.GraphiteReactor}\r\nProcess paused.");
             }
         }
@@ -2786,7 +2786,7 @@ namespace AeonHacs.Components
                 }
                 else if (section.Coldfinger is Coldfinger cf)
                 {
-                    WaitFor(() => cf.Temperature >= -5);    
+                    WaitFor(() => cf.Temperature >= -5);
                 }
                 Bleed(section, FirstTrapBleedPressure);
                 section.Open();    // open any bypass valve
@@ -2857,7 +2857,7 @@ namespace AeonHacs.Components
 
             fromSection.Isolate();
 
-            var toSectionEvacuatesThroughFromSection = 
+            var toSectionEvacuatesThroughFromSection =
                 toSection.PathToVacuum.SafeIntersect(fromSection.Isolation).Count > 0;
 
             if (toSectionEvacuatesThroughFromSection)
@@ -2909,9 +2909,9 @@ namespace AeonHacs.Components
             TransferCO2FromMCToGR(NextGR(PriorGR), 0);
 
         protected virtual void TransferCO2FromMCToGR() =>
-            TransferCO2FromMCToGR(NextGR(PriorGR, 
-                EnableSmallReactors && ugCinMC <= SmallSampleMicrogramsCarbon ? 
-                    GraphiteReactor.Sizes.Small : 
+            TransferCO2FromMCToGR(NextGR(PriorGR,
+                EnableSmallReactors && ugCinMC <= SmallSampleMicrogramsCarbon ?
+                    GraphiteReactor.Sizes.Small :
                     GraphiteReactor.Sizes.Standard), 0);
 
         protected virtual void Open_d13CPort(Id13CPort port) => port.Open();
@@ -3072,9 +3072,9 @@ namespace AeonHacs.Components
             ProcessSubStep.Start("Raise LN");
             void jgr()
             {
-                grCF.RaiseLN(); 
+                grCF.RaiseLN();
                 gr.Close();
-                // Note: removed release incondensables 
+                // Note: removed release incondensables
             }
             void jd13()
             {
@@ -3218,9 +3218,9 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Make sure the normal MC ports are installed (and not the 
+        /// Make sure the normal MC ports are installed (and not the
         /// CalibratedKnownVolume or a port plug).
-        /// TODO: make sure the settings calibration order is preserved 
+        /// TODO: make sure the settings calibration order is preserved
         /// (add SequenceIndex property to VolumeCalibration?)
         /// </summary>
         protected virtual void MeasureRemainingVolumes()
@@ -3230,8 +3230,8 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Replace the chamber at the the port specified in the 
-        /// MC VolumeCalibration with a plug inserted flush to 
+        /// Replace the chamber at the the port specified in the
+        /// MC VolumeCalibration with a plug inserted flush to
         /// the fitting shoulder.
         /// Measures a valve's headspace and "OpenedVolumeDelta" which
         /// is the volume added to two chambers joined by the valve when
@@ -3304,7 +3304,7 @@ namespace AeonHacs.Components
             // valve OpenedVolumeDelta;
             var vOD = MC.MilliLiters * t2 - vH;
             SampleLog.Record($"{volumeCalibrationPortValve.Name} OpenedVolumeDelta (mL) = {vOD}");
-            
+
             OpenLine();
         }
 
@@ -3341,9 +3341,9 @@ namespace AeonHacs.Components
         // all of the listed grs must be on the same manifold
         protected virtual void CalibrateGRH2(List<IGraphiteReactor> grs)
         {
-            grs.ForEach(gr => 
+            grs.ForEach(gr =>
             {
-                if (!gr.Prepared) 
+                if (!gr.Prepared)
                 {
                     Pause("Error", "CalibrateGRH2() requires all of the listed grs to be Prepared");
                     return;
@@ -3405,7 +3405,7 @@ namespace AeonHacs.Components
                     var n = Particles(pInitial - pFinal, gm.MilliLiters, gm.Temperature);
                     var p = Pressure(n, gr.MilliLiters, gm.Temperature);
                     // The above uses the measured, GR-specific volume. To avoid errors,
-                    // this procedure should only be performed if the Fe and perchlorate 
+                    // this procedure should only be performed if the Fe and perchlorate
                     // tubes have never been altered since the GR volumes were measured.
                     SampleLog.Record($"{gr.Name}\t{pInitial:0.00}\t{pFinal:0.00}\t{p:0.00}\t{pFinal / p:0.000}");
                 });
@@ -3446,7 +3446,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Checks a section's leak rate. The section must be currently isolated and under vacuum. 
+        /// Checks a section's leak rate. The section must be currently isolated and under vacuum.
         /// </summary>
         /// <param name="section"></param>
         /// <returns>Torr L/sec</returns>
@@ -3640,8 +3640,8 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Transfer CO2 from MC to IP, 
-        /// optionally add some carrier gas, 
+        /// Transfer CO2 from MC to IP,
+        /// optionally add some carrier gas,
         /// then Collect(), Extract() and Measure()
         /// </summary>
         protected virtual void CO2LoopMC_IP_MC()
@@ -3650,7 +3650,7 @@ namespace AeonHacs.Components
             admitCarrier?.Invoke();
 
             Alert("Operator Needed", $"Thaw {InletPort.Name}.");
-            Notice.Send("Operator needed", 
+            Notice.Send("Operator needed",
                 $"Remove LN from {InletPort.Name} and thaw the coldfinger.\r\n" +
                 "Press Ok to continue");
 
@@ -3658,7 +3658,7 @@ namespace AeonHacs.Components
             Extract();
             Measure();
         }
-        
+
 
         /// <summary>
         /// Transfers CO2 from MC to VTT, then performs extract() and measure()
@@ -3748,7 +3748,7 @@ namespace AeonHacs.Components
             if (FirstTrap.FlowManager == null)
                 admitCarrier = null;
             else
-            { 
+            {
                 admitCarrier = AdmitIPMax;
                 //amountOfCarrier = 3;    // puffs
             }
@@ -3807,7 +3807,7 @@ namespace AeonHacs.Components
         }
 
 
-        // Discards the MC contents soon after they reach the 
+        // Discards the MC contents soon after they reach the
         // temperature at which they were extracted.
         protected virtual void DiscardExtractedGases()
         {

@@ -58,7 +58,7 @@ namespace AeonHacs.Components
             TwoColorTemperature = 0x0109,           // [R][min/max] stored as (degC + 273.15)*16
             FlameTemperature = 0x010a,              // [R][min/max] stored as (degC + 273.15)*16
             EmissivityRatio = 0x010b,               // [R/W][min/max] stored as (value * 1000)
-            Attenuation = 0x010c,                   // [R][min/max] tau-factor, 
+            Attenuation = 0x010c,                   // [R][min/max] tau-factor,
             MinimumIntensity = 0x010d,              // [R/W] min permitted tau
             OpticsDeterminationWarning = 0x010e,    // [R/W][min/max] min tau
             OpticalThickness = 0x0110,              // [R][min/max]      // TODO what is this? Is it aperture, stored as mm * 10?
@@ -220,7 +220,7 @@ namespace AeonHacs.Components
         public bool IsOff => onOffState.IsOff();
 
         /// <summary>
-        /// This method returns whether IsOn was changed, 
+        /// This method returns whether IsOn was changed,
         /// whereas IsOn = value wouldn't.
         /// </summary>
         protected virtual bool UpdateTargetState(bool value)
@@ -323,7 +323,7 @@ namespace AeonHacs.Components
         double emissivity;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public double RatioCorrection
         {
@@ -342,7 +342,7 @@ namespace AeonHacs.Components
         double ratioCorrection;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public double Transmission
         {
@@ -361,7 +361,7 @@ namespace AeonHacs.Components
         double transmission;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public TimeCode ResponseTime
         {
@@ -469,7 +469,7 @@ namespace AeonHacs.Components
         /// <summary>
         ///  Temperature status byte (includes laser status)
         /// </summary>
-        /// 
+        ///
         public int StatusByte => statusByte;
         int IDevice.StatusByte
         {
@@ -483,7 +483,7 @@ namespace AeonHacs.Components
         int statusByte = -1;
         // The Device.StatusByte is interpreted as follows:
         //   msb to lsb:  GOUL XTTT
-        //   status condition if the corresponding bit is 1:    
+        //   status condition if the corresponding bit is 1:
         //     G: ready
         //     O: temperature is overrange
         //     U: temperature is underrange
@@ -491,7 +491,7 @@ namespace AeonHacs.Components
         //     X: external deletion input is active
         //     TTT: The temperature stored in register 0101    ratio
         //          and provided as the analog output.
-        //          0 = 1-channel, 1 = ratio, 2 = flame,     
+        //          0 = 1-channel, 1 = ratio, 2 = flame,
         //          ...?..., 7 = 10/12 mA test current
         // For now, only the O, U, and L bits are interpreted here.
         public override bool OverRange => (Device.StatusByte & 0x40) != 0;
@@ -535,15 +535,15 @@ namespace AeonHacs.Components
         #endregion Settings
 
         /// <summary>
-        /// The diameter of the approximately circular area on the target 
+        /// The diameter of the approximately circular area on the target
         /// from which the intensities of certain electromagnetic wavelengths
-        /// are measured, in order to infer the target temperature. 
-        /// The spot size can be controlled to a specific diameter (&gt;= its 
+        /// are measured, in order to infer the target temperature.
+        /// The spot size can be controlled to a specific diameter (&gt;= its
         /// minimum) by adjusting the measuring distance, the distance from
         /// the pyrometer to the target. The diameter is at its smallest when
-        /// the measuring distance equals the focal length of the pyrometer 
+        /// the measuring distance equals the focal length of the pyrometer
         /// optics. It is larger when the target is either nearer or farther
-        /// than the focal length. 
+        /// than the focal length.
         /// </summary>
         public double MeasuringFieldDiameter
         {
@@ -627,7 +627,7 @@ namespace AeonHacs.Components
         }
 
         // construct constant command strings on first-time use
-        string CheckStatusCommand => checkStatusCommand ??= 
+        string CheckStatusCommand => checkStatusCommand ??=
             EncodeCommand(MessageTypeCode.ReadRegister, RegisterCode.StatusAndTemperature, 2);
         string checkStatusCommand;
 
@@ -635,18 +635,18 @@ namespace AeonHacs.Components
             EncodeCommand(MessageTypeCode.WriteBit, RegisterCode.Laser, OnValue);
         string laserOnCommand;
 
-        string LaserOffCommand => laserOffCommand ??= 
+        string LaserOffCommand => laserOffCommand ??=
             EncodeCommand(MessageTypeCode.WriteBit, RegisterCode.Laser, OffValue);
         string laserOffCommand;
 
         string GetTemperatureRangesCommand => getTemperatureRangesCommand ??=
             EncodeCommand(MessageTypeCode.ReadRegister, RegisterCode.TemperatureRangeMinimum, 2);
         string getTemperatureRangesCommand;
-        
+
         string GetFocalLengthCommand => getFocalLengthCommand ??=
             EncodeCommand(MessageTypeCode.ReadRegister, RegisterCode.FocalLength, 1);
         string getFocalLengthCommand;
-        
+
         string GetFieldDiameterMinimumCommand => getFieldDiameterMinimumCommand ??=
             EncodeCommand(MessageTypeCode.ReadRegister, RegisterCode.MinimumSpotSize, 1);
         string getFieldDiameterMinimumCommand;
@@ -694,7 +694,7 @@ namespace AeonHacs.Components
             EncodeCommand(MessageTypeCode.WriteRegister, RegisterCode.PossiblyTransmission, (UInt16)(Config.Transmission * 1000)),
             GetTransmissionCommand);
         string responseTimeCommand => setThenGet(
-            EncodeCommand(MessageTypeCode.WriteRegister, RegisterCode.ResponseTime, (UInt16)Config.ResponseTime), 
+            EncodeCommand(MessageTypeCode.WriteRegister, RegisterCode.ResponseTime, (UInt16)Config.ResponseTime),
             GetResponseTimeCommand);
         string laserCommand => setThenGet(
             Config.State.IsOn() ? LaserOnCommand : LaserOffCommand,
@@ -717,7 +717,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Decodes a Pyrometer temperature by converting it from
         /// sixteenths of kelvins into degrees Celsius. (Pyrometer
-        /// temperatures are transmitted as sixteenths of kelvins; i.e., 
+        /// temperatures are transmitted as sixteenths of kelvins; i.e.,
         /// 1 K is sent as 16.)
         /// </summary>
         /// <param name="K16">sixteenths of kelvins</param>
@@ -726,7 +726,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// Encodes a temperature (given in degrees C) into an integer
-        /// as sixteenths of kelvins. (Pyrometer temperatures are 
+        /// as sixteenths of kelvins. (Pyrometer temperatures are
         /// transmitted as sixteenths of kelvins; i.e., 1 K is sent as 16.)
         /// </summary>
         /// <param name="degC">degrees Celsius</param>
@@ -851,7 +851,7 @@ namespace AeonHacs.Components
                     return confirmed;
                 }
 
-                // ReadParameterLimits is not implemented; would need to add min and max values 
+                // ReadParameterLimits is not implemented; would need to add min and max values
                 // for each parameter to DeviceState.
                 // Command structure is like ReadRegister:
                 //    [addressByte] [0x68] [registerWord = start register] [dataWord = nRegisters]

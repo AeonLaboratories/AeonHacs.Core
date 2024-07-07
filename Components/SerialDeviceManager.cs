@@ -89,7 +89,7 @@ namespace AeonHacs.Components
         protected int ResponsesExpected = 0;
 
         /// <summary>
-        /// Returns the positive integer found at the end of the current 
+        /// Returns the positive integer found at the end of the current
         /// ServiceDevice's key. Returns -1 on failure.
         /// </summary>
         protected virtual int ChannelNumber =>
@@ -114,7 +114,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// Based on the current value of ServiceDevice, determines what
-        /// command to issue, if any, and if so, use setServiceValues() 
+        /// command to issue, if any, and if so, use setServiceValues()
         /// to select the command and set the expected number of responses.
         /// </summary>
         protected virtual void SelectDeviceService()
@@ -124,7 +124,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Sets the command string to send to the controller, and number of 
+        /// Sets the command string to send to the controller, and number of
         /// responses to expect as a result.
         /// </summary>
         /// <param name="serviceCommand">The command string to transmit to the controller.</param>
@@ -138,8 +138,8 @@ namespace AeonHacs.Components
         #region State Management
 
         /// <summary>
-        /// State is invalid if it is inconsistent with the desired Configuration, 
-        /// or if the State doesn't fully and accurately represent the state of 
+        /// State is invalid if it is inconsistent with the desired Configuration,
+        /// or if the State doesn't fully and accurately represent the state of
         /// the controller.
         /// </summary>
         protected virtual bool StateInvalid => UpdatesReceived < 1;

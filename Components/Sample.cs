@@ -40,7 +40,7 @@ namespace AeonHacs.Components
 
         [JsonProperty]
         public DateTime DateTime
-        { 
+        {
             get => dateTime;
             set => Ensure(ref dateTime, value);
         }
@@ -126,7 +126,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Sample size
         /// </summary>
-        [JsonProperty]        
+        [JsonProperty]
         public double Grams
         {
             get => grams;
@@ -141,17 +141,17 @@ namespace AeonHacs.Components
         }
 
         public double Micrograms
-        { 
+        {
             get => Grams * 1000000;
             set => Grams = value / 1000000;
         }
 
         /// <summary>
-        /// The initial sample mass, expressed as micromoles; 
+        /// The initial sample mass, expressed as micromoles;
         /// intended to be used with pure gas samples like CO2 or CH4 that
         /// have one carbon atom per particle.
         /// Perhaps this should be renamed to avoid confusion with
-        /// the other similarly-named properties ("xxCarbon"), which refer 
+        /// the other similarly-named properties ("xxCarbon"), which refer
         /// to the extracted CO2.
         /// </summary>
         public double Micromoles

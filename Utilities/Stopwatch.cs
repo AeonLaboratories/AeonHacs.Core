@@ -32,12 +32,12 @@ namespace AeonHacs.Utilities
         [JsonProperty] public long Accumulated
         {
             get { return ElapsedMilliseconds; }
-            set { accumulated = value; } 
+            set { accumulated = value; }
         }
         long accumulated;
 
         /// <summary>
-        /// Gets or sets the longest time interval (in milliseconds) measured by 
+        /// Gets or sets the longest time interval (in milliseconds) measured by
         /// the current instance.
         /// </summary>
         public long Longest
@@ -69,7 +69,7 @@ namespace AeonHacs.Utilities
         {
             Stop();
             base.Reset();
-            accumulated = 0;            
+            accumulated = 0;
         }
 
         /// <summary>

@@ -35,9 +35,9 @@ namespace AeonHacs.Components
         /// a percent power level;
         /// </summary>
         public virtual bool ManualMode
-        { 
-            get => manualMode; 
-            set => Ensure(ref TargetManualMode, value, NotifyConfigChanged, nameof(TargetManualMode)); 
+        {
+            get => manualMode;
+            set => Ensure(ref TargetManualMode, value, NotifyConfigChanged, nameof(TargetManualMode));
         }
         [JsonProperty("ManualMode")]
         bool TargetManualMode;
@@ -76,9 +76,9 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The maximum allowable power level, or "Control Output" value
-        /// [0..100%], to be delivered to this device. Note: The 
-        /// percentage is of the Controller's output capability, not 
-        /// the device's range of input power. MaximumPowerLevel is what prevents 
+        /// [0..100%], to be delivered to this device. Note: The
+        /// percentage is of the Controller's output capability, not
+        /// the device's range of input power. MaximumPowerLevel is what prevents
         /// the Controller from overpowering the device.
         /// </summary>
         public virtual double MaximumPowerLevel

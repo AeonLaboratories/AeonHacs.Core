@@ -47,7 +47,7 @@ namespace AeonHacs.Components
         #endregion Device interfaces
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int OutputPowerLimit
         {
@@ -72,7 +72,7 @@ namespace AeonHacs.Components
         int outputPowerLimit = -1;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int Error => error;
         int IDevice.Error
@@ -95,7 +95,7 @@ namespace AeonHacs.Components
         int workingSetpoint = -1;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int OutputPower => outputPower;
         int IDevice.OutputPower
@@ -228,7 +228,7 @@ namespace AeonHacs.Components
         #region Controller interactions
 
         // TODO: The timeout was previously set to this constant
-        // value. Check that it is ok to use the normal 
+        // value. Check that it is ok to use the normal
         // IdleTimeout/ResponseTimeout values instead
         //protected override int StateLoopTimeout => 3 * SerialDevice.MillisecondsBetweenMessages;
         protected override SerialController.Command SelectService()
@@ -352,7 +352,7 @@ namespace AeonHacs.Components
             catch (Exception e)
             {
                 if (LogEverything) Log.Record(e.ToString());
-                return false; 
+                return false;
             }
         }
 

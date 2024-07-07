@@ -63,7 +63,7 @@ namespace AeonHacs.Components
         [DisplayName]
         [JsonProperty]
         public virtual string Name
-        { 
+        {
             get => name;
             set => Ensure(ref name, value);
         }
@@ -81,13 +81,13 @@ namespace AeonHacs.Components
         public ProcessSequenceStep() { }
 
         public ProcessSequenceStep(string name)
-        { 
-            Name = name; 
+        {
+            Name = name;
         }
         public ProcessSequenceStep(string name, string description)
-        { 
-            Name = name; 
-            Description = description; 
+        {
+            Name = name;
+            Description = description;
         }
 
         public virtual ProcessSequenceStep Clone() => new ProcessSequenceStep(Name, Description);
@@ -179,7 +179,7 @@ namespace AeonHacs.Components
             }
         }
         public override string Description
-        { 
+        {
             get => base.Description;
             set
             {
@@ -241,7 +241,7 @@ namespace AeonHacs.Components
     //    {
     //        var sb = new StringBuilder();
     //        foreach (var p in Parameters)
-    //            sb.Append($"{p.ParameterName} = {p.Value}\r\n");   
+    //            sb.Append($"{p.ParameterName} = {p.Value}\r\n");
     //        return sb.ToString().TrimEnd();
     //    }
     //}

@@ -19,10 +19,10 @@ namespace AeonHacs.Components
     // methods, which is normally the desired functionality.
     //
     // Gas supply valves usually may be included or omitted without affecting general-
-    // purpose functionality. It normally doesn't hurt to include them, but their 
+    // purpose functionality. It normally doesn't hurt to include them, but their
     // absence normally does not matter, either, because they are essentially always
     // closed (except briefly to admit gas). If a gas supply valve is included
-    // in an Isolation list (i.e., a volume perimeter), and that list is ever 
+    // in an Isolation list (i.e., a volume perimeter), and that list is ever
     // Open()ed, the gas supply valve will be opened along with everything else. This
     // most probably would be undesired; however, Isolation lists are never Open()ed
     // as a whole in the general-purpose code.

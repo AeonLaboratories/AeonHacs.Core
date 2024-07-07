@@ -138,7 +138,7 @@ namespace AeonHacs.Components
         public List<string> Operations { get; } = new List<string> { "Stop", "Close", "Open" };
 
         /// <summary>
-        /// The number of operations which have been submitted 
+        /// The number of operations which have been submitted
         /// to the Controller for this valve, but which have
         /// not been completed.
         /// </summary>
@@ -155,8 +155,8 @@ namespace AeonHacs.Components
                 Stop();
         }
 
-        public override OnOffState OnOffState 
-        { 
+        public override OnOffState OnOffState
+        {
             get => base.OnOffState;
             protected set
             {

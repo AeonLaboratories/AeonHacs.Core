@@ -36,8 +36,8 @@ namespace AeonHacs.Components
         /// The names of the operations supported by the actuator.
         /// </summary>
         public virtual List<string> Operations
-        { 
-            get 
+        {
+            get
             {
                 var names = new List<string>();
                 foreach (var op in ActuatorOperations)
@@ -48,7 +48,7 @@ namespace AeonHacs.Components
 
         [JsonProperty]
         public virtual ObservableItemsCollection<ActuatorOperation> ActuatorOperations
-        { 
+        {
             get => actuatorOperations;
             set
             {
@@ -134,9 +134,9 @@ namespace AeonHacs.Components
 
         protected object PendingOperationsLocker = new object();
         public int PendingOperations
-        { 
+        {
             get => pendingOperations;
-            protected set => Ensure(ref pendingOperations, value); 
+            protected set => Ensure(ref pendingOperations, value);
         }
         int pendingOperations = 0;
 
@@ -145,10 +145,10 @@ namespace AeonHacs.Components
         /// <summary>
         /// Set by controller when the actuator becomes Active, this value
         /// persists (as indication of the prior operation) after the actuator
-        /// becomes inactive. Before setting this property to a new value, 
+        /// becomes inactive. Before setting this property to a new value,
         /// the new value should be validated using
         /// Actuator.ValidateOperation(value).
-        /// </summary>        
+        /// </summary>
         public virtual IActuatorOperation Operation
         {
             get => operation;
@@ -210,7 +210,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// A Stop() request was received after the current or prior operation started.
-        /// This value is reset by ActuatorController during initial operation 
+        /// This value is reset by ActuatorController during initial operation
         /// configuration.
         /// </summary>
         public virtual bool StopRequested
@@ -223,7 +223,7 @@ namespace AeonHacs.Components
         public new virtual bool Stopped { get => !InMotion; protected set { } }
 
         public virtual bool ActionSucceeded
-        { 
+        {
             get => actionSucceeded;
             set
             {
@@ -251,8 +251,8 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Executes the requested actuator operation. If the 
-        /// operationName is empty, null, or not supported, a 
+        /// Executes the requested actuator operation. If the
+        /// operationName is empty, null, or not supported, a
         /// "Select" functionality is performed.
         /// </summary>
         /// <param name="operationName"></param>

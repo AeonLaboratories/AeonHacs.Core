@@ -7,7 +7,7 @@ namespace AeonHacs
         public static HacsLog EventLog
         {
             get => eventLog ??= new HacsLog("Event log.txt") { ArchiveDaily = false };
-            set => eventLog = value; 
+            set => eventLog = value;
         }
         static HacsLog eventLog;
         public static HacsLog SystemLog

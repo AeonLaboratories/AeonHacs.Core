@@ -8,7 +8,7 @@ using AeonHacs.Utilities;
 namespace AeonHacs.Components
 {
     /// <summary>
-    /// A valve whose position is determined by a 
+    /// A valve whose position is determined by a
     /// control signal's pulse width, like an RC servo.
     /// </summary>
     public class CpwValve : CpwActuator, ICpwValve, CpwValve.IDevice, CpwValve.IConfig
@@ -32,7 +32,7 @@ namespace AeonHacs.Components
         public virtual ValveState ValveState
         {
             get => valveState;
-            protected set => Ensure(ref valveState, value); 
+            protected set => Ensure(ref valveState, value);
         }
         ValveState valveState = ValveState.Unknown;
         ValveState Valve.IDevice.ValveState
@@ -63,7 +63,7 @@ namespace AeonHacs.Components
         #endregion Valve
 
         public virtual int Position
-        { 
+        {
             get => Operation?.Value ?? CenterValue;
             protected set { }
         }
@@ -87,7 +87,7 @@ namespace AeonHacs.Components
             {
                 UpdateOpenedAndClosedValues(op);
             }
-        }    
+        }
 
         void UpdateOpenedAndClosedValues(ActuatorOperation op)
         {
@@ -173,8 +173,8 @@ namespace AeonHacs.Components
                 return operation;
         }
 
-        // Called when the valve becomes "Active", whenever a report 
-        // is received while active, and finally, once when the valve 
+        // Called when the valve becomes "Active", whenever a report
+        // is received while active, and finally, once when the valve
         // becomes inactive.
         protected virtual void UpdateValveState()
         {
@@ -208,7 +208,7 @@ namespace AeonHacs.Components
             !OperationFailed && (Operation == null || TimeLimitDetected);
 
         public override long UpdatesReceived
-        { 
+        {
             get => base.UpdatesReceived;
             protected set
             {

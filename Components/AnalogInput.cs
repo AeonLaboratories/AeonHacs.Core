@@ -37,7 +37,7 @@ namespace AeonHacs.Components
         IDeviceManager IDevice.Manager { get => base.Device.Manager; set => base.Device.Manager = value; }
 
         public virtual double Voltage
-        { 
+        {
             get => voltage;
             protected set => Set(ref voltage, value); // Set because repeats matter for filtering
         }

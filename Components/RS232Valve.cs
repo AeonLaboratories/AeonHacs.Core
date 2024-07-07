@@ -9,7 +9,7 @@ using AeonHacs.Utilities;
 namespace AeonHacs.Components
 {
     /// <summary>
-    /// A valve actuated by one of Aeon's servos that use 
+    /// A valve actuated by one of Aeon's servos that use
     /// RS232 serial communications.
     /// </summary>
     public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.IConfig
@@ -43,16 +43,16 @@ namespace AeonHacs.Components
         public override int Position { get => RxValve.Position; protected set => RxValve.Device.Position = value; }
 
         /// <summary>
-        /// The minimum Position. Except during calibration, the 
-        /// software constrains Valve movements to prevent the 
+        /// The minimum Position. Except during calibration, the
+        /// software constrains Valve movements to prevent the
         /// Position from going below this value.
         /// </summary>
         [JsonProperty]
         public int MinimumPosition { get => RxValve.MinimumPosition; set => RxValve.MinimumPosition = value; }
 
         /// <summary>
-        /// The maximum Position. Except during calibration, the 
-        /// software constrains Valve movements to prevent the 
+        /// The maximum Position. Except during calibration, the
+        /// software constrains Valve movements to prevent the
         /// Position from exceeding this value.
         /// </summary>
         [JsonProperty]
@@ -69,8 +69,8 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The Closed position is determined by taking
-        /// the current-limited soft stop found during 
-        /// calibration, and offsetting it by this value 
+        /// the current-limited soft stop found during
+        /// calibration, and offsetting it by this value
         /// toward the Opening direction.
         /// </summary>
         [JsonProperty, DefaultValue(10)]
@@ -98,8 +98,8 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The commanded movement. Initially, this is provided
-        /// to the servo by the controller, based on the current 
-        /// Position and the desired Position, constrained to 
+        /// to the servo by the controller, based on the current
+        /// Position and the desired Position, constrained to
         /// Min/Max limits. It may be subsequently altered by
         /// the servo (e.g., when a Stop command is issued).
         /// </summary>
@@ -107,7 +107,7 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// The amount that the physical position of the actuator
-        /// has changed, in Position units, from the start of an 
+        /// has changed, in Position units, from the start of an
         /// operation.
         /// </summary>
         public virtual int Movement => Device.Movement;
@@ -129,7 +129,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// The number of status updates received from the 
+        /// The number of status updates received from the
         /// servo since the last operation was started.
         /// </summary>
         public long RS232UpdatesReceived
@@ -175,9 +175,9 @@ namespace AeonHacs.Components
 
         public virtual bool ControllerStopped => !Ready || base.Stopped;
 
-        public virtual bool ActuatorStopped => !Ready || 
-            (RS232UpdatesReceived > 0 && 
-            Movement == CommandedMovement && 
+        public virtual bool ActuatorStopped => !Ready ||
+            (RS232UpdatesReceived > 0 &&
+            Movement == CommandedMovement &&
             EnoughMatches);
 
         public override bool MotionInhibited => base.MotionInhibited || ActuatorStopped;
@@ -204,7 +204,7 @@ namespace AeonHacs.Components
                 return;
             }
 
-            if (!isCalibrating && (!Calibrated || 
+            if (!isCalibrating && (!Calibrated ||
                 operationName == "Calibrate" ||
                 (!IsClosed && operationName == "Close" && ClosedOffset == 0)))
             {
@@ -361,12 +361,12 @@ namespace AeonHacs.Components
             }
             ActuatorOperations.Remove(operation);
             isCalibrating = false;
-            Calibrated = true;     
+            Calibrated = true;
         }
 
         /// <summary>
         ///    Tries to find the closed position of the valve by the current required
-        ///    to turn it. Success (i.e., the closed position was found) is indicated 
+        ///    to turn it. Success (i.e., the closed position was found) is indicated
         ///    by CurrentLimitDetected, not by the return value.
         /// </summary>
         /// <returns>True if the operation was not externally interrupted.</returns>

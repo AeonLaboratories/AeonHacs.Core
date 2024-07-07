@@ -116,7 +116,7 @@ namespace AeonHacs.Components
 
         public new interface IConfig : Actuator.IConfig
         {
-            // CpwActuator.DefaultConfiguration and 
+            // CpwActuator.DefaultConfiguration and
             // ActuatorOperation.Configuration are used
             // to configure the Actuator
             OperationSettings Settings { get; }
@@ -242,7 +242,7 @@ namespace AeonHacs.Components
         public new ActuatorController Manager => base.Manager as ActuatorController;
 
         /// <summary>
-        /// The controller detected that an enabled limit switch 
+        /// The controller detected that an enabled limit switch
         /// is engaged.
         /// Note that this value is false if the controller hasn't checked.
         /// </summary>
@@ -259,7 +259,7 @@ namespace AeonHacs.Components
         /// The maximum current (milliamps) expected when the
         /// actuator is idle. If an operation contains a non-zero
         /// current limit, the controller will wait until the actual
-        /// current is below the IdleCurrentLimit before initiating 
+        /// current is below the IdleCurrentLimit before initiating
         /// the operation movement.
         /// </summary>
         public virtual int IdleCurrentLimit

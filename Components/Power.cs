@@ -24,7 +24,7 @@ namespace AeonHacs.Components
         string Dc5VName { get => DC5V?.Name; set => dc5VName = value; }
         string dc5VName;
         public IVoltmeter DC5V
-        { 
+        {
             get => dc5V;
             set => Ensure(ref dc5V, value, NotifyPropertyChanged);
         }

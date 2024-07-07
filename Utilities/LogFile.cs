@@ -26,7 +26,7 @@ namespace AeonHacs.Utilities
             {
                 while (true)
                 {
-                    Thread.Sleep(5000); // wait 5 seconds 
+                    Thread.Sleep(5000); // wait 5 seconds
                     foreach (var log in List)
                     {
                         try { log.flush(); }

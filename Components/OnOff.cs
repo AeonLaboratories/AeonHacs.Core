@@ -15,8 +15,8 @@ namespace AeonHacs.Components
         #region Device interfaces
 
         public new interface IDevice : HacsDevice.IDevice
-        { 
-            OnOffState OnOffState { get; set; } 
+        {
+            OnOffState OnOffState { get; set; }
         }
 
         public new interface IConfig : HacsDevice.IConfig { }
@@ -29,8 +29,8 @@ namespace AeonHacs.Components
         #region Settings
         [JsonProperty("OnOffState")]
         public virtual OnOffState OnOffState
-        { 
-            get => onOffState; 
+        {
+            get => onOffState;
             protected set
             {
                 if (Ensure(ref onOffState, value))

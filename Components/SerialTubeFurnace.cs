@@ -103,11 +103,11 @@ namespace AeonHacs.Components
         /// <summary>
         /// The SerialController invokes this method to obtain the next
         /// SerialController.Command.
-        /// The Command contains a string message (the "command"), the 
-        /// number of responses to expect in return, and whether to 
-        /// "Hurry". Hurry tells the controller to check back here 
-        /// for another command as soon as the expected responses 
-        /// have been received and validated. Otherwise, the controller 
+        /// The Command contains a string message (the "command"), the
+        /// number of responses to expect in return, and whether to
+        /// "Hurry". Hurry tells the controller to check back here
+        /// for another command as soon as the expected responses
+        /// have been received and validated. Otherwise, the controller
         /// will check again after a timeout period.
         /// </summary>
         /// <returns></returns>

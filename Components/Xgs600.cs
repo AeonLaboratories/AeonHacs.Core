@@ -151,7 +151,7 @@ namespace AeonHacs.Components
         /// userLabelField must be empty or be a valid user label prepended with "U"
         /// </summary>
         /// <returns></returns>
-        string formatCommand(string userLabelField) => 
+        string formatCommand(string userLabelField) =>
             $"#{Address}{(int)commandCode:X2}{userLabelField}{TerminationChar}";
 
         #endregion

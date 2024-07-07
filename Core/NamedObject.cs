@@ -33,7 +33,7 @@ namespace AeonHacs
                 if (!dict.TryGetValue(name, out entry))
                     return default;
 
-            // TODO: Is the above safe? Correct? Shouldn't it simply be this? 
+            // TODO: Is the above safe? Correct? Shouldn't it simply be this?
             //
             //lock (dictionaryLocker)
             //    dict.TryGetValue(name, out entry);
@@ -221,7 +221,7 @@ namespace AeonHacs
         {
 
             public string Name
-            { 
+            {
                 get => name;
                 set { name = value; NotifyPropertyChanged(); }
             }

@@ -11,7 +11,7 @@ using static AeonHacs.Utilities.Utility;
 namespace AeonHacs.Components
 {
     /// <summary>
-    /// Supplies a gas to a Destination Section via a Path Section. 
+    /// Supplies a gas to a Destination Section via a Path Section.
     /// Set Path to null if v_source is on the Destination boundary.
     /// </summary>
     public class GasSupply : HacsComponent, IGasSupply
@@ -94,7 +94,7 @@ namespace AeonHacs.Components
         string MeterName { get => Meter?.Name; set => meterName = value; }
         string meterName;
         /// <summary>
-        /// The Meter that is supposed to reach the target value when a 
+        /// The Meter that is supposed to reach the target value when a
         /// controlled amount of gas is to be admitted to the Destination.
         /// </summary>
         public IMeter Meter
@@ -120,7 +120,7 @@ namespace AeonHacs.Components
         string flowManagerName;
         /// <summary>
         /// The control system that manages the flow valve position to
-        /// achieve a desired condition, usually a target Value for Meter or 
+        /// achieve a desired condition, usually a target Value for Meter or
         /// its RateOfChange.
         /// </summary>
         public IFlowManager FlowManager
@@ -134,8 +134,8 @@ namespace AeonHacs.Components
         string DestinationName { get => Destination?.Name; set => destinationName = value; }
         string destinationName;
         /// <summary>
-        /// The Section to receive the gas. The Section's Isolation ValveList isolates the Destination 
-        /// and also the PathToVacuum. The Section's PathToVacuum ValveList joins the Destination 
+        /// The Section to receive the gas. The Section's Isolation ValveList isolates the Destination
+        /// and also the PathToVacuum. The Section's PathToVacuum ValveList joins the Destination
         /// volume to the Vacuum Manifold.
         /// </summary>
         public ISection Destination
@@ -149,9 +149,9 @@ namespace AeonHacs.Components
         string PathName { get => Path?.Name; set => pathName = value; }
         string pathName;
         /// <summary>
-        /// The Section comprising the Chambers between v_source and Destination. 
-        /// Set Path to null if v_source is on the Destination boundary. Set 
-        /// Path.PathToVacuum to null if Path cannot be evacuated without also 
+        /// The Section comprising the Chambers between v_source and Destination.
+        /// Set Path to null if v_source is on the Destination boundary. Set
+        /// Path.PathToVacuum to null if Path cannot be evacuated without also
         /// evacuating Destination. Path.InternalValves *is* the path except
         /// for the final valve between Path and Destination.
         /// </summary>
@@ -176,8 +176,8 @@ namespace AeonHacs.Components
 
 
         /// <summary>
-        /// When roughing through "Closed" v_flow, if it takes longer than this 
-        /// for the vacuum system's foreline pressure to fall below PurgePressure, 
+        /// When roughing through "Closed" v_flow, if it takes longer than this
+        /// for the vacuum system's foreline pressure to fall below PurgePressure,
         /// issue a warning.
         /// </summary>
         [JsonProperty, DefaultValue(20)]
@@ -251,7 +251,7 @@ namespace AeonHacs.Components
         {
             // Do nothing if it's impossible to evacuate Path without
             // also evacuating Destination.
-            if (Destination?.Isolation != null && 
+            if (Destination?.Isolation != null &&
                 Path?.PathToVacuum != null &&
                 Destination.Isolation.SafeIntersect(Path.PathToVacuum).Any())
                 return;
@@ -321,8 +321,8 @@ namespace AeonHacs.Components
         /// <summary>
         /// Admit the given pressure of gas into the Destination,
         /// then close the source/shutoff valve and, optionally,
-        /// the flow valve. If no pressure reading is available, 
-        /// silently waits one second before closing the valves. 
+        /// the flow valve. If no pressure reading is available,
+        /// silently waits one second before closing the valves.
         /// Ports on the Destination are not changed.
         /// </summary>
         public void Admit(double pressure, bool thenCloseFlow)
@@ -357,7 +357,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Perform three flushes, each time admitting gas at pressureHigh 
+        /// Perform three flushes, each time admitting gas at pressureHigh
         /// into Destination, and then evacuating to pressureLow.
         /// </summary>
         /// <param name="pressureHigh">pressure of gas to admit</param>
@@ -366,7 +366,7 @@ namespace AeonHacs.Components
         { Flush(pressureHigh, pressureLow, 3); }
 
         /// <summary>
-        /// Perform the specified number of flushes, each time admitting gas 
+        /// Perform the specified number of flushes, each time admitting gas
         /// at pressureHigh into Destination, and then evacuating to pressureLow.
         /// </summary>
         /// <param name="pressureHigh">pressure of gas to admit</param>
@@ -376,7 +376,7 @@ namespace AeonHacs.Components
         { Flush(pressureHigh, pressureLow, flushes, null); }
 
         /// <summary>
-        /// Perform the specified number of flushes, each time admitting gas 
+        /// Perform the specified number of flushes, each time admitting gas
         /// at pressureHigh into Destination, and then evacuating to pressureLow.
         /// If a port is specified, then all Destination ports are closed before
         /// the gas is admitted, and the given port is opened before evacuation.
@@ -389,9 +389,9 @@ namespace AeonHacs.Components
             Flush(pressureHigh, pressureLow, flushes, port, 0, 0);
 
         /// <summary>
-        /// Perform the specified number of flushes, each time admitting gas 
+        /// Perform the specified number of flushes, each time admitting gas
         /// at pressureHigh into Destination, waiting minutesAtPressureHigh,
-        /// then evacuating to pressureLow. Between pressureLow and pressureHigh, 
+        /// then evacuating to pressureLow. Between pressureLow and pressureHigh,
         /// wait minutesBetweenFlushes. That is, there is no wait after the final
         /// pressureLow or before the first pressureHigh.
         /// If a port is specified, then all Destination ports are closed before
@@ -427,7 +427,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Admit a gas into the Destination, controlling the flow rate 
+        /// Admit a gas into the Destination, controlling the flow rate
         /// to achieve a higher level of precision over a wider range
         /// of target pressures. Requires a flow/metering valve.
         /// </summary>
@@ -526,8 +526,8 @@ namespace AeonHacs.Components
                 toBeOpened = toBeOpened.SafeUnion(Path.PathToVacuum);
             else
                 toBeOpened = toBeOpened.SafeUnion(Destination?.PathToVacuum);
-            var toBeClosed = Destination?.Isolation.SafeUnion(Path?.Isolation); 
-            
+            var toBeClosed = Destination?.Isolation.SafeUnion(Path?.Isolation);
+
             vacuumSystem.Isolate();
             vacuumSystem.IsolateExcept(toBeOpened);
             Path?.ClosePorts();
@@ -559,7 +559,7 @@ namespace AeonHacs.Components
             {
                 var subject = "Configuration Error";
                 var message = $"GasSupply {Name}: FlowPressurize() requires a FlowManager.";
-                Alert.Warn(subject, message); 
+                Alert.Warn(subject, message);
                 return;
             }
 

@@ -74,7 +74,7 @@ namespace AeonHacs.Components
         double IDevice.MaximumVoltage
         {
             get => maximumVoltage ?? TargetMaximumVoltage;
-            set => Ensure(ref maximumVoltage, value); 
+            set => Ensure(ref maximumVoltage, value);
         }
         double? maximumVoltage;
 
@@ -85,7 +85,7 @@ namespace AeonHacs.Components
 
         public override string ToString()
         {
-            return base.ToString() + 
+            return base.ToString() +
                 Utility.IndentLines($"\r\n({Voltage:0.0000} V)");
         }
     }

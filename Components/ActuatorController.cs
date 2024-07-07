@@ -343,7 +343,7 @@ namespace AeonHacs.Components
         static HacsLog SystemLog => Hacs.SystemLog;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public OperationState State
         {
@@ -394,7 +394,7 @@ namespace AeonHacs.Components
         int initialCurrent = 0;
         int peakCurrent = 0;
         bool pushed = false;
-        
+
         void OperateActuator()
         {
             var a = CurrentActuator;
@@ -504,7 +504,7 @@ namespace AeonHacs.Components
         {
             if (operation == null)
                 return OperationState.Free;
-            
+
             var config = $"{a.Config.Settings}";
             if (!(a is IRS232Valve))
                 config = $"p{a.Operation.Value} " + config;
@@ -517,7 +517,7 @@ namespace AeonHacs.Components
         OperationState ConfirmConfiguration(ICpwActuator a)
         {
             // TODO: Perhaps add a SerialController.StateLoopTimeout callback, and
-            // if LastCommand != "r" && command == "r", give the device enough 
+            // if LastCommand != "r" && command == "r", give the device enough
             // time to complete the operation.
             if (LastCommand != "r")
             {
@@ -541,10 +541,10 @@ namespace AeonHacs.Components
 
             if (a is IRS232Valve v && v.Device.RS232UpdatesReceived < 1) // Servo config needed
                 return OperateAeonServo(v, true, 200);     // Servo config should take < 100 ms
- 
+
             return OperationState.Going;
         }
-        
+
         // OperationState == Going
         OperationState CommandGo(ICpwActuator a)
         {
@@ -571,7 +571,7 @@ namespace AeonHacs.Components
 
             return State;
         }
-        
+
         // OperationState == AwaitingMotion
         OperationState CheckForMotion(ICpwActuator a)
         {
@@ -589,7 +589,7 @@ namespace AeonHacs.Components
             //SetServiceValues("r", 1);
             return State;
         }
-        
+
         // OperationState == Stopping
         OperationState StopOperation(ICpwActuator a)
         {

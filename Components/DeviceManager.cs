@@ -106,7 +106,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Returns the positive integer found at the end of the 
+        /// Returns the positive integer found at the end of the
         /// given key. Returns -1 on failure.
         /// </summary>
         protected virtual int ExtractChannelNumber(string key)
@@ -121,7 +121,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Returns true if the provided key is valid; 
+        /// Returns true if the provided key is valid;
         /// logs an error message and returns false if not.
         /// </summary>
         /// <param name="name"></param>
@@ -131,7 +131,7 @@ namespace AeonHacs.Components
         /// <returns></returns>
         protected virtual bool ValidKey(string name, string key, string prefix, int maxIndex)
         {
-            if (IsValidKey(key, prefix, maxIndex)) 
+            if (IsValidKey(key, prefix, maxIndex))
                 return true;
             LogMessage($"DeviceManager {Name} can't connect {name} with invalid key \"{key}\".\r\n" +
                 $"\t\tKey must match template \"{prefix}#\" where # is in 0..{maxIndex}");
@@ -139,7 +139,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Returns true if the key matches the pattern 
+        /// Returns true if the key matches the pattern
         /// &quot;&lt;prefix&gt;&lt;index&gt;&quot;,
         /// and index is in the range [0..maxIndex].
         /// </summary>

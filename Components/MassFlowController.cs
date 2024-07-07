@@ -176,7 +176,7 @@ namespace AeonHacs.Components
 
             return $"{Name}:" +
                 Utility.IndentLines(
-                    $"\r\n{FlowMeter}" + 
+                    $"\r\n{FlowMeter}" +
                     tracked +
                     $"\r\nSP: {Setpoint} sccm => {Config.Voltage:0.000} V; DAC = {Device.Voltage:0.000} V"
                 );

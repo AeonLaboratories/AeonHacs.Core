@@ -8,8 +8,8 @@ using AeonHacs.Utilities;
 namespace AeonHacs.Components
 {
     /// <summary>
-    /// A generic device State manager base class that conforms to 
-    /// the HacsComponent Start/Stop model. It periodically executes 
+    /// A generic device State manager base class that conforms to
+    /// the HacsComponent Start/Stop model. It periodically executes
     /// the derived class' ManageState Action.
     /// </summary>
     public class StateManager : HacsComponent, IStateManager
@@ -62,10 +62,10 @@ namespace AeonHacs.Components
 
         [JsonProperty, DefaultValue(500)]
         public virtual int IdleTimeout
-        { 
+        {
             get => idleTimeout;
             set => Ensure(ref idleTimeout, value);
-        } 
+        }
         int idleTimeout = 500;
 
         public virtual bool Ready => true;
@@ -91,7 +91,7 @@ namespace AeonHacs.Components
         /// </summary>
         public virtual bool Stopping { get; protected set; }
 
- 
+
         Thread stateThread;
         protected AutoResetEvent StateSignal { get; } = new AutoResetEvent(false);
 
@@ -114,14 +114,14 @@ namespace AeonHacs.Components
                 {
                     (this as IStateManager).ManageState?.Invoke();
 
-                    // Refer to StateLoopTimeout only once per loop; it can 
+                    // Refer to StateLoopTimeout only once per loop; it can
                     // vary over multiple calls when it depends on changing
                     // conditions.
                     var timeout = StateLoopTimeout;
                     if (timeout < 0) timeout = Timeout.Infinite;
 
-                    if (LogEverything) 
-                        Log?.Record($"StateManager {Name}: StateLoop is waiting for StateSignal" + 
+                    if (LogEverything)
+                        Log?.Record($"StateManager {Name}: StateLoop is waiting for StateSignal" +
                             (timeout == Timeout.Infinite ? "..." : $" or {timeout} ms..."));
 
                     if (Stopping) timeout = Math.Min(timeout, 30);
@@ -221,8 +221,8 @@ namespace AeonHacs.Components
     }
 
     /// <summary>
-    /// A device state manager. Monitors the current device State 
-    /// and the desired TargetState, and works to bring State into 
+    /// A device state manager. Monitors the current device State
+    /// and the desired TargetState, and works to bring State into
     /// conformance with TargetState.
     /// </summary>
     /// <typeparam name="TargetStates">The TargetState type</typeparam>
@@ -242,7 +242,7 @@ namespace AeonHacs.Components
         public virtual TargetStates TargetState
         {
             get => targetState;
-            set => Ensure(ref targetState, value); 
+            set => Ensure(ref targetState, value);
         }
         TargetStates targetState;
 
@@ -250,11 +250,11 @@ namespace AeonHacs.Components
         /// The current state of the device.
         /// </summary>
         public virtual States State
-        { 
+        {
             get => state;
             protected set
-            { 
-                Ensure(ref state, value); 
+            {
+                Ensure(ref state, value);
                 StateStopwatch.Restart();
             }
         }
@@ -281,7 +281,7 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Ensure the State Manager is running, 
+        /// Ensure the State Manager is running,
         /// change the TargetState, and if a
         /// predicate is provided, wait until it is true.
         /// </summary>

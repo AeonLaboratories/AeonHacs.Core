@@ -9,14 +9,14 @@ namespace AeonHacs.Utilities
 {
     // This class provides a way to handle an exception that can occur
     // when a USB-Serial adapter is disconnected. The problem stems
-    // from the way .NET handles the underlying stream in the case 
-    // of a serial port disappearing: it doesn't allow the stream 
+    // from the way .NET handles the underlying stream in the case
+    // of a serial port disappearing: it doesn't allow the stream
     // to be closed after the serial port is disconnected.
     //
-    // The exception occurs during BaseStream's Finalize() method, 
+    // The exception occurs during BaseStream's Finalize() method,
     // which is called by the garbage collector. The way this class
-    // gets around the problem is to inherit the .NET SerialPort 
-    // class and override the Open() and Close() methods. During Open(), 
+    // gets around the problem is to inherit the .NET SerialPort
+    // class and override the Open() and Close() methods. During Open(),
     // GC.SuppressFinalize(BaseStream) prevents BaseStream from
     // being finalized prematurely. When Close() is called,
     // BaseStream's Finalize() is re-enabled only if the SerialPort

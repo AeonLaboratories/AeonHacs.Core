@@ -13,7 +13,7 @@ namespace AeonHacs
     {
         /// <summary>
         /// List of (double X, double Y) tuples of calibration data points, where
-        /// X is a scale output and Y is the corresponding true kilograms. 
+        /// X is a scale output and Y is the corresponding true kilograms.
         /// </summary>
         [JsonProperty]
         public List<(double X, double Y)> CalibrationData

@@ -173,7 +173,7 @@ namespace AeonHacs.Components
         /// In "local" control mode, the heater is managed by the physical control panel
         /// on the front of the Power Supply unit.
         /// </summary>
-        public ControlModeCode ControlMode => 
+        public ControlModeCode ControlMode =>
             RemoteControl ? ControlModeCode.Remote : ControlModeCode.Local;
         ControlModeCode IConfig.ControlMode => ControlModeCode.Remote;
 
@@ -197,7 +197,7 @@ namespace AeonHacs.Components
         int powerLevel = -1;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int PowerLimit => powerLimit;
         int IDevice.PowerLimit
@@ -209,7 +209,7 @@ namespace AeonHacs.Components
         int powerLimit = -1;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int Error => error;
         int IDevice.Error
@@ -254,7 +254,7 @@ namespace AeonHacs.Components
         int frequency = -1;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int Status => status;
         int IDevice.Status
@@ -264,7 +264,7 @@ namespace AeonHacs.Components
             {
                 if (Ensure(ref status, value))
                 {
-                    Device.OnOffState = 
+                    Device.OnOffState =
                         ((Device.Status & (int)DataByteCodes.HeatOnRelay) != 0).ToOnOffState();
                 }
             }
@@ -289,17 +289,17 @@ namespace AeonHacs.Components
         /// <summary>
         /// The pyrometer that monitors the temperature of the inductively heated load.
         /// </summary>
-        public IPyrometer Pyrometer { 
+        public IPyrometer Pyrometer {
             get => pyrometer;
-            set => Ensure(ref pyrometer, value, NotifyPropertyChanged); 
+            set => Ensure(ref pyrometer, value, NotifyPropertyChanged);
         }
         IPyrometer pyrometer;
 
         [JsonProperty("PidControl")]
         PidControl Pid
-        { 
-            get => pid; 
-            set => Ensure(ref pid, value, NotifyPropertyChanged); 
+        {
+            get => pid;
+            set => Ensure(ref pid, value, NotifyPropertyChanged);
         }
         PidControl pid;
 
@@ -449,7 +449,7 @@ namespace AeonHacs.Components
                 if (errorState == 0)
                 {
                     // let operator know there is an error?
-                    // This can be a "normal" condition, when the system 
+                    // This can be a "normal" condition, when the system
                     // is not currently using the induction furnace
                     if (LogEverything)
                         Log.Record($"{Name} Error {Error:X2} detected: {ErrorMessage()}");
