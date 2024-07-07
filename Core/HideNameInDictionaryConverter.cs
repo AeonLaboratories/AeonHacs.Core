@@ -11,46 +11,46 @@ using System.Text;
 
 namespace AeonHacs
 {
-	public class HideNameInDictionaryConverter : JsonConverter
-	{
-		public static HideNameInDictionaryConverter Default = new HideNameInDictionaryConverter();
+    public class HideNameInDictionaryConverter : JsonConverter
+    {
+        public static HideNameInDictionaryConverter Default = new HideNameInDictionaryConverter();
 
-		public override bool CanConvert(Type typeToConvert) =>
-			typeof(IDictionary).IsAssignableFrom(typeToConvert) && typeof(INamedObject).IsAssignableFrom(typeToConvert.GetGenericArguments()[1]);
+        public override bool CanConvert(Type typeToConvert) =>
+            typeof(IDictionary).IsAssignableFrom(typeToConvert) && typeof(INamedObject).IsAssignableFrom(typeToConvert.GetGenericArguments()[1]);
 
-		public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
-		{
-			var dictionary = JToken.ReadFrom(reader);
-			var result = (IDictionary)Activator.CreateInstance(objectType);
-			var genericType = objectType.GetGenericArguments()[1];
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            var dictionary = JToken.ReadFrom(reader);
+            var result = (IDictionary)Activator.CreateInstance(objectType);
+            var genericType = objectType.GetGenericArguments()[1];
 
-			dictionary.Children<JProperty>().ToList().ForEach(child =>
-			{
-				var objType = child.Value["$type"]?.ToObject<Type>() ?? genericType;
-				child.Value[nameof(INamedObject.Name)] = child.Name;
-				var value = (INamedObject)child.Value.ToObject(objType, serializer);
-				result.Add(value.Name, value);
-			});
+            dictionary.Children<JProperty>().ToList().ForEach(child =>
+            {
+                var objType = child.Value["$type"]?.ToObject<Type>() ?? genericType;
+                child.Value[nameof(INamedObject.Name)] = child.Name;
+                var value = (INamedObject)child.Value.ToObject(objType, serializer);
+                result.Add(value.Name, value);
+            });
 
-			return result;
-		}
+            return result;
+        }
 
-		public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-		{
-			serializer.Converters.Remove(Default);
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            serializer.Converters.Remove(Default);
 
-			var dictionary = JObject.FromObject(value, serializer);
+            var dictionary = JObject.FromObject(value, serializer);
 
-			dictionary.Children<JProperty>().ToList().ForEach(child =>
-			{
-				string name = (string)child.Value[nameof(INamedObject.Name)];
-				child.Value[nameof(INamedObject.Name)].Parent.Remove();
-				child.Replace(new JProperty(name, child.Value));
-			});
+            dictionary.Children<JProperty>().ToList().ForEach(child =>
+            {
+                string name = (string)child.Value[nameof(INamedObject.Name)];
+                child.Value[nameof(INamedObject.Name)].Parent.Remove();
+                child.Replace(new JProperty(name, child.Value));
+            });
 
-			dictionary.WriteTo(writer);
+            dictionary.WriteTo(writer);
 
-			serializer.Converters.Add(Default);
-		}
-	}
+            serializer.Converters.Add(Default);
+        }
+    }
 }

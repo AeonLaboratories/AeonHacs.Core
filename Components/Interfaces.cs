@@ -751,13 +751,13 @@ namespace AeonHacs.Components
 
     /// <summary>
     /// A device manager or controller that<br></br>
-    ///	1. maintains a dictionary of IManagedDevices;<br></br>
-    ///	2. provides each IManagedDevice's "Device" values, which<br></br>
-    ///		generally represent real-world conditions, typically 
-    ///		determined via hardware communications;<br></br>
-    ///	3. monitors ConfigChanged events from its IManagedDevices;<br></br>
-    ///	4. works to bring its IManagedDevice's Device properties into<br></br>
-    ///		accord with their Config properties.<br></br>
+    ///    1. maintains a dictionary of IManagedDevices;<br></br>
+    ///    2. provides each IManagedDevice's "Device" values, which<br></br>
+    ///        generally represent real-world conditions, typically 
+    ///        determined via hardware communications;<br></br>
+    ///    3. monitors ConfigChanged events from its IManagedDevices;<br></br>
+    ///    4. works to bring its IManagedDevice's Device properties into<br></br>
+    ///        accord with their Config properties.<br></br>
     /// </summary>
     public interface IDeviceManager : IManagedDevice, IStateManager
     {
@@ -1507,9 +1507,9 @@ namespace AeonHacs.Components
 
     public interface IChamber : IHacsComponent
     {
-        double Pressure { get; }				// Torr?
-        double Temperature { get; }				// Celsius?
-        double MilliLiters { get; set; }		// Volume?
+        double Pressure { get; }                // Torr?
+        double Temperature { get; }                // Celsius?
+        double MilliLiters { get; set; }        // Volume?
 
         IManometer Manometer { get; set; }
         IThermometer Thermometer { get; set; }

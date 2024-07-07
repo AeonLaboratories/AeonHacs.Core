@@ -610,7 +610,7 @@ namespace AeonHacs.Components
                     if (!a.ResidualMeasured)
                     {
                         double ambientTemperature = Manifold(gr).Temperature;
-                        if (Math.Abs(ambientTemperature - gr.SampleTemperature) < 10 &&		// TODO: magic number
+                        if (Math.Abs(ambientTemperature - gr.SampleTemperature) < 10 &&        // TODO: magic number
                             Math.Abs(ambientTemperature - gr.ColdfingerTemperature) < 10)
                         {
                             // residual is P/T (Torr/kelvin)
@@ -1163,7 +1163,7 @@ namespace AeonHacs.Components
             im.Isolate();
             InletPort.Open();
             WaitSeconds(10);                // give some time to record a measurement
-            im.Evacuate(OkPressure);	// allow for high pressure due to water
+            im.Evacuate(OkPressure);    // allow for high pressure due to water
             ProcessStep.End();
         }
 
@@ -1255,49 +1255,49 @@ namespace AeonHacs.Components
         //protected virtual void OpenNextGRs()
         //{
 
-        //	string grName = PriorGR;
-        //	for (int i = 0; i < Sample.AliquotsCount; ++i)
-        //	{
-        //		if (NextGR(grName) is IGraphiteReactor gr)
-        //		{
-        //			gr.Open();
-        //			grName = gr.Name;
-        //		}
-        //	}
+        //    string grName = PriorGR;
+        //    for (int i = 0; i < Sample.AliquotsCount; ++i)
+        //    {
+        //        if (NextGR(grName) is IGraphiteReactor gr)
+        //        {
+        //            gr.Open();
+        //            grName = gr.Name;
+        //        }
+        //    }
         //}
 
         //protected virtual void OpenNextGRsAndd13C()
         //{
-        //	if (!GrGm(NextGR(PriorGR), out ISection gm)) return;
-        //	VacuumSystem.Isolate();
-        //	OpenNextGRs();
-        //	gm.JoinToVacuum();
+        //    if (!GrGm(NextGR(PriorGR), out ISection gm)) return;
+        //    VacuumSystem.Isolate();
+        //    OpenNextGRs();
+        //    gm.JoinToVacuum();
 
-        //	if (Sample.Take_d13C)
-        //	{
-        //		var port = d13CPort;
-        //		if (port == null)
-        //		{
-        //			Warn("Sample Alert",
-        //				$"Can't find d13C port for Sample {Sample.LabId} from {InletPort?.Name}");
-        //		}
-        //		else if (port.State == LinePort.States.Prepared)
-        //		{
-        //			var manifold = Manifold(port);
-        //			if (manifold == null)
-        //			{
-        //				Warn("Configuration Error", $"Can't find manifold Section for d13C port {port.Name}.");
-        //			}
-        //			else
-        //			{
-        //				manifold.ClosePorts();
-        //				manifold.Isolate();
-        //				port.Open();
-        //				manifold.JoinToVacuum();
-        //			}
-        //		}
-        //	}
-        //	Evacuate();
+        //    if (Sample.Take_d13C)
+        //    {
+        //        var port = d13CPort;
+        //        if (port == null)
+        //        {
+        //            Warn("Sample Alert",
+        //                $"Can't find d13C port for Sample {Sample.LabId} from {InletPort?.Name}");
+        //        }
+        //        else if (port.State == LinePort.States.Prepared)
+        //        {
+        //            var manifold = Manifold(port);
+        //            if (manifold == null)
+        //            {
+        //                Warn("Configuration Error", $"Can't find manifold Section for d13C port {port.Name}.");
+        //            }
+        //            else
+        //            {
+        //                manifold.ClosePorts();
+        //                manifold.Isolate();
+        //                port.Open();
+        //                manifold.JoinToVacuum();
+        //            }
+        //        }
+        //    }
+        //    Evacuate();
         //}
 
         protected virtual void CloseAllGRs() => CloseAllGRs(null);
@@ -1492,10 +1492,10 @@ namespace AeonHacs.Components
             foreach (var gr in grs)
             {
                 ProcessStep.Start($"Measure {gr.Name} volume");
-				gsInert.Admit(PressureOverAtm);
-				GM.Isolate();
-				WaitSeconds(10);
-				var p0 = GM.Manometer.WaitForAverage((int)MeasurementSeconds);
+                gsInert.Admit(PressureOverAtm);
+                GM.Isolate();
+                WaitSeconds(10);
+                var p0 = GM.Manometer.WaitForAverage((int)MeasurementSeconds);
                 var gmMilliLiters = GM.CurrentVolume(true);
                 gr.Open();
                 WaitSeconds(5);
@@ -1517,7 +1517,7 @@ namespace AeonHacs.Components
             }
 
             grs.ForEach(gr => gr.Open());
-			GM.OpenAndEvacuate(OkPressure);
+            GM.OpenAndEvacuate(OkPressure);
             ProcessStep.End();
 
             ProcessStep.Start("Evacuate & Flush GRs with inert gas");
@@ -1700,7 +1700,7 @@ namespace AeonHacs.Components
             else if (processToRun == "Run selected sample")
                 RunSample();
             //else if (processToRun == "Run all samples")
-            //	RunAllSamples();
+            //    RunAllSamples();
             else
                 base.RunProcess(processToRun);
         }
@@ -1800,8 +1800,8 @@ namespace AeonHacs.Components
             if (ips.Count < 1)
             {
                 //Notice.Send("Process Error",
-                //	"No InletPorts selected, or contain Samples that are ready to run.",
-                //	Notice.Type.Tell);
+                //    "No InletPorts selected, or contain Samples that are ready to run.",
+                //    Notice.Type.Tell);
                 return;
             }
 
@@ -2285,7 +2285,7 @@ namespace AeonHacs.Components
             vtc.Regulate(targetTemp);
             ftcMC.FreezeWait();
 
-            targetTemp -= 1;			// continue at 1 deg under
+            targetTemp -= 1;            // continue at 1 deg under
             ProcessSubStep.Start($"Wait for {VTT.Name} to reach {targetTemp:0} °C");
             WaitFor(() => vtc.Temperature >= targetTemp);
             ProcessSubStep.End();
@@ -2394,7 +2394,7 @@ namespace AeonHacs.Components
 
             string yield = "";
 
-            if (Sample.TotalMicrogramsCarbon == 0)	// first measurement
+            if (Sample.TotalMicrogramsCarbon == 0)    // first measurement
             {
                 Sample.TotalMicrogramsCarbon = ugC;
                 yield = $"\tYield:\t{100 * Sample.TotalMicrogramsCarbon / Sample.Micrograms:0.00}%";
@@ -2573,7 +2573,7 @@ namespace AeonHacs.Components
 
             IGraphiteReactor gr = NextSulfurTrap(PriorGR);
             gr.Reserve("sulfur");
-            gr.Aliquot.ResidualMeasured = true;	// prevent graphitization retry
+            gr.Aliquot.ResidualMeasured = true;    // prevent graphitization retry
             TransferCO2FromMCToGR(gr, 0, true);
             TrapSulfur(gr);
             TransferCO2FromGRToMC(gr, false);
@@ -2660,7 +2660,7 @@ namespace AeonHacs.Components
                 // The compensation is bumped by a few more Torr to shift the variance in
                 // target error toward the high side, as a slight excess of H2 is not 
                 // deleterious, whereas a deficiency could be.
-                double driftAndVarianceCompensation = 9;	// TODO this should be a setting
+                double driftAndVarianceCompensation = 9;    // TODO this should be a setting
 
                 gm.Isolate();
                 var p = AdmitGasToPort(
@@ -2728,9 +2728,9 @@ namespace AeonHacs.Components
 
         protected virtual void FreezeAliquots()
         {
-			foreach (Aliquot aliquot in Sample.Aliquots)
-				Freeze(aliquot);
-		}
+            foreach (Aliquot aliquot in Sample.Aliquots)
+                Freeze(aliquot);
+        }
 
         protected virtual void GraphitizeAliquots()
         {
@@ -2781,13 +2781,13 @@ namespace AeonHacs.Components
             {
                 if (vtc != null)
                 {
-	                // start flow before too much water starts coming off
-	                WaitFor(() => vtc.Temperature >= -5);
-				}
-				else if (section.Coldfinger is Coldfinger cf)
-				{
-					WaitFor(() => cf.Temperature >= -5);	
-				}
+                    // start flow before too much water starts coming off
+                    WaitFor(() => vtc.Temperature >= -5);
+                }
+                else if (section.Coldfinger is Coldfinger cf)
+                {
+                    WaitFor(() => cf.Temperature >= -5);    
+                }
                 Bleed(section, FirstTrapBleedPressure);
                 section.Open();    // open any bypass valve
             }
@@ -3114,7 +3114,7 @@ namespace AeonHacs.Components
 
             if (firstFreezeGR)
             {
-                gr.Close();		// it should be closed already
+                gr.Close();        // it should be closed already
                 grCF.Freeze();
             }
 
@@ -3817,7 +3817,7 @@ namespace AeonHacs.Components
             ProcessSubStep.Start("Wait for MC coldfinger to thaw enough.");
             while (mcCF.Temperature <= VTT.VTColdfinger.Setpoint + 10) Wait();
             ProcessSubStep.End();
-            mcCF.Standby();	// stop thawing to save time
+            mcCF.Standby();    // stop thawing to save time
 
             // record pressure
             SampleLog.Record($"\tPressure of pre-CO2 discarded gases:\t{MC.Pressure:0.000}\tTorr");
@@ -3831,9 +3831,9 @@ namespace AeonHacs.Components
         {
             // The equilibrium temperature of HCl at pressures from ~(1e-5..1e1)
             // is about 14 degC or more colder than CO2 at the same pressure.
-            ExtractAt(-160);		// targets HCl
+            ExtractAt(-160);        // targets HCl
             DiscardExtractedGases();
-            ExtractAt(-140);		// targets CO2
+            ExtractAt(-140);        // targets CO2
         }
 
         protected virtual void StepExtractionYieldTest()

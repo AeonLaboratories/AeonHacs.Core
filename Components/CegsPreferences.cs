@@ -26,8 +26,8 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// Next available Sample Number. Provides a unique Sample.Name for each sample processed.
-		/// TODO: consider using UID?
-		/// </summary>
+        /// TODO: consider using UID?
+        /// </summary>
         [JsonProperty, DefaultValue(0)] public static int SampleCounter { get => sampleCounter; set => Default.Ensure(ref sampleCounter, value); }
         static int sampleCounter = 0;
 
@@ -35,7 +35,7 @@ namespace AeonHacs.Components
         /// The maximum number of approximate aliquots the sample can be divided into.
         /// This value is automatically determined from the number of ports on the 
         /// measurement chamber (MC.Ports.Count);
-		/// </summary>
+        /// </summary>
         [JsonProperty, DefaultValue(3)] public static int MaximumAliquotsPerSample { get => maximumAliquotsPerSample; set => Default.Ensure(ref maximumAliquotsPerSample, value); }
         static int maximumAliquotsPerSample = 3;
 
@@ -48,7 +48,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// System "tick" time. Determines how often the system checks polled conditions and updates passive devices.
         /// </summary>
-		[JsonProperty, DefaultValue(50)] public static int UpdateIntervalMilliseconds { get => updateIntervalMilliseconds; set => Default.Ensure(ref updateIntervalMilliseconds, value); }
+        [JsonProperty, DefaultValue(50)] public static int UpdateIntervalMilliseconds { get => updateIntervalMilliseconds; set => Default.Ensure(ref updateIntervalMilliseconds, value); }
         static int updateIntervalMilliseconds = 50;
 
         #endregion System state & operations
@@ -66,7 +66,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Boltzmann constant (Pa * m^3 / K)
         /// </summary>
-		[JsonProperty, DefaultValue(1.38064852E-23)] public static double BoltzmannConstant { get => boltzmannConstant; set => Default.Ensure(ref boltzmannConstant, value); }
+        [JsonProperty, DefaultValue(1.38064852E-23)] public static double BoltzmannConstant { get => boltzmannConstant; set => Default.Ensure(ref boltzmannConstant, value); }
         static double boltzmannConstant = 1.38064852E-23;
 
         /// <summary>
@@ -78,36 +78,36 @@ namespace AeonHacs.Components
         /// <summary>
         /// Torr per atm
         /// </summary>
-		[JsonProperty, DefaultValue(760.0)] public static double Torr { get => torr; set => Default.Ensure(ref torr, value); }
+        [JsonProperty, DefaultValue(760.0)] public static double Torr { get => torr; set => Default.Ensure(ref torr, value); }
         static double torr = 760.0;
 
         /// <summary>
         /// milliliters per liter
         /// </summary>
-		[JsonProperty, DefaultValue(1000.0)] public static double MilliLiter { get => milliLiter; set => Default.Ensure(ref milliLiter, value); }
+        [JsonProperty, DefaultValue(1000.0)] public static double MilliLiter { get => milliLiter; set => Default.Ensure(ref milliLiter, value); }
         static double milliLiter = 1000.0;
 
         /// <summary>
         /// cubic meters per liter
         /// </summary>
-		[JsonProperty, DefaultValue(0.001)] public static double CubicMeter { get => cubicMeter; set => Default.Ensure(ref cubicMeter, value); }
+        [JsonProperty, DefaultValue(0.001)] public static double CubicMeter { get => cubicMeter; set => Default.Ensure(ref cubicMeter, value); }
         static double cubicMeter = 0.001;
 
         /// <summary>
         /// 0 °C in kelvins
         /// </summary>
-		[JsonProperty, DefaultValue(273.15)] public static double ZeroDegreesC { get => zeroDegreesC; set => Default.Ensure(ref zeroDegreesC, value); }
+        [JsonProperty, DefaultValue(273.15)] public static double ZeroDegreesC { get => zeroDegreesC; set => Default.Ensure(ref zeroDegreesC, value); }
         static double zeroDegreesC = 273.15;
 
         /// <summary>
         /// mass of carbon per mole, in micrograms, assuming standard isotopic composition
         /// </summary>
-		public static double MicrogramsCarbonPerMole => GramsCarbonPerMole * 1000000;
+        public static double MicrogramsCarbonPerMole => GramsCarbonPerMole * 1000000;
 
         /// <summary>
         /// mass of carbon per mole, in grams, assuming standard isotopic composition
         /// </summary>
-		[JsonProperty, DefaultValue(12.011)] public static double GramsCarbonPerMole { get => gramsCarbonPerMole; set => Default.Ensure(ref gramsCarbonPerMole, value); }
+        [JsonProperty, DefaultValue(12.011)] public static double GramsCarbonPerMole { get => gramsCarbonPerMole; set => Default.Ensure(ref gramsCarbonPerMole, value); }
         public static double gramsCarbonPerMole = 12.011;
 
         /// <summary>
@@ -172,7 +172,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Extract the CO2 from condensables at this temperature.
         /// </summary>
-		[JsonProperty, DefaultValue(-140)] public static int CO2ExtractionTemperature { get => co2ExtractionTemperature; set => Default.Ensure(ref co2ExtractionTemperature, value); }
+        [JsonProperty, DefaultValue(-140)] public static int CO2ExtractionTemperature { get => co2ExtractionTemperature; set => Default.Ensure(ref co2ExtractionTemperature, value); }
         static int co2ExtractionTemperature = -140;
 
         /// <summary>

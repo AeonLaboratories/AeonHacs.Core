@@ -3,66 +3,66 @@ using System.ComponentModel;
 
 namespace AeonHacs
 {
-	public interface INamedObject : INotifyPropertyChanged
-	{
-		/// <summary>
-		/// The searchable name of an object. Each instance of a class should have a unique name.
-		/// Only the first of multiple NamedObjects with the same name is cataloged.
-		/// </summary>
-		string Name { get; set; }
-	}
+    public interface INamedObject : INotifyPropertyChanged
+    {
+        /// <summary>
+        /// The searchable name of an object. Each instance of a class should have a unique name.
+        /// Only the first of multiple NamedObjects with the same name is cataloged.
+        /// </summary>
+        string Name { get; set; }
+    }
 
-	public interface IHacsComponent : INamedObject
-	{
-		/// <summary>
-		/// Whether the Connect stage of the HacsComponent life-cycle has been completed for this device.
-		/// </summary>
-		bool Connected { get; }
+    public interface IHacsComponent : INamedObject
+    {
+        /// <summary>
+        /// Whether the Connect stage of the HacsComponent life-cycle has been completed for this device.
+        /// </summary>
+        bool Connected { get; }
 
-		/// <summary>
-		/// Whether the Initialize stage of the HacsComponent life-cycle has been completed for this device.
-		/// </summary>
-		bool Initialized { get; }
+        /// <summary>
+        /// Whether the Initialize stage of the HacsComponent life-cycle has been completed for this device.
+        /// </summary>
+        bool Initialized { get; }
 
-		/// <summary>
-		/// Whether the Start stage of the HacsComponent life-cycle has been completed for this device.
-		/// </summary>
-		bool Started { get; }
+        /// <summary>
+        /// Whether the Start stage of the HacsComponent life-cycle has been completed for this device.
+        /// </summary>
+        bool Started { get; }
 
-		/// <summary>
-		/// Whether the Stop stage of the HacsComponent life-cycle has been completed for this device.
-		/// </summary>
-		bool Stopped { get; }
-	}
+        /// <summary>
+        /// Whether the Stop stage of the HacsComponent life-cycle has been completed for this device.
+        /// </summary>
+        bool Stopped { get; }
+    }
 
-	public interface IHacsBase : IHacsComponent
-	{
-		Action SaveSettings { get; set; }
-		Action<string> SaveSettingsToFile { get; set; }
-	}
+    public interface IHacsBase : IHacsComponent
+    {
+        Action SaveSettings { get; set; }
+        Action<string> SaveSettingsToFile { get; set; }
+    }
 
-	public interface IHacsUI
-	{
-		void Close();
-	}
+    public interface IHacsUI
+    {
+        void Close();
+    }
 
-	public interface IHacsLog : INamedObject
-	{
-		Action Update { get; set; }
-		string FileName { get; set; }
-		string Header { get; set; }
-		string TimeStampFormat { get; set; }
-		bool ArchiveDaily { get; set; }
-		long ElapsedMilliseconds { get; }
-		string TimeStamp();
-		void Write(string entry = "");
-		void WriteLine(string entry = "");
-		void Record(string entry = "");
-		void LogParsimoniously(string entry = "");
+    public interface IHacsLog : INamedObject
+    {
+        Action Update { get; set; }
+        string FileName { get; set; }
+        string Header { get; set; }
+        string TimeStampFormat { get; set; }
+        bool ArchiveDaily { get; set; }
+        long ElapsedMilliseconds { get; }
+        string TimeStamp();
+        void Write(string entry = "");
+        void WriteLine(string entry = "");
+        void Record(string entry = "");
+        void LogParsimoniously(string entry = "");
 
-	}
+    }
 
-	public interface IValue { double Value { get; } }
+    public interface IValue { double Value { get; } }
     public interface INamedValue : INamedObject, IValue { }
 
     // Update(), in this interface, is for classes that provide
@@ -74,18 +74,18 @@ namespace AeonHacs
     // However, in all cases, the object's Value is updated 
     // when it receives a number.
     public interface IDoubleUpdatable : IValue
-	{
-		double Update(double value);
-	}
+    {
+        double Update(double value);
+    }
 
-	public interface IFilter : INamedObject, IDoubleUpdatable
-	{
-		double SwingHigh { get; }
-		double SwingLow { get; }
-		double Swing { get; }
-		bool ResetSwing { get; set; }
-	}
-	public interface IRateOfChange : INamedObject, IDoubleUpdatable { }
+    public interface IFilter : INamedObject, IDoubleUpdatable
+    {
+        double SwingHigh { get; }
+        double SwingLow { get; }
+        double Swing { get; }
+        bool ResetSwing { get; set; }
+    }
+    public interface IRateOfChange : INamedObject, IDoubleUpdatable { }
 
 
 }

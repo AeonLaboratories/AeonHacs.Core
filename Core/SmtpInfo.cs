@@ -12,7 +12,7 @@ namespace AeonHacs
     /// An Email account configuration (name, email address, server, port, etc).
     /// </summary>
     public class SmtpInfo : BindableObject
-	{
+    {
         #region static
         // TODO: Add a DefaultSerializer with 'standard' settings to AeonHacs.Core
         static JsonSerializer Serializer = new JsonSerializer()
@@ -57,22 +57,22 @@ namespace AeonHacs
         /// </summary>
         [JsonProperty, DefaultValue("mail.aeonhacs.com")]
         public string Host
-		{
-			get => host;
-			set => Ensure(ref host, value, OnPropertyChanged);
-		}
-		string host = "mail.aeonhacs.com";
+        {
+            get => host;
+            set => Ensure(ref host, value, OnPropertyChanged);
+        }
+        string host = "mail.aeonhacs.com";
 
         /// <summary>
         /// Email SMTP port (default: 465)
         /// </summary>
         [JsonProperty, DefaultValue(465)]
         public int Port
-		{
-			get => port;
-			set => Ensure(ref port, value, OnPropertyChanged);
-		}
-		int port = 465;
+        {
+            get => port;
+            set => Ensure(ref port, value, OnPropertyChanged);
+        }
+        int port = 465;
 
         /// <summary>
         /// The name of the Email Sender, typically the HACS instrument or application.
@@ -101,11 +101,11 @@ namespace AeonHacs
         /// </summary>
         [JsonProperty]
         public string Password
-		{
-			get => password;
-			set => Ensure(ref password, value, OnPropertyChanged);
-		}
-		string password;
+        {
+            get => password;
+            set => Ensure(ref password, value, OnPropertyChanged);
+        }
+        string password;
 
         /// <summary>
         /// Name of json file with Email account and configuration.

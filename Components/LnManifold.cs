@@ -254,21 +254,21 @@ namespace AeonHacs.Components
         /// </summary>
         public bool TurnOff() { Monitor(); return true; }
 
-		public bool TurnOnOff(bool on)
-		{
-			if (on) return  TurnOn();
-			return TurnOff();
-		}
+        public bool TurnOnOff(bool on)
+        {
+            if (on) return  TurnOn();
+            return TurnOff();
+        }
 
-		/// <summary>
-		/// What to do with the hardware device when this instance is Stopped.
-		/// </summary>
+        /// <summary>
+        /// What to do with the hardware device when this instance is Stopped.
+        /// </summary>
         //[JsonProperty]
-		public StopAction StopAction { get; set; } = StopAction.TurnOff;
+        public StopAction StopAction { get; set; } = StopAction.TurnOff;
 
 
-		public void Monitor() => ChangeState(TargetStates.Monitor);
-		public void StayActive() => ChangeState(TargetStates.StayActive);
+        public void Monitor() => ChangeState(TargetStates.Monitor);
+        public void StayActive() => ChangeState(TargetStates.StayActive);
         public void Standby() => ChangeState(TargetStates.Standby);
 
 
@@ -276,37 +276,37 @@ namespace AeonHacs.Components
         /// Starts a fill cycle immediately, even if it's not needed. It will still turn off normally.
         /// </summary>
         public void ForceFill()
-		{
-			if (!LNSupplyValve.IsOpened)
-				startLN();
-		}
+        {
+            if (!LNSupplyValve.IsOpened)
+                startLN();
+        }
 
-		/// <summary>
-		/// Start a fill cycle.
-		/// </summary>
-		void startLN()
-		{
+        /// <summary>
+        /// Start a fill cycle.
+        /// </summary>
+        void startLN()
+        {
             if (InhibitLN) return;
             WarmStart = LevelSensor.Temperature > -100;
-			LNSupplyValve.OpenWait();
-			sw.Restart();
-		}
+            LNSupplyValve.OpenWait();
+            sw.Restart();
+        }
 
-		/// <summary>
-		/// Stop the flow of LN into the reservoir.
-		/// </summary>
-		void stopLN()
-		{
-			LNSupplyValve.CloseWait();
-			sw.Reset();
-		}
+        /// <summary>
+        /// Stop the flow of LN into the reservoir.
+        /// </summary>
+        void stopLN()
+        {
+            LNSupplyValve.CloseWait();
+            sw.Reset();
+        }
 
-		void ManageState()
-		{
-			if (LNSupplyValve.IsOpened)
-			{
-				if (IsSlowToFill)
-					SlowToFill?.Invoke();
+        void ManageState()
+        {
+            if (LNSupplyValve.IsOpened)
+            {
+                if (IsSlowToFill)
+                    SlowToFill?.Invoke();
                 if (OverflowIsDetected || full || !needed)
                 {
                     stopLN();
@@ -314,12 +314,12 @@ namespace AeonHacs.Components
                         OverflowDetected?.Invoke();
                 }
             }
-			else if (!OverflowIsDetected)
-			{
-				if (needed && !full)
-					startLN();
-			}
-		}
+            else if (!OverflowIsDetected)
+            {
+                if (needed && !full)
+                    startLN();
+            }
+        }
 
 
         public LNManifold()
@@ -328,12 +328,12 @@ namespace AeonHacs.Components
         }
 
         public override string ToString()
-		{
-			return $"{Name}: {State} " +
-				$"{LNSupplyValve.IsOpened.ToString("(Filling)", "")}" +
-				Utility.IndentLines(
-					$"\r\n{LevelSensor}" +
-					$"\r\n{LNSupplyValve}");
-		}
-	}
+        {
+            return $"{Name}: {State} " +
+                $"{LNSupplyValve.IsOpened.ToString("(Filling)", "")}" +
+                Utility.IndentLines(
+                    $"\r\n{LevelSensor}" +
+                    $"\r\n{LNSupplyValve}");
+        }
+    }
 }

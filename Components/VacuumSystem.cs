@@ -740,7 +740,7 @@ namespace AeonHacs.Components
             if (!HighVacuumValve.IsClosed)
                 HighVacuumValve.CloseWait();
 
-            if (LowVacuumValve.IsClosed)	// isolated
+            if (LowVacuumValve.IsClosed)    // isolated
             {
                 if (Pressure < LowVacuumRequiredPressure)
                 {
@@ -748,7 +748,7 @@ namespace AeonHacs.Components
                     if (BackingValve.IsClosed && ForelineManometer.Pressure < GoodBackingPressure)
                     {
                         BackingValve.OpenWait();
-                        stateChanged = true;	// backing
+                        stateChanged = true;    // backing
                     }
                 }
                 else    // need to rough
@@ -759,7 +759,7 @@ namespace AeonHacs.Components
                     stateChanged = true;    // roughing
                 }
             }
-            else	// currently roughing
+            else    // currently roughing
             {
                 if (Pressure <= HighVacuumRequiredPressure)
                 {

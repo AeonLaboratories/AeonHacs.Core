@@ -192,22 +192,22 @@ namespace AeonHacs.Components
             }
         }
 
-		protected override void OperationStarting()
-		{
-			base.OperationStarting();
+        protected override void OperationStarting()
+        {
+            base.OperationStarting();
             UpdateValveState();
-		}
+        }
 
-		protected override void OperationEnding()
-		{
-			base.OperationEnding();
+        protected override void OperationEnding()
+        {
+            base.OperationEnding();
             UpdateValveState();
-		}
+        }
 
         protected override bool ReviewOperation() =>
             !OperationFailed && (Operation == null || TimeLimitDetected);
 
-		public override long UpdatesReceived
+        public override long UpdatesReceived
         { 
             get => base.UpdatesReceived;
             protected set

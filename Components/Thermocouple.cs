@@ -3,12 +3,12 @@ using Newtonsoft.Json;
 
 namespace AeonHacs.Components
 {
-	public class Thermocouple : Thermometer, IThermocouple, Thermocouple.IDevice, Thermocouple.IConfig
+    public class Thermocouple : Thermometer, IThermocouple, Thermocouple.IDevice, Thermocouple.IConfig
     {
-		#region static
+        #region static
 
-		public static implicit operator double(Thermocouple x)
-		{ return x?.Temperature ?? 0; }
+        public static implicit operator double(Thermocouple x)
+        { return x?.Temperature ?? 0; }
 
         #endregion static
 

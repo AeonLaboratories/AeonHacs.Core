@@ -140,10 +140,10 @@ namespace AeonHacs.Components
         // Hardware status byte decoding:
         //     hardware features    0x0101 0xa003
         // =====================    ====== ======
-        // (MSB) Byte3 AB00 0000	  0000   0001
-        //       Byte2 00RC VDPL	  0000   0001
-        //       Byte1 0000 0000	  1010   0000
-        // (LSB) Byte0 0000 0000	  0000   0011
+        // (MSB) Byte3 AB00 0000      0000   0001
+        //       Byte2 00RC VDPL      0000   0001
+        //       Byte1 0000 0000      1010   0000
+        // (LSB) Byte0 0000 0000      0000   0011
         //
         // device feature if bit = 1:                       indication
         // ===============================================  ===========================
@@ -483,15 +483,15 @@ namespace AeonHacs.Components
         int statusByte = -1;
         // The Device.StatusByte is interpreted as follows:
         //   msb to lsb:  GOUL XTTT
-        //   status condition if the corresponding bit is 1:	
+        //   status condition if the corresponding bit is 1:    
         //     G: ready
         //     O: temperature is overrange
         //     U: temperature is underrange
         //     L: laser is on
         //     X: external deletion input is active
-        //     TTT: The temperature stored in register 0101	ratio
+        //     TTT: The temperature stored in register 0101    ratio
         //          and provided as the analog output.
-        //          0 = 1-channel, 1 = ratio, 2 = flame, 	
+        //          0 = 1-channel, 1 = ratio, 2 = flame,     
         //          ...?..., 7 = 10/12 mA test current
         // For now, only the O, U, and L bits are interpreted here.
         public override bool OverRange => (Device.StatusByte & 0x40) != 0;

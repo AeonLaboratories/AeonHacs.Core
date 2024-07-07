@@ -86,7 +86,7 @@ namespace AeonHacs.Components
 
         public virtual bool Valid => MillisecondsOn >= MillisecondsToValid;
 
-		public override void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
+        public override void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if (sender == Switch)
                 NotifyPropertyChanged(e?.PropertyName);

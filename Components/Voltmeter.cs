@@ -50,7 +50,7 @@ namespace AeonHacs.Components
             get => Voltage;
             set
             {
-                Update(value);						// update the Meter with the new input
+                Update(value);                        // update the Meter with the new input
                 Voltage = FilteredValue;            // retrieve the filtered value
             }
         }

@@ -10,13 +10,13 @@ namespace AeonHacs.Components
 {
     public class ProcessManager : HacsBase, IProcessManager
     {
-		#region HacsComponent
+        #region HacsComponent
 
-		public ProcessManager()
-		{
+        public ProcessManager()
+        {
             StepTracker.DefaultMajor = ProcessStep;
             StepTracker.Default = ProcessSubStep;
-			BuildProcessDictionary();
+            BuildProcessDictionary();
         }
 
         #endregion HacsComponent
@@ -85,9 +85,9 @@ namespace AeonHacs.Components
         }
 
         [JsonProperty(Order = -98)]
-		public Dictionary<string, ProcessSequence> ProcessSequences { get; set; } = new Dictionary<string, ProcessSequence>();
+        public Dictionary<string, ProcessSequence> ProcessSequences { get; set; } = new Dictionary<string, ProcessSequence>();
 
-		public ProcessStateCode ProcessState
+        public ProcessStateCode ProcessState
         {
             get => processState;
             protected set 
@@ -149,9 +149,9 @@ namespace AeonHacs.Components
         public virtual void RunProcess(string processToRun)
         {
             if (ProcessState != ProcessStateCode.Ready) return;         // silently fail, for now
-				//throw new Exception($"Can't start [{processToRun}]. [{ProcessToRun}] is running.");
+                //throw new Exception($"Can't start [{processToRun}]. [{ProcessToRun}] is running.");
 
-			ProcessToRun = processToRun;
+            ProcessToRun = processToRun;
 
             lock(ProcessTimer) RunCompleted = false;
             Busy = true;
@@ -161,10 +161,10 @@ namespace AeonHacs.Components
 
         public virtual void AbortRunningProcess()
         {
-			if (ProcessThread?.IsAlive ?? false)
+            if (ProcessThread?.IsAlive ?? false)
                 ProcessThread.Abort();
         }
-		
+        
         // A Process runs in its own thread.
         // Only one Process can be executing at a time.
         protected void ManageProcess()
@@ -211,13 +211,13 @@ namespace AeonHacs.Components
                             ProcessSubStep.Clear();
                             ProcessTimer.Stop();
 
-							ProcessEnded();
+                            ProcessEnded();
 
-							ProcessThread = null;
-							ProcessToRun = null;
-							ProcessState = ProcessStateCode.Ready;
+                            ProcessThread = null;
+                            ProcessToRun = null;
+                            ProcessState = ProcessStateCode.Ready;
 
-							break;
+                            break;
                         default:
                             break;
                     }
@@ -245,13 +245,13 @@ namespace AeonHacs.Components
         }
 
         protected virtual void ProcessEnded(string message = "")
-		{
+        {
             if (message.IsBlank())
                 message = $"Process {(RunCompleted ? "completed" : "aborted")}: {ProcessToRun}";
             EventLog?.Record(message);
-		}
+        }
 
-		#region ProcessSequences
+        #region ProcessSequences
         public ProcessSequence CurrentProcessSequence { get; set; } = null;
 
         void RunProcessSequence()

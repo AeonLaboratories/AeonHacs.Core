@@ -12,37 +12,37 @@ namespace AeonHacs.Components
     /// </summary>
     public class FlowManager : HacsComponent, IFlowManager
     {
-		#region HacsComponent
+        #region HacsComponent
 
-		[HacsConnect]
-		protected virtual void Connect()
-		{
-			FlowValve = Find<RS232Valve>(flowValveName);
-			Meter = Find<IMeter>(meterName);
-		}
+        [HacsConnect]
+        protected virtual void Connect()
+        {
+            FlowValve = Find<RS232Valve>(flowValveName);
+            Meter = Find<IMeter>(meterName);
+        }
 
-		#endregion HacsComponent
+        #endregion HacsComponent
 
-		[JsonProperty("FlowValve")]
-		string FlowValveName { get => FlowValve?.Name; set => flowValveName = value; }
-		string flowValveName;
+        [JsonProperty("FlowValve")]
+        string FlowValveName { get => FlowValve?.Name; set => flowValveName = value; }
+        string flowValveName;
         /// <summary>
         /// The valve that adjusts the flow which changes the DynamicQuantity Value.
         /// </summary>
-		public IRS232Valve FlowValve
+        public IRS232Valve FlowValve
         {
             get => flowValve;
             set => Ensure(ref flowValve, value, NotifyPropertyChanged);
         }
         IRS232Valve flowValve;
 
-		[JsonProperty("Meter")]
-		string MeterName { get => Meter?.Name; set => meterName = value; }
-		string meterName;
+        [JsonProperty("Meter")]
+        string MeterName { get => Meter?.Name; set => meterName = value; }
+        string meterName;
         /// <summary>
         /// The Meter that provides the Value that varies as the flow valve is adjusted.
         /// </summary>
-		public IMeter Meter
+        public IMeter Meter
         {
             get => meter;
             set => Ensure(ref meter, value, NotifyPropertyChanged);
@@ -52,8 +52,8 @@ namespace AeonHacs.Components
         /// <summary>
         /// Minimum control loop period.
         /// </summary>
-		[JsonProperty, DefaultValue(35)]
-		public int MillisecondsTimeout
+        [JsonProperty, DefaultValue(35)]
+        public int MillisecondsTimeout
         {
             get => millisecondsTimeout;
             set => Ensure(ref millisecondsTimeout, value);
@@ -64,8 +64,8 @@ namespace AeonHacs.Components
         /// <summary>
         /// Nominal time between valve movements
         /// </summary>
-		[JsonProperty, DefaultValue(0.75)]
-		public double SecondsCycle
+        [JsonProperty, DefaultValue(0.75)]
+        public double SecondsCycle
         {
             get => secondsCycle;
             set => Ensure(ref secondsCycle, value);
@@ -76,8 +76,8 @@ namespace AeonHacs.Components
         /// An initial valve movement, to make before entering the flow
         /// management control loop. Sometimes used to "crack open" the flow valve.
         /// </summary>
-		[JsonProperty, DefaultValue(0)]
-		public int StartingMovement
+        [JsonProperty, DefaultValue(0)]
+        public int StartingMovement
         {
             get => startingMovement;
             set => Ensure(ref startingMovement, value);
@@ -87,8 +87,8 @@ namespace AeonHacs.Components
         /// <summary>
         /// Maximum valve movement for any single adjustment, in valve Position units
         /// </summary>
-		[JsonProperty, DefaultValue(24)]
-		public int MaximumMovement
+        [JsonProperty, DefaultValue(24)]
+        public int MaximumMovement
         {
             get => maximumMovement;
             set => Ensure(ref maximumMovement, value);
@@ -111,8 +111,8 @@ namespace AeonHacs.Components
         /// Dead time plus lag, in seconds. The time expected to pass
         /// between a valve movement and the end of its effect on Meter.Value.
         /// </summary>
-		[JsonProperty, DefaultValue(60.0)]
-		public double Lag
+        [JsonProperty, DefaultValue(60.0)]
+        public double Lag
         {
             get => lag;
             set => Ensure(ref lag, value);
@@ -123,8 +123,8 @@ namespace AeonHacs.Components
         /// A tolerable difference between Value and TargetValue, within which
         /// no valve adjustment need be made.
         /// </summary>
-		[JsonProperty, DefaultValue(0.02)]
-		public double Deadband
+        [JsonProperty, DefaultValue(0.02)]
+        public double Deadband
         {
             get => deadband;
             set => Ensure(ref deadband, Math.Abs(value));
@@ -135,8 +135,8 @@ namespace AeonHacs.Components
         /// If false, Deadband is a fixed constant in units of TargetValue; 
         /// if true, the dead band is the product of Deadband and TargetValue.
         /// </summary>
-		[JsonProperty, DefaultValue(true)]
-		public bool DeadbandIsFractionOfTarget
+        [JsonProperty, DefaultValue(true)]
+        public bool DeadbandIsFractionOfTarget
         {
             get => deadbandIsFractionOfTarget;
             set => Ensure(ref deadbandIsFractionOfTarget, value);
@@ -154,8 +154,8 @@ namespace AeonHacs.Components
         /// Use a positive Gain if a positive movement increases Value
         /// or if a negative movement decreases Value.
         /// </summary>
-		[JsonProperty, DefaultValue(1.0)]
-		public double Gain
+        [JsonProperty, DefaultValue(1.0)]
+        public double Gain
         {
             get => gain;
             set => Ensure(ref gain, value);
@@ -165,8 +165,8 @@ namespace AeonHacs.Components
         /// <summary>
         /// Divide Gain by Deadband when computing the amount to move the valve.
         /// </summary>
-		[JsonProperty, DefaultValue(true)]
-		public bool DivideGainByDeadband
+        [JsonProperty, DefaultValue(true)]
+        public bool DivideGainByDeadband
         {
             get => divideGainByDeadband;
             set => Ensure(ref divideGainByDeadband, value);
@@ -176,8 +176,8 @@ namespace AeonHacs.Components
         /// <summary>
         /// Stop the flow manager if FlowValve reaches its fully opened position.
         /// </summary>
-		[JsonProperty, DefaultValue(false)]
-		public bool StopOnFullyOpened
+        [JsonProperty, DefaultValue(false)]
+        public bool StopOnFullyOpened
         {
             get => stopOnFullyOpened;
             set => Ensure(ref stopOnFullyOpened, value);
@@ -188,7 +188,7 @@ namespace AeonHacs.Components
         /// Stop the flow manager if FlowValve reaches its fully closed position.
         /// </summary>
         [JsonProperty, DefaultValue(false)]
-		public bool StopOnFullyClosed
+        public bool StopOnFullyClosed
         {
             get => stopOnFullyClosed;
             set => Ensure(ref stopOnFullyClosed, value);
@@ -198,7 +198,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// The Value that the flow manager works to achieve.
         /// </summary>
-		public double TargetValue
+        public double TargetValue
         {
             get => targetValue;
             set => Ensure(ref targetValue, value);
@@ -208,8 +208,8 @@ namespace AeonHacs.Components
         /// <summary>
         /// Use Meter's rate of change instead of its absolute value.
         /// </summary>
-		[JsonProperty, DefaultValue(false)]
-		public bool UseRateOfChange
+        [JsonProperty, DefaultValue(false)]
+        public bool UseRateOfChange
         {
             get => useRateOfChange;
             set => Ensure(ref useRateOfChange, value);

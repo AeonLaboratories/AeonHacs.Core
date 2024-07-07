@@ -11,21 +11,21 @@ using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {
-	public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.States>, IColdfinger
+    public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.States>, IColdfinger
     {
-		#region static
-		static List<Coldfinger> List { get; set; }
+        #region static
+        static List<Coldfinger> List { get; set; }
 
-		/// <summary>
-		/// One or more of the FTCs supplied by the given LNManifold currently need it.
-		/// </summary>
-		public static bool AnyNeed(LNManifold lnManifold)
-		{
-			if (List == null) List = CachedList<Coldfinger>();
-			return List.FirstOrDefault(ftc =>
-				ftc.LNManifold == lnManifold &&
-				ftc.IsActivelyCooling) != null;
-		}
+        /// <summary>
+        /// One or more of the FTCs supplied by the given LNManifold currently need it.
+        /// </summary>
+        public static bool AnyNeed(LNManifold lnManifold)
+        {
+            if (List == null) List = CachedList<Coldfinger>();
+            return List.FirstOrDefault(ftc =>
+                ftc.LNManifold == lnManifold &&
+                ftc.IsActivelyCooling) != null;
+        }
 
         #endregion static
 
@@ -35,10 +35,10 @@ namespace AeonHacs.Components
         {
             LevelSensor = Find<IThermometer>(levelSensorName);
             LNValve = Find<IValve>(lnValveName);
-			AirValve = Find <IValve>(airValveName);
+            AirValve = Find <IValve>(airValveName);
             LNManifold = Find<ILNManifold>(lnManifoldName);
             AirThermometer = Find<HacsComponent>(airThermometerName);
-			ambient = Find<Chamber>("Ambient");
+            ambient = Find<Chamber>("Ambient");
         }
 
         [HacsInitialize]
@@ -75,345 +75,345 @@ namespace AeonHacs.Components
         /// liquid nitrogen in its reservoir.
         /// </summary>
         public IThermometer LevelSensor
-		{ 
-			get => levelSensor;
-			set => Ensure(ref levelSensor, value, NotifyPropertyChanged);
-		}
-		IThermometer levelSensor;
+        { 
+            get => levelSensor;
+            set => Ensure(ref levelSensor, value, NotifyPropertyChanged);
+        }
+        IThermometer levelSensor;
 
-		[JsonProperty("LNValve")]
+        [JsonProperty("LNValve")]
         string LNValveName { get => LNValve?.Name; set => lnValveName = value; }
         string lnValveName;
         /// <summary>
         /// The valve that provides liquid nitrogen to this device.
         /// </summary>
-		public IValve LNValve
-		{
-			get => lnValve;
-			set => Ensure(ref lnValve, value, NotifyPropertyChanged);
-		}
-		IValve lnValve;
+        public IValve LNValve
+        {
+            get => lnValve;
+            set => Ensure(ref lnValve, value, NotifyPropertyChanged);
+        }
+        IValve lnValve;
 
-		/// <summary>
-		/// The name of the LN valve operation to use for trickle flow.
-		/// </summary>
-		[JsonProperty("Trickle")]
+        /// <summary>
+        /// The name of the LN valve operation to use for trickle flow.
+        /// </summary>
+        [JsonProperty("Trickle")]
         public string Trickle
-		{
-			get => trickle;
-			set => Ensure(ref trickle, value, NotifyPropertyChanged);
-		}
-		string trickle;
+        {
+            get => trickle;
+            set => Ensure(ref trickle, value, NotifyPropertyChanged);
+        }
+        string trickle;
 
 
-		[JsonProperty("AirValve")]
-		string AirValveName { get => AirValve?.Name; set => airValveName = value; }
-		string airValveName;
+        [JsonProperty("AirValve")]
+        string AirValveName { get => AirValve?.Name; set => airValveName = value; }
+        string airValveName;
         /// <summary>
         /// The valve that provides forced air to this device.
         /// </summary>
-		public IValve AirValve
-		{
-			get => airValve;
-			set => Ensure(ref airValve, value, NotifyPropertyChanged);
-		}
-		IValve airValve;
+        public IValve AirValve
+        {
+            get => airValve;
+            set => Ensure(ref airValve, value, NotifyPropertyChanged);
+        }
+        IValve airValve;
 
-		[JsonProperty("LNManifold")]
-		string LNManifoldName { get => LNManifold?.Name; set => lnManifoldName = value; }
-		string lnManifoldName;
+        [JsonProperty("LNManifold")]
+        string LNManifoldName { get => LNManifold?.Name; set => lnManifoldName = value; }
+        string lnManifoldName;
         /// <summary>
         /// The LNManifold where this device's LN valve is located.
         /// </summary>
-		public ILNManifold LNManifold { get; set; }      // TODO make private?
+        public ILNManifold LNManifold { get; set; }      // TODO make private?
 
         [JsonProperty("AirThermometer")]
-		string AirThermometerName { get => AirThermometer?.Name; set => airThermometerName = value; }
-		string airThermometerName;
+        string AirThermometerName { get => AirThermometer?.Name; set => airThermometerName = value; }
+        string airThermometerName;
         /// <summary>
         /// The device used to detect the air temperature around the FTC.
         /// </summary>
         public IHacsComponent AirThermometer
-		{
-			get => airThermometer;
-			set => Ensure(ref airThermometer, value, NotifyPropertyChanged);
-		}
-		IHacsComponent airThermometer;
+        {
+            get => airThermometer;
+            set => Ensure(ref airThermometer, value, NotifyPropertyChanged);
+        }
+        IHacsComponent airThermometer;
 
-		/// <summary>
-		/// The temperature from the level sensor that the FTC uses to conclude
-		/// that its liquid nitrogen reservoir is full; usually a few degrees warmer
-		/// than -195.8 °C.
-		/// </summary>
-		[JsonProperty, DefaultValue(-192)]
-		public int FrozenTemperature
-		{
-			get => frozenTemperature;
-			set => Ensure(ref frozenTemperature, value);
-		}
-		int frozenTemperature = -192;
+        /// <summary>
+        /// The temperature from the level sensor that the FTC uses to conclude
+        /// that its liquid nitrogen reservoir is full; usually a few degrees warmer
+        /// than -195.8 °C.
+        /// </summary>
+        [JsonProperty, DefaultValue(-192)]
+        public int FrozenTemperature
+        {
+            get => frozenTemperature;
+            set => Ensure(ref frozenTemperature, value);
+        }
+        int frozenTemperature = -192;
 
         /// <summary>
         /// In Freeze mode, the FTC will request liquid nitrogen
         /// if its Temperature is this much warmer than FrozenTemperature.
         /// </summary>
-		[JsonProperty, DefaultValue(5)]
-		public int FreezeTrigger
-		{
-			get => freezeTrigger;
-			set => Ensure(ref freezeTrigger, value);
-		}
-		int freezeTrigger = 5;
+        [JsonProperty, DefaultValue(5)]
+        public int FreezeTrigger
+        {
+            get => freezeTrigger;
+            set => Ensure(ref freezeTrigger, value);
+        }
+        int freezeTrigger = 5;
 
 
-		/// <summary>
-		/// In Raise mode, if the LNValve doesn't have a Trickle operation, this device 
-		/// will request liquid nitrogen if its Temperature is this much warmer than 
-		/// FrozenTemperature.
-		/// </summary>
-		[JsonProperty, DefaultValue(2)]
-		public int RaiseTrigger
-		{
-			get => raiseTrigger;
-			set => Ensure(ref raiseTrigger, value);
-		}
-		int raiseTrigger = 2;
+        /// <summary>
+        /// In Raise mode, if the LNValve doesn't have a Trickle operation, this device 
+        /// will request liquid nitrogen if its Temperature is this much warmer than 
+        /// FrozenTemperature.
+        /// </summary>
+        [JsonProperty, DefaultValue(2)]
+        public int RaiseTrigger
+        {
+            get => raiseTrigger;
+            set => Ensure(ref raiseTrigger, value);
+        }
+        int raiseTrigger = 2;
 
 
-		/// <summary>
-		/// Whenever liquid nitrogen is flowing, the FTC moves the 
-		/// LNValve (close-open cycle) every this many seconds, to prevent 
-		/// the valve from sticking open.
-		/// </summary>
-		[JsonProperty, DefaultValue(60)]
-		public int MaximumSecondsLNFlowing
-		{
-			get => maximumSecondsLNFlowing;
-			set => Ensure(ref maximumSecondsLNFlowing, value);
-		}
-		int maximumSecondsLNFlowing = 60;
+        /// <summary>
+        /// Whenever liquid nitrogen is flowing, the FTC moves the 
+        /// LNValve (close-open cycle) every this many seconds, to prevent 
+        /// the valve from sticking open.
+        /// </summary>
+        [JsonProperty, DefaultValue(60)]
+        public int MaximumSecondsLNFlowing
+        {
+            get => maximumSecondsLNFlowing;
+            set => Ensure(ref maximumSecondsLNFlowing, value);
+        }
+        int maximumSecondsLNFlowing = 60;
 
-		/// <summary>
-		/// How many seconds to wait for temperature equilibrium after the Raise state 
-		/// is reached.
-		/// </summary>
-		[JsonProperty, DefaultValue(15)]
-		public int SecondsToWaitAfterRaised
-		{
-			get => secondsToWaitAfterRaised;
-			set => Ensure(ref secondsToWaitAfterRaised, value);
-		}
-		int secondsToWaitAfterRaised = 15;
+        /// <summary>
+        /// How many seconds to wait for temperature equilibrium after the Raise state 
+        /// is reached.
+        /// </summary>
+        [JsonProperty, DefaultValue(15)]
+        public int SecondsToWaitAfterRaised
+        {
+            get => secondsToWaitAfterRaised;
+            set => Ensure(ref secondsToWaitAfterRaised, value);
+        }
+        int secondsToWaitAfterRaised = 15;
 
 
-		/// <summary>
-		/// The FTC is "near" air temperature if it is within this 
-		/// many degrees of AirTemperature.
-		/// </summary>
-		[JsonProperty, DefaultValue(7.0)]
-		public double NearAirTemperature
-		{
-			get => nearAirTemperature;
-			set => Ensure(ref nearAirTemperature, value);
-		}
-		double nearAirTemperature = 7.0;
+        /// <summary>
+        /// The FTC is "near" air temperature if it is within this 
+        /// many degrees of AirTemperature.
+        /// </summary>
+        [JsonProperty, DefaultValue(7.0)]
+        public double NearAirTemperature
+        {
+            get => nearAirTemperature;
+            set => Ensure(ref nearAirTemperature, value);
+        }
+        double nearAirTemperature = 7.0;
 
-		/// <summary>
-		/// The available target states for an FTColdfinger. The FTC
-		/// is controlled by setting TargetState to one of these values.
-		/// </summary>
-		public enum TargetStates
-		{
-			/// <summary>
-			/// Turn off active warming and cooling.
-			/// </summary>
-			Standby,
-			/// <summary>
-			/// Warm coldfinger until thawed, then switch to Standby.
-			/// </summary>
-			Thaw,
-			/// <summary>
-			/// Immerse the coldfinger in LN, and maintain a minimal level of liquid there.
-			/// </summary>
-			Freeze,
-			/// <summary>
-			/// Freeze if needed and raise the LN, to the level of a trickling overflow if possible.
-			/// </summary>
-			Raise
-		}
+        /// <summary>
+        /// The available target states for an FTColdfinger. The FTC
+        /// is controlled by setting TargetState to one of these values.
+        /// </summary>
+        public enum TargetStates
+        {
+            /// <summary>
+            /// Turn off active warming and cooling.
+            /// </summary>
+            Standby,
+            /// <summary>
+            /// Warm coldfinger until thawed, then switch to Standby.
+            /// </summary>
+            Thaw,
+            /// <summary>
+            /// Immerse the coldfinger in LN, and maintain a minimal level of liquid there.
+            /// </summary>
+            Freeze,
+            /// <summary>
+            /// Freeze if needed and raise the LN, to the level of a trickling overflow if possible.
+            /// </summary>
+            Raise
+        }
 
         /// <summary>
         /// The possible states of an FTColdfinger. The FTC is always
         /// in one of these states.
         /// </summary>
-		public enum States
-		{
-			/// <summary>
-			/// Coldfinger temperature is not being actively controlled.
-			/// </summary>
-			Standby,
-			/// <summary>
-			/// Warming coldfinger to ambient temperature.
-			/// </summary>
-			Thawing,
-			/// <summary>
-			/// Cooling the coldfinger using liquid nitrogen.
-			/// </summary>
-			Freezing,
-			/// <summary>
-			/// Maintaining a minimal level of liquid nitrogen on the coldfinger.
-			/// </summary>
-			Frozen,
-			/// <summary>
-			/// Raising the LN level on the coldfinger.
-			/// </summary>
-			Raising,
-			/// <summary>
-			/// Maintaining a maximum level of liquid nitrogen, with a trickling overflow if possible.
-			/// </summary>
-			Raised
-		}
+        public enum States
+        {
+            /// <summary>
+            /// Coldfinger temperature is not being actively controlled.
+            /// </summary>
+            Standby,
+            /// <summary>
+            /// Warming coldfinger to ambient temperature.
+            /// </summary>
+            Thawing,
+            /// <summary>
+            /// Cooling the coldfinger using liquid nitrogen.
+            /// </summary>
+            Freezing,
+            /// <summary>
+            /// Maintaining a minimal level of liquid nitrogen on the coldfinger.
+            /// </summary>
+            Frozen,
+            /// <summary>
+            /// Raising the LN level on the coldfinger.
+            /// </summary>
+            Raising,
+            /// <summary>
+            /// Maintaining a maximum level of liquid nitrogen, with a trickling overflow if possible.
+            /// </summary>
+            Raised
+        }
 
         /// <summary>
         /// The FTC is currently warming the coldfinger with forced air.
         /// </summary>
-		public bool Thawing => State == States.Thawing;
+        public bool Thawing => State == States.Thawing;
 
-		/// <summary>
-		/// The FTC is at least as cold as FrozenTemperature and
-		/// the TargetState is such as to maintain that condition.
-		/// </summary>
-		public bool Frozen =>
-			Temperature <= (FrozenTemperature + FreezeTrigger) &&
-			State != States.Standby &&
-			State != States.Thawing &&
-			State != States.Freezing;
+        /// <summary>
+        /// The FTC is at least as cold as FrozenTemperature and
+        /// the TargetState is such as to maintain that condition.
+        /// </summary>
+        public bool Frozen =>
+            Temperature <= (FrozenTemperature + FreezeTrigger) &&
+            State != States.Standby &&
+            State != States.Thawing &&
+            State != States.Freezing;
 
         /// <summary>
         /// The FTC is currently maintaining a maximum level of liquid
         /// nitrogen, with a trickling overflow if possible.
         /// </summary>
-		public bool Raised => State == States.Raised;
+        public bool Raised => State == States.Raised;
 
-		/// <summary>
-		/// The coldfinger temperature is within a specified range of air temperature.
-		/// </summary>
-		public bool IsNearAirTemperature =>
-			Math.Abs(Temperature - AirTemperature) <= Math.Abs(NearAirTemperature);
+        /// <summary>
+        /// The coldfinger temperature is within a specified range of air temperature.
+        /// </summary>
+        public bool IsNearAirTemperature =>
+            Math.Abs(Temperature - AirTemperature) <= Math.Abs(NearAirTemperature);
 
         /// <summary>
         /// The FTC is actively working to cool the coldfinger.
         /// </summary>
-		public bool IsActivelyCooling =>
-			TargetState == TargetStates.Freeze ||
-			TargetState == TargetStates.Raise;
+        public bool IsActivelyCooling =>
+            TargetState == TargetStates.Freeze ||
+            TargetState == TargetStates.Raise;
 
-		/// <summary>
-		/// Whether the coldfinger temperature is warmer than a specified amount (NearAirTemperature)
-		/// below air temperature.
-		/// </summary>
-		public bool Thawed =>
-			Temperature > AirTemperature - NearAirTemperature;
+        /// <summary>
+        /// Whether the coldfinger temperature is warmer than a specified amount (NearAirTemperature)
+        /// below air temperature.
+        /// </summary>
+        public bool Thawed =>
+            Temperature > AirTemperature - NearAirTemperature;
 
         /// <summary>
         /// The temperature (°C) reported by the level sensor.
         /// </summary>
-		public double Temperature => LevelSensor.Temperature;
+        public double Temperature => LevelSensor.Temperature;
 
-		protected Chamber ambient;
+        protected Chamber ambient;
 
-		/// <summary>
-		/// The temperature (°C) of the air around the FTC.
-		/// </summary>
-		public double AirTemperature
-		{
-			get
-			{
-				if (AirThermometer is ITemperature t)
-					return t.Temperature;
-				if (AirThermometer is IThermometer th)
-					return th.Temperature;
-				if (AirThermometer is Meter m)
-					return m;
-				return ambient?.Temperature ?? 22; // room temperature
-			}
-		}
+        /// <summary>
+        /// The temperature (°C) of the air around the FTC.
+        /// </summary>
+        public double AirTemperature
+        {
+            get
+            {
+                if (AirThermometer is ITemperature t)
+                    return t.Temperature;
+                if (AirThermometer is IThermometer th)
+                    return th.Temperature;
+                if (AirThermometer is Meter m)
+                    return m;
+                return ambient?.Temperature ?? 22; // room temperature
+            }
+        }
 
-		/// <summary>
-		/// Whether the LN valve has a Trickle operation;
-		/// </summary>
-		bool trickleSupported => LNValve.Operations.Contains(Trickle);
-		Stopwatch valveOpenStopwatch = new Stopwatch();
-		double coldestLNSensorTemperature;
-		public double Target { get; protected set; }
+        /// <summary>
+        /// Whether the LN valve has a Trickle operation;
+        /// </summary>
+        bool trickleSupported => LNValve.Operations.Contains(Trickle);
+        Stopwatch valveOpenStopwatch = new Stopwatch();
+        double coldestLNSensorTemperature;
+        public double Target { get; protected set; }
 
         /// <summary>
         /// The present state of the FTC.
         /// </summary>
-		public override States State
-		{
-			get
-			{
-				if (TargetState == TargetStates.Standby)
-					return States.Standby;
-				if (TargetState == TargetStates.Thaw)
-					return States.Thawing;
+        public override States State
+        {
+            get
+            {
+                if (TargetState == TargetStates.Standby)
+                    return States.Standby;
+                if (TargetState == TargetStates.Thaw)
+                    return States.Thawing;
 
-				//else TargetState is Freeze or Raise
+                //else TargetState is Freeze or Raise
 
-				if (Temperature >= FrozenTemperature + FreezeTrigger)
-					return States.Freezing;
+                if (Temperature >= FrozenTemperature + FreezeTrigger)
+                    return States.Freezing;
 
-				if (TargetState == TargetStates.Freeze)
-					return States.Frozen;
+                if (TargetState == TargetStates.Freeze)
+                    return States.Frozen;
 
-				// Target state is Raise
-				if (Temperature <= FrozenTemperature + RaiseTrigger)
-					return States.Raised;
-				else
-					return States.Raising;
-			}
-		}
+                // Target state is Raise
+                if (Temperature <= FrozenTemperature + RaiseTrigger)
+                    return States.Raised;
+                else
+                    return States.Raising;
+            }
+        }
 
         /// <summary>
         /// Changes the TargetState (operating mode) of the FTC.
         /// Does nothing if the state parameter matches the present TargetState.
         /// </summary>
         /// <param name="state"></param>
-		public override void ChangeState(TargetStates state)
-		{
-			if (TargetState != state)
-			{
-				EnsureState(state);
-				StateStopwatch.Restart();
-			}
-		}
+        public override void ChangeState(TargetStates state)
+        {
+            if (TargetState != state)
+            {
+                EnsureState(state);
+                StateStopwatch.Restart();
+            }
+        }
 
         /// <summary>
         /// What to do with the hardware device when this instance is Stopped.
         /// </summary>
         [JsonProperty("StopAction"), DefaultValue(StopAction.TurnOff)]
-		public StopAction StopAction
-		{
-			get => stopAction;
-			set => Ensure(ref stopAction, value);
-		}
-		StopAction stopAction = StopAction.TurnOff;
+        public StopAction StopAction
+        {
+            get => stopAction;
+            set => Ensure(ref stopAction, value);
+        }
+        StopAction stopAction = StopAction.TurnOff;
 
         /// <summary>
         /// Puts the FTC in Standby (turn off active cooling and warming).
         /// </summary>
-		public void Standby()
-		{
+        public void Standby()
+        {
             ChangeState(TargetStates.Standby);
             LNOff();
-			AirOff();
-		}
+            AirOff();
+        }
 
         /// <summary>
         /// Fill and maintain a minimal level of liquid nitrogen in the reservoir.
         /// </summary>
-		public void Freeze() => ChangeState(TargetStates.Freeze);
+        public void Freeze() => ChangeState(TargetStates.Freeze);
 
         /// <summary>
         /// Reach and maintain a maximum level of liquid nitrogen, 
@@ -424,230 +424,230 @@ namespace AeonHacs.Components
         /// <summary>
         /// Warm the coldfinger with forced air.
         /// </summary>
-		public void Thaw() => ChangeState(TargetStates.Thaw);
+        public void Thaw() => ChangeState(TargetStates.Thaw);
 
         /// <summary>
         /// Ensures the desired TargetState is in effect.
         /// </summary>
         /// <param name="state">the desired TargetState</param>
-		public void EnsureState(TargetStates state)
-		{
-			switch (state)
-			{
-				case TargetStates.Standby:
-					break;
-				case TargetStates.Thaw:
-					LNOff();
-					break;
-				case TargetStates.Freeze:
-				case TargetStates.Raise:
-					Target = FrozenTemperature;
-					coldestLNSensorTemperature = Target + 3;
-					break;
-				default:
-					break;
-			}
+        public void EnsureState(TargetStates state)
+        {
+            switch (state)
+            {
+                case TargetStates.Standby:
+                    break;
+                case TargetStates.Thaw:
+                    LNOff();
+                    break;
+                case TargetStates.Freeze:
+                case TargetStates.Raise:
+                    Target = FrozenTemperature;
+                    coldestLNSensorTemperature = Target + 3;
+                    break;
+                default:
+                    break;
+            }
 
-			base.ChangeState(state);
-		}
+            base.ChangeState(state);
+        }
 
 
-		/// <summary>
-		/// whether overflow trickling is presently preferred
-		/// </summary>
-		bool trickling =>
-			trickleSupported &&
-			TargetState == TargetStates.Raise;
+        /// <summary>
+        /// whether overflow trickling is presently preferred
+        /// </summary>
+        bool trickling =>
+            trickleSupported &&
+            TargetState == TargetStates.Raise;
 
-		int trigger =>
-			TargetState == TargetStates.Freeze ? FreezeTrigger : RaiseTrigger;
+        int trigger =>
+            TargetState == TargetStates.Freeze ? FreezeTrigger : RaiseTrigger;
 
         /// <summary>
         /// Controls the LNValve as needed to maintain the desired LN level in the reservoir.
         /// </summary>
-		void manageLNLevel()
-		{
-			if (valveOpenStopwatch.IsRunning)
-			{
-				// Track the coldest temperature observed since the valve was opened
-				if (Temperature < coldestLNSensorTemperature)
-					coldestLNSensorTemperature = Temperature;
+        void manageLNLevel()
+        {
+            if (valveOpenStopwatch.IsRunning)
+            {
+                // Track the coldest temperature observed since the valve was opened
+                if (Temperature < coldestLNSensorTemperature)
+                    coldestLNSensorTemperature = Temperature;
 
-				if (valveOpenStopwatch.Elapsed.TotalSeconds > MaximumSecondsLNFlowing)
-				{
-					LNOff();            // cycle the valve periodically to avoid sticking
-					Target = FrozenTemperature; // reset Target to default on timeout
-				}
-				else if (Temperature <= Target)
-				{
-					if (trickling)
-					{
-						if ((LNValve as IActuator).Operation?.Name != Trickle)
-							LNOn();
-					}
-					else 
-					{
-						LNOff();
-					}
-				}
-			}
-			else
-			{
-				if (Temperature > Target + trigger || trickling)
-				{
-					// TODO reconsider whether the Target still needs to be dynamically adjusted
-					// adjust Target to 2 degrees warmer than coldest observed temperature
-					//Target = coldestLNSensorTemperature + 2;
-					// but no warmer than 3 degrees over the default
-					//if (Target > FrozenTemperature + 3) Target = FrozenTemperature + 3;
-					LNOn();
-				}
-			}
-		}
+                if (valveOpenStopwatch.Elapsed.TotalSeconds > MaximumSecondsLNFlowing)
+                {
+                    LNOff();            // cycle the valve periodically to avoid sticking
+                    Target = FrozenTemperature; // reset Target to default on timeout
+                }
+                else if (Temperature <= Target)
+                {
+                    if (trickling)
+                    {
+                        if ((LNValve as IActuator).Operation?.Name != Trickle)
+                            LNOn();
+                    }
+                    else 
+                    {
+                        LNOff();
+                    }
+                }
+            }
+            else
+            {
+                if (Temperature > Target + trigger || trickling)
+                {
+                    // TODO reconsider whether the Target still needs to be dynamically adjusted
+                    // adjust Target to 2 degrees warmer than coldest observed temperature
+                    //Target = coldestLNSensorTemperature + 2;
+                    // but no warmer than 3 degrees over the default
+                    //if (Target > FrozenTemperature + 3) Target = FrozenTemperature + 3;
+                    LNOn();
+                }
+            }
+        }
 
         /// <summary>
         /// Starts the flow of liquid nitrogen to the reservoir.
         /// </summary>
-		void LNOn()
-		{
-			coldestLNSensorTemperature = Temperature;       // reset tracking
-			if (!LNManifold.IsCold)
-				return;
-			if (trickling && Temperature < Target + RaiseTrigger)
-				LNValve.DoOperation(Trickle);
-			else
-				LNValve.Open();
-			valveOpenStopwatch.Restart();
-		}
+        void LNOn()
+        {
+            coldestLNSensorTemperature = Temperature;       // reset tracking
+            if (!LNManifold.IsCold)
+                return;
+            if (trickling && Temperature < Target + RaiseTrigger)
+                LNValve.DoOperation(Trickle);
+            else
+                LNValve.Open();
+            valveOpenStopwatch.Restart();
+        }
 
         /// <summary>
         /// Stop the liquid nitrogen flow.
         /// </summary>
-		void LNOff()
-		{
-			LNValve.WaitForIdle();
-			if (!LNValve.IsClosed) LNValve.CloseWait();
-			valveOpenStopwatch.Reset();
-		}
+        void LNOff()
+        {
+            LNValve.WaitForIdle();
+            if (!LNValve.IsClosed) LNValve.CloseWait();
+            valveOpenStopwatch.Reset();
+        }
 
         /// <summary>
         /// Blow air through the reservoir, to eject liquid 
-		/// nitrogen and warm the chamber.
+        /// nitrogen and warm the chamber.
         /// </summary>
-		void AirOn()
-		{
-			if (AirValve == null) return;
-			if (!AirValve.IsOpened)
+        void AirOn()
+        {
+            if (AirValve == null) return;
+            if (!AirValve.IsOpened)
                 AirValve.OpenWait();
             else if (Temperature > Target)
-				AirValve.CloseWait();
-		}
+                AirValve.CloseWait();
+        }
 
         /// <summary>
         /// Stop the air flow.
         /// </summary>
-		void AirOff()
-		{
-			AirValve?.CloseWait();
-		}
-
-
-
-		void ManageState()
-		{
-			if (!Connected || Hacs.Stopping) return;
-			switch (TargetState)
-			{
-				case TargetStates.Standby:
-					Target = AirTemperature;
-					//These are called when Standby() happens. Is there really a need to constantly enforce them?
-					//They have been temporarily? commented out to make integration easier.
-                    //LNOff();
-					//AirOff();
-					break;
-				case TargetStates.Thaw:
-					Target = AirTemperature - NearAirTemperature;
-                    LNOff();
-					AirOn();
-					if (AirValve == null || !AirValve.IsOpened) Standby();
-					break;
-				case TargetStates.Freeze:
-				case TargetStates.Raise:
-					AirOff();
-					manageLNLevel();
-					break;
-				default:
-					break;
-			}
-
-			if (State == States.Freezing && StateTimer.Elapsed.TotalMinutes > 10) // MaximumFreezeMinutes)
-			{
-				SlowToFreeze?.Invoke();
-				StateTimer.Restart();
-			}
+        void AirOff()
+        {
+            AirValve?.CloseWait();
         }
-		Stopwatch StateTimer = new Stopwatch();
-		public Action SlowToFreeze { get; set; }
-
-		/// <summary>
-		/// Freezes the coldfinger and waits for it to reach the Frozen state.
-		/// </summary>
-		public void FreezeWait()
-		{
-			var st = StepTracker.Default;
-			Freeze();
-			st?.Start($"Wait for {Name} < {FrozenTemperature + FreezeTrigger} °C");
-			while (State != States.Frozen) Wait();
-			st?.End();
-		}
 
 
-		/// <summary>
-		/// Raises the LN level, and once it has reached its peak, waits a few seconds for equilibrium.
-		/// </summary>
-		public void RaiseLN()
-		{
-			var step = StepTracker.Default;
-			Raise();
 
-			step?.Start($"Wait for {Name} LN flowing");
-			WaitFor(() => !LNValve.IsClosed);
-			step?.End();
+        void ManageState()
+        {
+            if (!Connected || Hacs.Stopping) return;
+            switch (TargetState)
+            {
+                case TargetStates.Standby:
+                    Target = AirTemperature;
+                    //These are called when Standby() happens. Is there really a need to constantly enforce them?
+                    //They have been temporarily? commented out to make integration easier.
+                    //LNOff();
+                    //AirOff();
+                    break;
+                case TargetStates.Thaw:
+                    Target = AirTemperature - NearAirTemperature;
+                    LNOff();
+                    AirOn();
+                    if (AirValve == null || !AirValve.IsOpened) Standby();
+                    break;
+                case TargetStates.Freeze:
+                case TargetStates.Raise:
+                    AirOff();
+                    manageLNLevel();
+                    break;
+                default:
+                    break;
+            }
 
-			step?.Start($"Wait for {Name} LN Raised temperature");
-			WaitFor(() => Temperature < Target + RaiseTrigger);
-			step?.End();
+            if (State == States.Freezing && StateTimer.Elapsed.TotalMinutes > 10) // MaximumFreezeMinutes)
+            {
+                SlowToFreeze?.Invoke();
+                StateTimer.Restart();
+            }
+        }
+        Stopwatch StateTimer = new Stopwatch();
+        public Action SlowToFreeze { get; set; }
 
-			// Shortcut if the FTC supports overflow-trickle, in which case,
-			// the level is always at peak;
-			if (trickling) return;
+        /// <summary>
+        /// Freezes the coldfinger and waits for it to reach the Frozen state.
+        /// </summary>
+        public void FreezeWait()
+        {
+            var st = StepTracker.Default;
+            Freeze();
+            st?.Start($"Wait for {Name} < {FrozenTemperature + FreezeTrigger} °C");
+            while (State != States.Frozen) Wait();
+            st?.End();
+        }
 
-			step?.Start($"Wait for {Name} LN level to peak");
-			WaitFor(() => LNValve.IsClosed);
-			step?.End();
 
-			step?.Start($"Wait {SecondsToWaitAfterRaised} seconds with LN raised");
-			WaitFor(() => false, SecondsToWaitAfterRaised * 1000);
-			step?.End();
-		}
+        /// <summary>
+        /// Raises the LN level, and once it has reached its peak, waits a few seconds for equilibrium.
+        /// </summary>
+        public void RaiseLN()
+        {
+            var step = StepTracker.Default;
+            Raise();
+
+            step?.Start($"Wait for {Name} LN flowing");
+            WaitFor(() => !LNValve.IsClosed);
+            step?.End();
+
+            step?.Start($"Wait for {Name} LN Raised temperature");
+            WaitFor(() => Temperature < Target + RaiseTrigger);
+            step?.End();
+
+            // Shortcut if the FTC supports overflow-trickle, in which case,
+            // the level is always at peak;
+            if (trickling) return;
+
+            step?.Start($"Wait for {Name} LN level to peak");
+            WaitFor(() => LNValve.IsClosed);
+            step?.End();
+
+            step?.Start($"Wait {SecondsToWaitAfterRaised} seconds with LN raised");
+            WaitFor(() => false, SecondsToWaitAfterRaised * 1000);
+            step?.End();
+        }
 
 
-		public Coldfinger()
-		{
-			(this as IStateManager).ManageState = ManageState;
-		}
+        public Coldfinger()
+        {
+            (this as IStateManager).ManageState = ManageState;
+        }
 
-		public override string ToString()
-		{
+        public override string ToString()
+        {
             StringBuilder sb = new StringBuilder($"{Name}: {State}, {Temperature:0.###} °C");
-			if (State != States.Standby)
-				sb.Append($", Target = {Target:0.###} °C");
+            if (State != States.Standby)
+                sb.Append($", Target = {Target:0.###} °C");
             StringBuilder sb2 = new StringBuilder();
             sb2.Append($"\r\n{LevelSensor}");
             sb2.Append($"\r\n{LNValve}");
             sb2.Append($"\r\n{AirValve?.ToString() ?? "(no AirValve)"}");
             sb.Append(Utility.IndentLines(sb2.ToString()));
             return sb.ToString();
-		}
-	}
+        }
+    }
 }

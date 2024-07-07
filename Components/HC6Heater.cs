@@ -33,7 +33,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Heater operating modes
         /// </summary>
-		public enum Modes
+        public enum Modes
         {
             /// <summary>
             /// Device is powered off.

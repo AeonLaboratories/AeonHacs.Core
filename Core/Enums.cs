@@ -139,9 +139,9 @@ namespace AeonHacs
         DEL = 127
     }
     public enum ValveState { Unknown, Closed, Opened, Closing, Opening, Other };
-	public enum StopAction { TurnOff, TurnOn, None }
+    public enum StopAction { TurnOff, TurnOn, None }
     public enum SwitchState { Off, On }
-	public enum OnOffState { Unknown, Off, On }
+    public enum OnOffState { Unknown, Off, On }
     public enum AnalogInputMode { SingleEnded, Differential }
     public enum ThermocoupleType { None, K, T, J, E, N, B, C, D, R, S }
     public enum MassUnits { μmol, μg, mg, g }

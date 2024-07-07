@@ -796,7 +796,7 @@ namespace AeonHacs.Utilities
         void RxDetected(object sender, SerialDataReceivedEventArgs e)
         {
             ReceiveEvents++;
-            //getRxData();			    // for synchronous data retrieval
+            //getRxData();                // for synchronous data retrieval
             rxThreadSignal.Set();       // grab the data asynchronously
         }
 

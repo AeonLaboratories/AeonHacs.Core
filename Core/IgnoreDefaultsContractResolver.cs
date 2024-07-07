@@ -5,17 +5,17 @@ using System.Reflection;
 
 namespace AeonHacs
 {
-	public class IgnoreDefaultsContractResolver : DefaultContractResolver
-	{
-		protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
-		{
-			var property = base.CreateProperty(member, memberSerialization);
-			if (property.DeclaringType.Default()?.GetValue(null) is object o)
-			{
-				var ov = property.DeclaringType.GetInstanceMember(property.UnderlyingName)?.GetValue(o);
-				property.DefaultValue = ov;
-			}
-			return property;
-		}
-	}
+    public class IgnoreDefaultsContractResolver : DefaultContractResolver
+    {
+        protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
+        {
+            var property = base.CreateProperty(member, memberSerialization);
+            if (property.DeclaringType.Default()?.GetValue(null) is object o)
+            {
+                var ov = property.DeclaringType.GetInstanceMember(property.UnderlyingName)?.GetValue(o);
+                property.DefaultValue = ov;
+            }
+            return property;
+        }
+    }
 }

@@ -36,17 +36,17 @@ namespace AeonHacs.Components
         byte instrumentID = 1;
 
         public override string ToString()
-		{
-			return $"{Name}: {Temperature}, {Config.State.IsOn().OnOff()}" +
-				Utility.IndentLines(
+        {
+            return $"{Name}: {Temperature}, {Config.State.IsOn().OnOff()}" +
+                Utility.IndentLines(
                     $"\r\nSP: {Config.Setpoint:0.0}" +
-			            $" WSP: {RampingSetpoint:0.0}" +
-			            $" TFSP: {Device.Setpoint:0.0}" +
-			            $" PV: {Temperature:0.0}" +
-			            $" On: {IsOn.YesNo()}" +
-				        $" RR: {SetpointRamp.Rate:0.0}"
+                        $" WSP: {RampingSetpoint:0.0}" +
+                        $" TFSP: {Device.Setpoint:0.0}" +
+                        $" PV: {Temperature:0.0}" +
+                        $" On: {IsOn.YesNo()}" +
+                        $" RR: {SetpointRamp.Rate:0.0}"
                 );
-		}
+        }
 
         #endregion Class interface properties and methods
 
@@ -58,8 +58,8 @@ namespace AeonHacs.Components
         //
         ParameterCode Parameter = ParameterCode.Setpoint;     // default -- anything but PowerMode
         
-		string GetStatus()
-		{
+        string GetStatus()
+        {
             byte[] instruction = new byte[8];
             instruction[0] = (byte)(0x80 + InstrumentId);
             instruction[1] = instruction[0];
@@ -187,9 +187,9 @@ namespace AeonHacs.Components
 
         protected override bool ValidateResponse(string response, int which)
         {
-			try
-			{
-				byte[] report = response.ToASCII8ByteArray();
+            try
+            {
+                byte[] report = response.ToASCII8ByteArray();
 
                 if (report.Length != 10)
                 {
@@ -224,13 +224,13 @@ namespace AeonHacs.Components
                     Device.OnOffState = DecodePowerModeResponse(value);
                 Device.UpdatesReceived++;
                 return true;
-			}
-			catch (Exception e)
-			{
-				if (LogEverything) Log.Record(e.ToString());
-				return false; 
-			}
-		}
+            }
+            catch (Exception e)
+            {
+                if (LogEverything) Log.Record(e.ToString());
+                return false; 
+            }
+        }
 
         #endregion Controller interactions
 

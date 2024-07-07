@@ -393,13 +393,13 @@ namespace AeonHacs.Components
             {
                 lock (responseTimeoutsLocker) ResponseTimeouts++;
                 if (!Responsive)
-				{
+                {
                     Alert.Warn("System Error", $"{Name}: No response to command {ServiceCommand}");
                     if (Notice.Ok(Name, $"Ok to discard ServiceCommand \"{ServiceCommand}\"?"))
                         AwaitingResponses = 0;
                     else
-					{
-						SerialDevice.Reset();
+                    {
+                        SerialDevice.Reset();
                         lock (responseTimeoutsLocker) ResponseTimeouts = 0;
                     }
                 }

@@ -12,17 +12,17 @@ namespace AeonHacs.Components
     /// </summary>
     public class ExtractionLine : ProcessManager, IExtractionLine
     {
-		#region HacsComponent
+        #region HacsComponent
 
-		[HacsConnect]
-		protected virtual void Connect()
-		{
-			//TODO
-		}
+        [HacsConnect]
+        protected virtual void Connect()
+        {
+            //TODO
+        }
 
-		[HacsPostConnect]
+        [HacsPostConnect]
         protected void PostConnect()
-		{
+        {
             VacuumSystem.ProcessStep = ProcessStep;
             O2GasSupply.ProcessStep = ProcessStep;
             HeGasSupply.ProcessStep = ProcessStep;
@@ -56,44 +56,44 @@ namespace AeonHacs.Components
             TubeFurnacePressureManager.Gain = -1;
             TubeFurnacePressureManager.DivideGainByDeadband = true;
             TubeFurnacePressureManager.UseRateOfChange = false;
-		}
+        }
 
-		#endregion HacsComponent
+        #endregion HacsComponent
 
-		[JsonProperty] public Cegs CEGS { get; set; }
-		[JsonProperty] public SerialTubeFurnace TubeFurnace { get; set; }
-		[JsonProperty] public VacuumSystem VacuumSystem { get; set; }
-		[JsonProperty] public IManometer TubeFurnaceManometer { get; set; }
-		[JsonProperty] public MassFlowController MFC { get; set; }
-		[JsonProperty] public GasSupply O2GasSupply { get; set; }
-		[JsonProperty] public GasSupply HeGasSupply { get; set; }
-		[JsonProperty] public IValve CegsValve { get; set; }
-		[JsonProperty] public IValve v_TF_VM { get; set; }
-		[JsonProperty] public IRS232Valve v_TF_flow { get; set; }
-		[JsonProperty] public IValve v_TF_flow_shutoff { get; set; }
-		[JsonProperty] public ISection TubeFurnaceSection { get; set; }
-		[JsonProperty] public ILinePort TubeFurnacePort { get; set; }
-		[JsonProperty] public IFlowManager TubeFurnaceRateManager { get; set; }
-		[JsonProperty] public IFlowManager TubeFurnacePressureManager { get; set; }
+        [JsonProperty] public Cegs CEGS { get; set; }
+        [JsonProperty] public SerialTubeFurnace TubeFurnace { get; set; }
+        [JsonProperty] public VacuumSystem VacuumSystem { get; set; }
+        [JsonProperty] public IManometer TubeFurnaceManometer { get; set; }
+        [JsonProperty] public MassFlowController MFC { get; set; }
+        [JsonProperty] public GasSupply O2GasSupply { get; set; }
+        [JsonProperty] public GasSupply HeGasSupply { get; set; }
+        [JsonProperty] public IValve CegsValve { get; set; }
+        [JsonProperty] public IValve v_TF_VM { get; set; }
+        [JsonProperty] public IRS232Valve v_TF_flow { get; set; }
+        [JsonProperty] public IValve v_TF_flow_shutoff { get; set; }
+        [JsonProperty] public ISection TubeFurnaceSection { get; set; }
+        [JsonProperty] public ILinePort TubeFurnacePort { get; set; }
+        [JsonProperty] public IFlowManager TubeFurnaceRateManager { get; set; }
+        [JsonProperty] public IFlowManager TubeFurnacePressureManager { get; set; }
 
-		gasFlowManager purgeFlowManager = new gasFlowManager();
+        gasFlowManager purgeFlowManager = new gasFlowManager();
 
-		public double OkPressure { get; set; }
-		public double CleanPressure { get; set; }          // clean enough to start a new sample
-		public IManometer AmbientManometer { get; set; }
-		public HacsLog SampleLog { get; set; }
+        public double OkPressure { get; set; }
+        public double CleanPressure { get; set; }          // clean enough to start a new sample
+        public IManometer AmbientManometer { get; set; }
+        public HacsLog SampleLog { get; set; }
 
-		#region process management
+        #region process management
 
-		public override void AbortRunningProcess()
+        public override void AbortRunningProcess()
         {
             if (purgeFlowManager.Busy)
                 purgeFlowManager.Stop();
             if (TubeFurnaceRateManager.Busy)
                 TubeFurnaceRateManager.Stop();
-			if (TubeFurnacePressureManager.Busy)
-				TubeFurnacePressureManager.Stop();
-			base.AbortRunningProcess();
+            if (TubeFurnacePressureManager.Busy)
+                TubeFurnacePressureManager.Stop();
+            base.AbortRunningProcess();
         }
 
 
@@ -112,17 +112,17 @@ namespace AeonHacs.Components
         #region ProcessDictionary
         protected override void BuildProcessDictionary()
         {
-			ProcessDictionary.Add("Open and evacuate line", openLine);
-			ProcessDictionary.Add("Isolate tube furnace", isolateTF);
+            ProcessDictionary.Add("Open and evacuate line", openLine);
+            ProcessDictionary.Add("Isolate tube furnace", isolateTF);
             ProcessDictionary.Add("Pressurize tube furnace to 50 torr O2", pressurizeO2);
             ProcessDictionary.Add("Evacuate tube furnace", evacuateTF);
             ProcessDictionary.Add("Evacuate tube furnace over 10 minutes", pacedEvacuate);
             ProcessDictionary.Add("TurnOff tube furnace", turnOffTF);
-			ProcessDictionary.Add("Prepare tube furnace for opening", prepareForOpening);
-			ProcessDictionary.Add("Bake out tube furnace", bakeout);
-			ProcessDictionary.Add("Degas LiBO2", degas);
-			ProcessDictionary.Add("Begin extract", beginExtract);
-			ProcessDictionary.Add("Finish extract", finishExtract);
+            ProcessDictionary.Add("Prepare tube furnace for opening", prepareForOpening);
+            ProcessDictionary.Add("Bake out tube furnace", bakeout);
+            ProcessDictionary.Add("Degas LiBO2", degas);
+            ProcessDictionary.Add("Begin extract", beginExtract);
+            ProcessDictionary.Add("Finish extract", finishExtract);
             ProcessDictionary.Add("Bleed", bleed);
             ProcessDictionary.Add("Remaining P in TF", remaining_P);
             ProcessDictionary.Add("Suspend IG", suspendVSManometer);
@@ -130,18 +130,18 @@ namespace AeonHacs.Components
 
             base.BuildProcessDictionary();
         }
-		#endregion ProcessDictionary
+        #endregion ProcessDictionary
 
 
-		#region TubeFurnace processes
+        #region TubeFurnace processes
 
-		void isolateTF()
+        void isolateTF()
         {
             VacuumSystem.IsolateManifold();
             // TODO replace this functionality: VacuumSystem.IsolateSections();
             O2GasSupply.ShutOff();
             HeGasSupply.ShutOff();
-			CegsValve.Close();
+            CegsValve.Close();
         }
 
         void pacedEvacuate()
@@ -176,7 +176,7 @@ namespace AeonHacs.Components
             evacuateTF();
         }
         
-		void turnOffTF() { TubeFurnace.TurnOff(); }
+        void turnOffTF() { TubeFurnace.TurnOff(); }
 
         void evacuateTF(double pressure)
         {
@@ -185,11 +185,11 @@ namespace AeonHacs.Components
             ProcessStep.End();
         }
 
-//		void waitForPressure(double pressure)
-//		{
-//			while (p_TF < pressure)
-//				Wait();
-//		}
+//        void waitForPressure(double pressure)
+//        {
+//            while (p_TF < pressure)
+//                Wait();
+//        }
 
 
         void waitForPressureBelow(double pressure)
@@ -210,53 +210,53 @@ namespace AeonHacs.Components
         }
 
         void waitForTemperatureAbove(int temperature)
-		{
-			ProcessStep.Start($"Wait for tube temperature > {temperature} °C");
-			while (TubeFurnace.Temperature < temperature)
-				Wait();
-			ProcessStep.End();
-		}
+        {
+            ProcessStep.Start($"Wait for tube temperature > {temperature} °C");
+            while (TubeFurnace.Temperature < temperature)
+                Wait();
+            ProcessStep.End();
+        }
 
-		void WaitForTemperatureBelow(int temperature)
-		{
-			ProcessStep.Start($"Wait for tube temperature < {temperature} °C");
-			while (TubeFurnace.Temperature > temperature)
-				Wait();
-			ProcessStep.End();
-		}
+        void WaitForTemperatureBelow(int temperature)
+        {
+            ProcessStep.Start($"Wait for tube temperature < {temperature} °C");
+            while (TubeFurnace.Temperature > temperature)
+                Wait();
+            ProcessStep.End();
+        }
 
         void pressurizeO2() => pressurizeO2(50);
 
         void pressurizeO2(double pressure)
         {
-			ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {O2GasSupply.GasName}");
-			MFC.TurnOn(MFC.MaximumSetpoint);
-			O2GasSupply.Admit(pressure);
-			MFC.TurnOff();
-			ProcessStep.End();
-		}
+            ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {O2GasSupply.GasName}");
+            MFC.TurnOn(MFC.MaximumSetpoint);
+            O2GasSupply.Admit(pressure);
+            MFC.TurnOff();
+            ProcessStep.End();
+        }
 
-		void pressurizeHe(double pressure)
-		{
-			ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {HeGasSupply.GasName}");
-			HeGasSupply.Admit(pressure);
-			ProcessStep.End();
-		}
+        void pressurizeHe(double pressure)
+        {
+            ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {HeGasSupply.GasName}");
+            HeGasSupply.Admit(pressure);
+            ProcessStep.End();
+        }
 
-		void prepareForOpening()
-		{
+        void prepareForOpening()
+        {
             TubeFurnacePort.State = LinePort.States.InProcess;
             ProcessStep.Start("Prepare tube furnace for opening");
 
-			pressurizeHe(AmbientManometer.Pressure + 20);
-			purgeFlowManager.Start();
+            pressurizeHe(AmbientManometer.Pressure + 20);
+            purgeFlowManager.Start();
 
-			Alert("Operator Needed", "Tube furnace ready to be opened");
-			ProcessStep.CurrentStep.Description = "Tube furnace ready to be opened";
+            Alert("Operator Needed", "Tube furnace ready to be opened");
+            ProcessStep.CurrentStep.Description = "Tube furnace ready to be opened";
             Notice.Send("Purge flow is active", "Dismiss this window when furnace is closed again");
-			purgeFlowManager.Stop();
+            purgeFlowManager.Stop();
 
-			ProcessStep.End();
+            ProcessStep.End();
             TubeFurnacePort.State = LinePort.States.Complete;
         }
 
@@ -374,7 +374,7 @@ namespace AeonHacs.Components
         void beginExtract() { beginExtract(50, 600, 10, 1100, 10); }
 
         void beginExtract(double targetPressure, int bleedTemperature, int bleedMinutes, int extractTemperature, int extractMinutes)
-		{
+        {
             TubeFurnacePort.State = LinePort.States.InProcess;
 
             SampleLog.WriteLine();
@@ -446,13 +446,13 @@ namespace AeonHacs.Components
         }
 
         void finishExtract()
-		{
-			int bakeMinutes = 10;
+        {
+            int bakeMinutes = 10;
 
-			ProcessStep.Start($"Continue bake for {MinutesString(bakeMinutes)} more");
-			while (ProcessStep.Elapsed.TotalMinutes < bakeMinutes)
-				Wait(1000);
-			ProcessStep.End();
+            ProcessStep.Start($"Continue bake for {MinutesString(bakeMinutes)} more");
+            while (ProcessStep.Elapsed.TotalMinutes < bakeMinutes)
+                Wait(1000);
+            ProcessStep.End();
 
             MFC.TurnOn(5);
             O2GasSupply.Admit();
@@ -531,49 +531,49 @@ namespace AeonHacs.Components
 
 
         protected class gasFlowManager
-		{
-			public GasSupply GasSupply { get; set; }
-			public IManometer Pressure { get; set; }
-			public IManometer Reference { get; set; }
-			public double Overpressure { get; set; } = 20;
+        {
+            public GasSupply GasSupply { get; set; }
+            public IManometer Pressure { get; set; }
+            public IManometer Reference { get; set; }
+            public double Overpressure { get; set; } = 20;
 
-			double pressure_min => Reference.Value + Overpressure / 2;
-			double pressure_max => Reference.Value + Overpressure;
+            double pressure_min => Reference.Value + Overpressure / 2;
+            double pressure_max => Reference.Value + Overpressure;
 
-			Thread managerThread;
-			AutoResetEvent stopSignal = new AutoResetEvent(false);
+            Thread managerThread;
+            AutoResetEvent stopSignal = new AutoResetEvent(false);
 
             public bool Busy => managerThread != null && managerThread.IsAlive;
 
             public void Start()
-			{
-				if (managerThread != null && managerThread.IsAlive)
-					return;
+            {
+                if (managerThread != null && managerThread.IsAlive)
+                    return;
 
-				managerThread = new Thread(manageFlow)
-				{
-					Name = $"{Pressure.Name} purgeFlowManager",
-					IsBackground = true
-				};
-				managerThread.Start();
-			}
+                managerThread = new Thread(manageFlow)
+                {
+                    Name = $"{Pressure.Name} purgeFlowManager",
+                    IsBackground = true
+                };
+                managerThread.Start();
+            }
 
-			public void Stop() { stopSignal.Set(); }
+            public void Stop() { stopSignal.Set(); }
 
-			void manageFlow()
-			{
-				int timeout = 100;
-				bool stopRequested = false;
-				while (!stopRequested)
-				{
-					if (Pressure.Value < pressure_min && !GasSupply.SourceValve.IsOpened)
-						GasSupply.SourceValve.Open();
-					else if (Pressure.Value > pressure_max && GasSupply.SourceValve.IsOpened)
-						GasSupply.SourceValve.Close();
-					stopRequested = stopSignal.WaitOne(timeout);
-				}
-				GasSupply.SourceValve.Close();
-			}
-		}
+            void manageFlow()
+            {
+                int timeout = 100;
+                bool stopRequested = false;
+                while (!stopRequested)
+                {
+                    if (Pressure.Value < pressure_min && !GasSupply.SourceValve.IsOpened)
+                        GasSupply.SourceValve.Open();
+                    else if (Pressure.Value > pressure_max && GasSupply.SourceValve.IsOpened)
+                        GasSupply.SourceValve.Close();
+                    stopRequested = stopSignal.WaitOne(timeout);
+                }
+                GasSupply.SourceValve.Close();
+            }
+        }
     }
 }

@@ -37,63 +37,63 @@ namespace AeonHacs.Components
             /// <summary>
             /// No error, status is ok
             /// </summary>
-			None = 0,
+            None = 0,
             /// <summary>
             /// ADC out of range (analog-to-digital converter error)
             /// </summary>
-			AdcOutOfRange = 1,
+            AdcOutOfRange = 1,
             /// <summary>
             /// RS232 input buffer overflow; commands are too frequent
             /// </summary>
-			RxBufferOverflow = 2,
+            RxBufferOverflow = 2,
             /// <summary>
             /// RS232 CRC error (cyclical redundancy check failed)
             /// </summary>
-			CRC = 4,
+            CRC = 4,
             /// <summary>
             /// Unrecognized command
             /// </summary>
-			BadCommand = 8,
+            BadCommand = 8,
             /// <summary>
             /// Not used
             /// </summary>
-			NotUsed16 = 16,
+            NotUsed16 = 16,
             /// <summary>
             /// Invalid servo (actuator) channel
             /// </summary>
-			BadChannel = 32,
+            BadChannel = 32,
             /// <summary>
             /// Datalogging time interval out of range
             /// </summary>
-			BadDataLogInterval = 64,
+            BadDataLogInterval = 64,
             /// <summary>
             /// Not used
             /// </summary>
-			ServoError = 128,
+            ServoError = 128,
             /// <summary>
             /// Servo control pulse width (CPW) out of range
             /// </summary>
-			CpwOutOfRange = 256,
+            CpwOutOfRange = 256,
             /// <summary>
             /// Time value for &quot;stop on time limit&quot; out of range
             /// </summary>
-			TimeLimitOutOfRange = 512,
+            TimeLimitOutOfRange = 512,
             /// <summary>
             /// Both limit switches engaged (opposite extremes)
             /// </summary>
-			BothLimitSwitchesEngaged = 1024,
+            BothLimitSwitchesEngaged = 1024,
             /// <summary>
             /// Power supply voltage is low
             /// </summary>
-			LowPower = 2048,
+            LowPower = 2048,
             /// <summary>
             /// Current limit value out of range
             /// </summary>
-			CurrentLimitOutOfRange = 4096,
+            CurrentLimitOutOfRange = 4096,
             /// <summary>
             /// Unrecognized stop limit setting
             /// </summary>
-			BadStopLimit = 8192,
+            BadStopLimit = 8192,
         }
 
         static ErrorCodes ActuatorErrorFilter =
@@ -401,13 +401,13 @@ namespace AeonHacs.Components
             bool done = false;
 
             if (LogEverything && State != priorState)
-			{
+            {
                 operationStateStopwatch.Restart();
-				Log?.Record($"State = {priorState = State}");
-			}
+                Log?.Record($"State = {priorState = State}");
+            }
 
-			// was premature stop requested by actuator?
-			if (State > OperationState.Configuring && a.StopRequested && !stopping)
+            // was premature stop requested by actuator?
+            if (State > OperationState.Configuring && a.StopRequested && !stopping)
                 State = OperationState.Stopping;
 
             switch (State)
@@ -580,14 +580,14 @@ namespace AeonHacs.Components
 
             // (CommandedMovement != 0) => MovementNeeded
             if (a is IRS232Valve && CommandedMovement != 0)
-			{
+            {
                 if (AeonServoGoFailed)
                     return OperationState.Going;
                 return OperateAeonServo(a);
-			}
+            }
 
-			//SetServiceValues("r", 1);
-			return State;
+            //SetServiceValues("r", 1);
+            return State;
         }
         
         // OperationState == Stopping
@@ -706,7 +706,7 @@ namespace AeonHacs.Components
                 {
                     var skipOperation = false;
                     while (a is IRS232Valve && !skipOperation && (AeonServo == null || !AeonServo.Responsive))
-					{
+                    {
                         var message = $"{Name}.SelectDeviceService: Can't operate {a.Name} because {nameof(AeonServo)} is missing or unresponsive.";
                         Log?.Record(message);
                         Alert.Warn("System error", message);
@@ -716,11 +716,11 @@ namespace AeonHacs.Components
                     }
 
                     if (skipOperation)
-					{
+                    {
                         CurrentActuator.Device.Active = true;
                         CurrentActuator.OperationFailed = true;
                         CurrentActuator.Device.Active = false;
-					}
+                    }
                     else
                     {
                         // Repeat until there's a command to transmit, or

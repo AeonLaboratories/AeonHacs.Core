@@ -9,7 +9,7 @@ namespace AeonHacs.Components
 {
     public class SwitchBank : SerialDeviceManager, ISwitchBank,
         SwitchBank.IConfig, SwitchBank.IDevice
-	{
+    {
         #region HacsComponent
         #endregion HacsComponent
 
@@ -23,23 +23,23 @@ namespace AeonHacs.Components
             /// <summary>
             /// No error, status is ok
             /// </summary>
-			None = 0,
+            None = 0,
             /// <summary>
             /// RS232 input buffer overflow; commands are too frequent
             /// </summary>
-			RxBufferOverflow = 1,
+            RxBufferOverflow = 1,
             /// <summary>
             /// RS232 CRC error (cyclical redundancy check failed)
             /// </summary>
-			CRC = 2,
+            CRC = 2,
             /// <summary>
             /// Unrecognized command
             /// </summary>
-			BadCommand = 4,
+            BadCommand = 4,
             /// <summary>
             /// Invalid channel
             /// </summary>
-			BadChannel = 8,
+            BadChannel = 8,
         }
 
         #endregion Device constants
@@ -298,5 +298,5 @@ namespace AeonHacs.Components
 
         #endregion Controller interactions
 
-	}
+    }
 }

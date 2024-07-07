@@ -8,7 +8,7 @@ namespace AeonHacs.Components
 {
     public class Eurotherm818Furnace : SerialTubeFurnace, IEurotherm818Furnace,
         Eurotherm818Furnace.IConfig, Eurotherm818Furnace.IDevice
-	{
+    {
         #region Device constants
 
         public enum ParameterCode
@@ -115,19 +115,19 @@ namespace AeonHacs.Components
 
 
         public override string ToString()
-		{
-			return $"{Name}: {Temperature}, {IsOn.OnOff()}" +
-				Utility.IndentLines(
+        {
+            return $"{Name}: {Temperature}, {IsOn.OnOff()}" +
+                Utility.IndentLines(
                     $"\r\nSP: {Setpoint}" +
-						$" WSP: {WorkingSetpoint}" +
-						$" TFSL: {Device.Setpoint}" +
-						$" TFSP: {Device.WorkingSetpoint}" +
-						$" PV: {Temperature}" +
-						$" OP: {OutputPower}" +
-						$" HO: {OutputPowerLimit}" +
-						$" RR: {SetpointRamp.Rate}"
+                        $" WSP: {WorkingSetpoint}" +
+                        $" TFSL: {Device.Setpoint}" +
+                        $" TFSP: {Device.WorkingSetpoint}" +
+                        $" PV: {Temperature}" +
+                        $" OP: {OutputPower}" +
+                        $" HO: {OutputPowerLimit}" +
+                        $" RR: {SetpointRamp.Rate}"
                 );
-		}
+        }
 
 
         #endregion Class interface properties and methods
@@ -146,14 +146,14 @@ namespace AeonHacs.Components
 
         // used when idle
         int paramToGet = 0;
-		string GetStatus()
-		{
+        string GetStatus()
+        {
             var command = GetParameter((ParameterCode)paramToGet);
             ++paramToGet;
             if (paramToGet >= ParameterCount)
                 paramToGet = 0;
             return command;
-		}
+        }
 
         string GetParameter(ParameterCode param)
         {
@@ -179,10 +179,10 @@ namespace AeonHacs.Components
         // and check whether they worked.
         //
 
-		string SetSetpoint()
-		{
+        string SetSetpoint()
+        {
             return SetParameter(ParameterCode.Setpoint, RampingSetpoint.ToInt());
-		}
+        }
 
         string SetOutputPowerLimit()
         {
@@ -279,9 +279,9 @@ namespace AeonHacs.Components
 
 
         protected override bool ValidateResponse(string response, int which)
-		{
-			try
-			{
+        {
+            try
+            {
                 if (response.Length != 11)
                 {
                     if (response[0] == (char)ASCIICode.ACK)
@@ -347,17 +347,17 @@ namespace AeonHacs.Components
                     Device.Error = 8;
                     return false;
                 }
-				return true;
-			}
-			catch (Exception e)
-			{
-				if (LogEverything) Log.Record(e.ToString());
-				return false; 
-			}
-		}
+                return true;
+            }
+            catch (Exception e)
+            {
+                if (LogEverything) Log.Record(e.ToString());
+                return false; 
+            }
+        }
 
-		#endregion Controller interactions
+        #endregion Controller interactions
 
 
-	}
+    }
 }

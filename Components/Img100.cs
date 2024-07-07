@@ -39,7 +39,7 @@ namespace AeonHacs.Components
         {
             if (response == "00")
                 TurnOff();
-			else if (response == "01")
+            else if (response == "01")
                 TurnOn();
             // else unrecognized response, generate error?
         }
@@ -61,7 +61,7 @@ namespace AeonHacs.Components
         public override bool TurnOff()
         {
             if (!IsOn) return false;
-			Controller.TurnOff(UserLabel, processResponse);
+            Controller.TurnOff(UserLabel, processResponse);
             return true;
         }
     }

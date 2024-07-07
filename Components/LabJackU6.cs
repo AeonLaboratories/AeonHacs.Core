@@ -825,7 +825,7 @@ namespace AeonHacs.Components
                 // Find the number of milliseconds required to complete 1 scan of all the analog inputs
                 MinimumScanTime = scanTimeMilliseconds(ainCount, minResolutionIndex);
                 MinimumStreamResponseTime = MinimumScanTime + MinimumCommandResponseTime;
-                int targetScanTime = MinimumStreamResponseTime + 3; //	provide a few ms idle time for unscheduled activities
+                int targetScanTime = MinimumStreamResponseTime + 3; //    provide a few ms idle time for unscheduled activities
 
                 // To avoid buffer overflows, data must be retrieved faster
                 // than it is produced.
@@ -1059,7 +1059,7 @@ namespace AeonHacs.Components
             // Transfer the voltages to the analog input devices.
             if (scans > 0)
             {
-//				Meter.MetersLog?.Record("Voltages received from DAQ");
+//                Meter.MetersLog?.Record("Voltages received from DAQ");
                 
                 ScanMilliseconds = scanStopwatch.ElapsedMilliseconds;
                 scanStopwatch.Restart();

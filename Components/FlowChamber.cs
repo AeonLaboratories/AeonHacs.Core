@@ -2,32 +2,32 @@
 
 namespace AeonHacs.Components
 {
-	public class FlowChamber : Chamber, IFlowChamber
-	{
+    public class FlowChamber : Chamber, IFlowChamber
+    {
         #region HacsComponent
         protected override void Connect()
-		{
-			base.Connect();
-			FlowManager = Find<FlowManager>(flowManagerName);
-		}
-		#endregion HacsComponent
+        {
+            base.Connect();
+            FlowManager = Find<FlowManager>(flowManagerName);
+        }
+        #endregion HacsComponent
 
-		[JsonProperty("FlowManager")]
-		string FlowManagerName { get => FlowManager?.Name; set => flowManagerName = value; }
-		string flowManagerName;
-		public IFlowManager FlowManager
-		{ 
-			get => flowManager;
-			set => Ensure(ref flowManager, value);
-		}
-		IFlowManager flowManager;
+        [JsonProperty("FlowManager")]
+        string FlowManagerName { get => FlowManager?.Name; set => flowManagerName = value; }
+        string flowManagerName;
+        public IFlowManager FlowManager
+        { 
+            get => flowManager;
+            set => Ensure(ref flowManager, value);
+        }
+        IFlowManager flowManager;
 
-		public IRxValve FlowValve => FlowManager?.FlowValve;
+        public IRxValve FlowValve => FlowManager?.FlowValve;
 
-		//[JsonProperty("BypassValve")]
-		//string bypassValveName { get => BypassValve?.Name; set => _bypassValveName = value; }
-		//string _bypassValveName;
-		//public IValve BypassValve { get; set; }
+        //[JsonProperty("BypassValve")]
+        //string bypassValveName { get => BypassValve?.Name; set => _bypassValveName = value; }
+        //string _bypassValveName;
+        //public IValve BypassValve { get; set; }
 
-	}
+    }
 }
