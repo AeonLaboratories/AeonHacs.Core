@@ -254,9 +254,9 @@ namespace AeonHacs.Components
                         PriorPressure = Pressure;
                         ProgressStopwatch.Restart();    // mark pMin updated
                     }
-                    else if (elapsed >= 3.0 && GraphitizationStopwatch.Elapsed.TotalMinutes >= Sample.Parameter("MinimumGRMinutes"))        // if 3 minutes have passed without a pressure decline
+                    else if (elapsed >= 3.0 && (Sample == null || GraphitizationStopwatch.Elapsed.TotalMinutes >= Sample.Parameter("MinimumGRMinutes")))        // if 3 minutes have passed without a pressure decline
                         State = States.Stop;
-                    else if (PriorPressure - Pressure > Sample.Parameter("GRCompleteTorrPerMinute") * elapsed)
+                    else if (Sample != null && PriorPressure - Pressure > Sample.Parameter("GRCompleteTorrPerMinute") * elapsed)
                     {
                         PriorPressure = Pressure;
                         ProgressStopwatch.Restart();
