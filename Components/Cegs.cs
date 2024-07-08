@@ -23,6 +23,7 @@ namespace AeonHacs.Components
             InletPort = Find<InletPort>(inletPortName);
         }
 
+
         /// <summary>
         /// Notify the operator if the required object is missing.
         /// </summary>
@@ -32,6 +33,7 @@ namespace AeonHacs.Components
                 Warn("Configuration Error",
                     $"Can't find {objName}. Cegs needs one Connected.");
         }
+
 
         [HacsPostConnect]
         protected virtual void PostConnect()
@@ -71,14 +73,13 @@ namespace AeonHacs.Components
             MC.Thermometer.PropertyChanged += UpdateSampleMeasurement;
             MaximumAliquotsPerSample = 1 + MC.Ports?.Count ?? 0;
 
-
             foreach (var c in VolumeCalibrations.Values)
             {
                 c.ProcessStep = ProcessStep;
                 c.ProcessSubStep = ProcessSubStep;
                 c.OpenLine = OpenLine;
                 c.OkPressure = OkPressure;
-                c.Log = SampleLog;
+                c.Log = TestLog;
             }
         }
 
@@ -112,7 +113,9 @@ namespace AeonHacs.Components
             catch (Exception e) { Notice.Send(e.ToString()); }
         }
 
+
         protected bool StopLogging { get; set; } = false;
+
 
         [HacsPostStop]
         protected virtual void PostStop()
@@ -169,7 +172,6 @@ namespace AeonHacs.Components
         [JsonProperty] public Dictionary<string, IVolumeCalibration> VolumeCalibrations { get; set; }
         [JsonProperty] public Dictionary<string, IHacsLog> Logs { get; set; }
 
-        // TODO: make this an interface
         // The purpose of the FindAll().ToDictionary is to automate deletions
         // from the settings file (i.e., to avoid needing a backing variable and
         // Samples.Remove())
@@ -191,6 +193,7 @@ namespace AeonHacs.Components
         public virtual DataLog AmbientLog { get; set; }
         public virtual DataLog VM1PressureLog { get; set; }
         public virtual HacsLog SampleLog { get; set; }
+        public virtual HacsLog TestLog { get; set; }
         #endregion Data Logs
 
         public virtual IChamber Ambient { get; set; }
@@ -213,9 +216,59 @@ namespace AeonHacs.Components
         public virtual Meter ugCinMC { get; set; }
 
         /// <summary>
-        /// CT ?? VTT
+        /// The sample gas collection path.
         /// </summary>
-        protected virtual ISection FirstTrap => CT ?? VTT;
+        protected virtual ISection IM_FirstTrap
+        { 
+            get
+            {
+                if (im_FirstTrap != null) return im_FirstTrap;
+                if (!IpIm(out ISection im)) return null;
+
+                var trap = CT ?? VTT;
+                if (trap == null)
+                {
+                    Warn("Configuration error", $"Can't find first trap");
+                    return null;
+                }
+
+                var firstChamber = im.Chambers?.First();
+                var lastChamber = trap.Chambers?.Last();
+                var im_trap = FirstOrDefault<Section>(s =>
+                    s.Chambers?.First() == firstChamber &&
+                    s.Chambers?.Last() == lastChamber);
+
+                if (im_trap == null)
+                    Warn("Configuration error", $"Can't find Section linking {im.Name} and {trap.Name}");
+                return im_trap;
+            }
+            set => Ensure(ref im_FirstTrap, value);
+        }
+        ISection im_FirstTrap = null;
+
+        /// <summary>
+        /// The Section containing only one chamber, the first trap.
+        /// </summary>
+        protected virtual ISection FirstTrap
+        {
+            get
+            {
+                var chamber = IM_FirstTrap?.Chambers?.Last();
+                if (chamber == null)
+                {
+                    Warn("Configuration error", $"Can't find IM_FirstTrap Section.");
+                    return null;
+                }
+                var trap = FirstOrDefault<Section>(s =>
+                   s.Chambers?.First() == chamber &&
+                   s.Chambers.Count() == 1);
+                if (trap == null)
+                {
+                    Warn("Configuration error", $"Can't find a Section containing only chamber {chamber.Name}.");
+                }
+                return trap;
+            }
+        }
 
         #endregion HacsComponents
 
@@ -489,7 +542,7 @@ namespace AeonHacs.Components
 
         protected virtual void RunAProvidedSample()
         {
-            if (Busy || !AutoFeedEnabled ) return;
+            if (Busy || !AutoFeedEnabled) return;
             try
             {
                 if (GetSampleToRun() is Sample runSample)
@@ -678,7 +731,7 @@ namespace AeonHacs.Components
         protected virtual void OnSlowToFreeze()
         {
             var coldfingers = FindAll<Coldfinger>();
-            var on = coldfingers.FindAll (cf => cf.State == Coldfinger.States.Freezing);
+            var on = coldfingers.FindAll(cf => cf.State == Coldfinger.States.Freezing);
             coldfingers.ForEach(cf => cf.Standby());
             string list = "";
             on.ForEach(cf => list += cf.Name + "? ");
@@ -833,7 +886,351 @@ namespace AeonHacs.Components
         public double DilutedSampleMicrogramsCarbon => GetParameter("DilutedSampleMicrogramsCarbon");
         public double MaximumSampleMicrogramsCarbon => GetParameter("MaximumSampleMicrogramsCarbon");
 
+        /// <summary>
+        /// Inlet Port sample furnace working setpoint ramp rate (degrees per minute).
+        /// </summary>
+        public double IpRampRate => GetParameter("IpRampRate");
+
+        /// <summary>
+        /// The Inlet Port sample furnace's target setpoint (the final setpoint when ramping).
+        /// </summary>
+        public double IpSetpoint => GetParameter("IpSetpoint");
+
+        /// <summary>
+        /// The desired Inlet Manifold pressure, used for filling or flow management.
+        /// </summary>
+        public double ImPressureTarget => GetParameter("ImPressureTarget");
+
+        /// <summary>
+        /// During sample collection, close the Inlet Port when the Inlet Manifold pressure falls to this value,
+        /// provided that it is a number (i.e., not NaN).
+        /// </summary>
+        public double CollectCloseIpAtPressure => GetParameter("CollectCloseIpAtPressure");
+
+        /// <summary>
+        /// During sample collection, close the Inlet Port when the Coil Trap pressure falls to this value,
+        /// provided that it is a number (i.e., not NaN).
+        /// </summary>
+        public double CollectCloseIpAtCtPressure => GetParameter("CollectCloseIpAtCtPressure");
+
+        /// <summary>
+        /// Stop collecting into the coil trap when the Inlet Port temperature rises to this value,
+        /// provided that it is a number (i.e., not NaN).
+        /// </summary>
+        public double CollectUntilTemperatureRises => GetParameter("CollectUntilTemperatureRises");
+
+        /// <summary>
+        /// Stop collecting into the coil trap when the Inlet Port temperature falls to this value,
+        /// provided that it is a number (i.e., not NaN).
+        /// </summary>
+        public double CollectUntilTemperatureFalls => GetParameter("CollectUntilTemperatureFalls");
+
+        /// <summary>
+        /// Stop collecting when the Coil Trap pressure falls to or below this value,
+        /// provided that it is a number (i.e., not NaN).
+        /// </summary>
+        public double CollectUntilCtPressureFalls => GetParameter("CollectUntilCtPressureFalls");
+
+        /// <summary>
+        /// Stop collecting into the coil trap when this much time has elapsed.
+        /// provided that the value is a number (i.e., not NaN).
+        /// </summary>
+        public double CollectUntilMinutes => GetParameter("CollectUntilMinutes");
+
+        /// <summary>
+        /// How many minutes to wait.
+        /// </summary>
+        public double WaitTimerMinutes => GetParameter("WaitTimerMinutes");
+
+        /// <summary>
+        /// What pressure to evacuate InletPort to.
+        /// </summary>
+        public double IpEvacuationPressure => GetParameter("IpEvacuationPressure");
+
         #endregion Process Control Parameters
+
+        #region Process Control Properties
+
+        /// <summary>
+        /// Change the Inlet Port Sample furnace setpoint at a controlled
+        /// ramp rate, rather than immediately to the given value.
+        /// </summary>
+        public virtual bool EnableIpSetpointRamp { get; set; } = false;
+
+        /// <summary>
+        /// Monitors the time elapsed since the current sample collection phase began.
+        /// </summary>
+        public Stopwatch CollectStopwatch { get; set; } = new Stopwatch();
+
+        #endregion Process Control Properties
+
+        #region Process Steps
+
+        /// <summary>
+        /// Wait for timer minutes.
+        /// </summary>
+        protected virtual void WaitForTimer()
+        {
+            ProcessStep.Start($"Wait for {WaitTimerMinutes:0} minutes");
+            WaitFor(() => ProcessStep.Elapsed.TotalMinutes >= WaitTimerMinutes);
+            ProcessStep.End();
+        }
+
+        /// <summary>
+        /// Turn on the Inlet Port quartz furnace.
+        /// </summary>
+        protected virtual void TurnOnIpQuartzFurnace() => InletPort.QuartzFurnace.TurnOn();
+
+        /// <summary>
+        /// Turn off the Inlet Port quartz furnace.
+        /// </summary>
+        protected virtual void TurnOffIpQuartzFurnace() => InletPort.QuartzFurnace.TurnOff();
+
+        /// <summary>
+        /// Adjust the Inlet Port sample furnace setpoint.
+        /// </summary>
+        protected virtual void AdjustIpSetpoint()
+        {
+            if (IpSetpoint.IsNaN()) return;
+            InletPort.SampleFurnace.Setpoint = IpSetpoint;
+        }
+
+        /// <summary>
+        /// Wait for Inlet Port temperature to fall below IpSetpoint
+        /// </summary>
+        protected virtual void WaitIpFallToSetpoint()
+        {
+            AdjustIpSetpoint();
+            bool shouldStop()
+            {
+                if (Stopping)
+                    return true;
+                if (InletPort.Temperature <= IpSetpoint)
+                    return true;
+                return false;
+            }
+            ProcessStep.Start($"Waiting for {InletPort.Name} to reach {IpSetpoint:0} °C");
+            WaitFor(shouldStop, -1, 1000);
+            ProcessStep.End();
+        }
+
+        /// <summary>
+        /// Turn on the Inlet Port sample furnace.
+        /// </summary>
+        protected virtual void TurnOnIpSampleFurnace()
+        {
+            AdjustIpSetpoint();
+            InletPort.SampleFurnace.TurnOn();
+        }
+
+        /// <summary>
+        /// Wait for the InletPort sample furnace to reach the setpoint.
+        /// </summary>
+        protected virtual void WaitIpRiseToSetpoint()
+        {
+            bool shouldStop()
+            {
+                if (Stopping)
+                    return true;
+                if (InletPort.Temperature >= IpSetpoint)
+                    return true;
+                return false;
+            }
+            ProcessStep.Start($"Waiting for {InletPort.Name} to reach {IpSetpoint:0} °C");
+            WaitFor(shouldStop, -1, 1000);
+            ProcessStep.End();
+        }
+
+        /// <summary>
+        /// Turn off the Inlet Port sample furnace.
+        /// </summary>
+        protected virtual void TurnOffIpSampleFurnace() => InletPort.SampleFurnace.TurnOff();
+
+
+        /// <summary>
+        /// Start collecting sample into the first trap.
+        /// </summary>
+        protected virtual void StartCollecting() => StartSampleFlow(true);
+
+        protected virtual void StartSampleFlow(bool freezeTrap)
+        {
+            var collectionPath = IM_FirstTrap;
+            var trap = FirstTrap;
+            var status = freezeTrap ?
+                $"Start collecting sample in {trap.Name}" :
+                $"Start gas flow through {trap.Name}";
+            ProcessStep.Start(status);
+
+            if (freezeTrap)
+                trap.WaitForFrozen(false);
+            collectionPath.FlowValve?.CloseWait();
+            InletPort.Open();
+            Sample.CoilTrap = trap.Name;
+            InletPort.State = LinePort.States.InProcess;
+            CollectStopwatch.Restart();
+            collectionPath.FlowManager?.Start(FirstTrapBleedPressure);
+
+            ProcessStep.End();
+        }
+
+        /// <summary>
+        /// Set all collection condition parameters to NaN
+        /// </summary>
+        protected void ClearCollectionConditions()
+        {
+            ClearParameter("CollectUntilTemperatureRises");
+            ClearParameter("CollectUntilTemperatureFalls");
+            ClearParameter("CollectCloseIpAtPressure");
+            ClearParameter("CollectCloseIpAtCtPressure");
+            ClearParameter("CollectUntilCtPressureFalls");
+            ClearParameter("CollectUntilMinutes");
+        }
+
+        string stoppedBecause = "";
+        /// <summary>
+        /// Wait for a collection stop condition to occur.
+        /// </summary>
+        protected virtual void CollectUntilConditionMet()
+        {
+            ProcessStep.Start($"Wait for a collection stop condition");
+
+            bool shouldStop()
+            {
+                if (CollectStopwatch.IsRunning && CollectStopwatch.ElapsedMilliseconds < 1000)
+                    return false;
+
+                // Open flow bypass when conditions allow it without producing an excessive
+                // downstream pressure spike.
+                if (IM.Pressure - FirstTrap.Pressure < FirstTrapFlowBypassPressure)
+                    FirstTrap.Open();   // open bypass if available
+
+
+                if (CollectCloseIpAtPressure.IsANumber() && InletPort.IsOpened && IM.Pressure <= CollectCloseIpAtPressure)
+                {
+                    var p = IM.Pressure;
+                    InletPort.Close();
+                    SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {IM.Manometer.Name} = {p:0} Torr");
+                }
+                if (CollectCloseIpAtCtPressure.IsANumber() && InletPort.IsOpened && FirstTrap.Pressure <= CollectCloseIpAtCtPressure)
+                {
+                    var p = FirstTrap.Pressure;
+                    InletPort.Close();
+                    SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {FirstTrap.Manometer.Name} = {p:0} Torr");
+                }
+
+                if (Stopping)
+                {
+                    stoppedBecause = "CEGS is shutting down";
+                    return true;
+                }
+                if (CollectUntilTemperatureRises.IsANumber() && InletPort.Temperature >= CollectUntilTemperatureRises)
+                {
+                    stoppedBecause = $"InletPort.Temperature rose to {CollectUntilTemperatureRises:0} °C";
+                    return true;
+                }
+                if (CollectUntilTemperatureFalls.IsANumber() && InletPort.Temperature <= CollectUntilTemperatureFalls)
+                {
+                    stoppedBecause = $"InletPort.Temperature fell to {CollectUntilTemperatureFalls:0} °C";
+                    return true;
+                }
+
+                if (CollectUntilCtPressureFalls.IsANumber() &&
+                    FirstTrap.Pressure <= CollectUntilCtPressureFalls &&
+                    IM.Pressure < Math.Ceiling(CollectUntilCtPressureFalls) + 2)
+                {
+                    stoppedBecause = $"{FirstTrap.Name}.Pressure fell to {CollectUntilCtPressureFalls:0.00} Torr";
+                    return true;
+                }
+
+                // old?: FirstTrap.Pressure < FirstTrapEndPressure;
+                if (FirstTrapEndPressure.IsANumber() &&
+                    FirstTrap.Pressure <= FirstTrapEndPressure &&
+                    IM.Pressure < Math.Ceiling(FirstTrapEndPressure) + 2)
+                {
+                    stoppedBecause = $"{FirstTrap.Name}.Pressure fell to {FirstTrapEndPressure:0.00} Torr";
+                    return true;
+                }
+
+                if (CollectUntilMinutes.IsANumber() && CollectStopwatch.Elapsed.TotalMinutes >= CollectUntilMinutes)
+                {
+                    stoppedBecause = $"{MinutesString((int)CollectUntilMinutes)} elapsed";
+                    return true;
+                }
+
+                stoppedBecause = "";
+                return false;
+            }
+            WaitFor(shouldStop, -1, 1000);
+            SampleLog.Record($"{Sample.LabId}\tStopped collecting:\t{stoppedBecause}");
+
+            ProcessStep.End();
+        }
+
+        /// <summary>
+        /// Stop collecting immediately
+        /// </summary>
+        protected virtual void StopCollecting() => StopCollecting(true);
+
+        /// <summary>
+        /// Close the IP and wait for CT pressure to bleed down until it stops falling.
+        /// </summary>
+        protected virtual void StopCollectingAfterBleedDown() => StopCollecting(false);
+
+        /// <summary>
+        /// Stop collecting. If 'immediately' is false, wait for CT pressure to bleed down after closing IP
+        /// </summary>
+        /// <param name="immediately">If false, wait for CT pressure to bleed down after closing IP</param>
+        protected virtual void StopCollecting(bool immediately = true)
+        {
+            ProcessStep.Start("Stop Collecting");
+
+            IM_FirstTrap.FlowManager?.Stop();
+            InletPort.Close();
+            InletPort.State = LinePort.States.Complete;
+            if (!immediately)
+                FinishCollecting();
+            IM_FirstTrap.Close();
+            FirstTrap.Isolate();
+            FirstTrap.FlowValve.CloseWait();
+
+            ProcessStep.End();
+        }
+
+        /// <summary>
+        /// Wait until the trap pressure stops falling
+        /// </summary>
+        protected virtual void FinishCollecting()
+        {
+            var p = FirstTrap?.Manometer;
+            ProcessStep.Start($"Wait for {p.Name} pressure to stop falling");
+            WaitFor(() => !(p?.IsFalling ?? true)); // don't wait if there's no manometer
+            ProcessStep.End();
+        }
+
+        /// <summary>
+        /// Get the sample gases into the first trap.
+        /// </summary>
+        protected virtual void Collect()
+        {
+            var collectionPath = IM_FirstTrap;
+            collectionPath.Isolate();
+            collectionPath.FlowValve?.OpenWait();
+            collectionPath.OpenAndEvacuate(OkPressure);
+            if (collectionPath.FlowManager == null)
+                collectionPath.IsolateFromVacuum();
+
+            StartCollecting();
+            CollectUntilConditionMet();
+            StopCollecting(false);
+            InletPort.State = LinePort.States.Complete;
+
+            if (FirstTrap != VTT)
+                TransferCO2FromCTToVTT();
+        }
+
+        #endregion Process Steps
+
+
 
 
         /// <summary>
@@ -881,7 +1278,7 @@ namespace AeonHacs.Components
             var smallestVolume = smallest.MilliLiters;
             foreach (var s in sections)
             {
-                if (s.MilliLiters > 0  && (smallestVolume <= 0 || s.MilliLiters < smallestVolume))
+                if (s.MilliLiters > 0 && (smallestVolume <= 0 || s.MilliLiters < smallestVolume))
                 {
                     smallest = s;
                     smallestVolume = s.MilliLiters;
@@ -935,6 +1332,37 @@ namespace AeonHacs.Components
             if (gs != null) return true;
             Warn("Configuration Error", $"Section {im.Name} has no inert GasSupply.");
             return false;
+        }
+
+        /// <summary>
+        /// Gets the path from the InletPort to the FirstTrap
+        /// </summary>
+        /// <param name="im_trap"></param>
+        /// <returns>Whether the path was found.</returns>
+        protected virtual bool IpImToTrap(out ISection im_trap)
+        {
+            im_trap = null;
+            if (!IpIm(out ISection im)) return false;
+
+            var trap = FirstTrap;
+            if (trap == null)
+            {
+                Warn("Configuration error", $"Can't find Section {trap.Name}");
+                return false;
+            }
+
+            var firstChamber = im.Chambers?.First();
+            var lastChamber = trap.Chambers?.Last();
+            im_trap = FirstOrDefault<Section>(s =>
+                s.Chambers?.First() == firstChamber &&
+                s.Chambers?.Last() == lastChamber);
+
+            if (im_trap == null)
+            {
+                Warn("Configuration error", $"Can't find Section linking {im.Name} and {trap.Name}");
+                return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -2067,7 +2495,6 @@ namespace AeonHacs.Components
             im_trap.Close();
             InletPort.State = LinePort.States.InProcess;
             InletPort.Open();
-            //trap.Dirty = true;
             im_trap.Open();
             WaitMinutes((int)CollectionMinutes);
             trap.Isolate();
@@ -2076,199 +2503,11 @@ namespace AeonHacs.Components
             ProcessStep.End();
         }
 
-        protected virtual void Collect()
-        {
-            if (FirstTrap.FlowValve == null || FirstTrap.Manometer == null)
-                IpFreezeToTrap(FirstTrap);
-            else
-                FrozenBleed();
-
-            if (FirstTrap != VTT)
-                TransferCO2FromCTToVTT();
-        }
-
         protected virtual void TransferCO2FromCTToVTT()
         {
             TransferCO2(FirstTrap, VTT);
-            //VTT.Dirty = true;
         }
 
-        protected virtual void Bleed(ISection trap, double bleedPressure)
-        {
-            if (trap == null)
-            {
-                Warn("Process Error", $"Bleed trap cannot be null.");
-                return;
-            }
-            if (trap.FlowManager == null)
-            {
-                Warn("Configuration Error", $"Bleed operation requires {trap.Name} to have a FlowManager.");
-                return;
-            }
-
-            ProcessSubStep.Start($"Maintain {trap.Name} pressure near {bleedPressure:0.00} Torr");
-
-            // disable ion gauge while low vacuum flow is expected
-            var pVSWasAuto = trap.VacuumSystem.AutoManometer;
-            trap.VacuumSystem.AutoManometer = false;
-            trap.VacuumSystem.DisableManometer();
-
-            trap.VacuumSystem.Evacuate();    // use low vacuum or high vacuum as needed
-
-            trap.FlowManager.Start(bleedPressure);
-
-            // Does anything else need to be happening now?
-            DuringBleed?.Invoke();
-
-            // TODO: Is an alternative terminating condition preferable?
-            WaitFor(() => !trap.FlowManager.Busy);
-
-            // return ion gauge control to the VacuumSystem
-            trap.VacuumSystem.AutoManometer = pVSWasAuto;
-
-            ProcessSubStep.End();
-        }
-
-        /// <summary>
-        /// Isolate the inlet manifold and close any open ports.
-        /// Set the InletPort.State to InProcess.
-        /// Release the sample from the InletPort up to,
-        /// but not including the FirstTrap.
-        /// </summary>
-        protected virtual void StartBleed()
-        {
-            if (!IpIm(out ISection im)) return;
-            im.ClosePorts();
-            im.Isolate();
-
-            var im_trap = FirstOrDefault<Section>(s =>
-                s.Chambers?.First() == im.Chambers?.First() &&
-                s.Chambers?.Last() == FirstTrap.Chambers?.Last());
-            if (im_trap == null)
-            {
-                Warn("Configuration error", $"Can't find Section linking {im.Name} and {FirstTrap.Name}");
-                return;
-            }
-
-            InletPort.State = LinePort.States.InProcess;
-            InletPort.Open();
-
-            // open all but the last valve to the first trap
-            var vLast = im_trap.InternalValves?.Last();
-            im_trap.InternalValves?.ForEach(v =>
-            {
-                if (v != vLast)
-                    v.OpenWait();
-            });
-            Wait(1000);
-//            SampleLog.Record($"\tBleed initial IM pressure:\t{im.Manometer.Pressure:0}\tTorr");
-        }
-
-        protected virtual void FinishBleed() { }
-
-        /// <summary>
-        /// Bleed off incondensable gases while trapping CO2 and other condensables.
-        /// </summary>
-        protected virtual void FrozenBleed() => Bleed(true);
-
-        /// <summary>
-        /// Bleed InletPort gas through FirstTrap (no trap temperature control.)
-        /// </summary>
-        protected virtual void Bleed() => Bleed(false);
-
-        /// <summary>
-        /// Bleed InletPort gas through FirstTrap.
-        /// </summary>
-        /// <param name="freeze">Freeze the trap before bleeding</param>
-        protected virtual void Bleed(bool freeze)
-        {
-            ProcessStep.Start(freeze ?
-                "Bleed off incondensable gases while trapping CO2" :
-                $"Bleed IP gas through {FirstTrap.Name}");
-
-            ProcessSubStep.Start($"Evacuate {FirstTrap.Name}");
-            FirstTrap.FlowValve.OpenWait();
-            FirstTrap.OpenAndEvacuate(CleanPressure);
-            FirstTrap.Isolate();
-            ProcessSubStep.End();
-
-            if (freeze)
-            {
-                ProcessSubStep.Start($"Wait for {FirstTrap.Name} to freeze");
-                FirstTrap.Freeze();
-                FirstTrap.Coldfinger?.Raise();
-                FirstTrap.WaitForFrozen(false);
-                ProcessSubStep.End();
-            }
-
-            StartBleed();
-
-            // Release the gas into the FirstTrap
-            FirstTrap.FlowValve.CloseWait();
-            FirstTrap.Close();          // close any bypass valve
-            FirstTrap.Evacuate();       // start evacuation
-
-            if (!IpIm(out ISection im)) return;
-            var im_trap = FirstOrDefault<Section>(s =>
-                s.Chambers?.First() == im.Chambers?.First() &&
-                s.Chambers?.Last() == FirstTrap.Chambers?.Last());
-            if (im_trap == null)
-            {
-                Warn("Configuration error", $"Can't find Section linking {im.Name} and {FirstTrap.Name}");
-                return;
-            }
-            var vLast = im_trap.InternalValves?.Last();
-
-            // Open the last valve
-            vLast?.OpenWait();
-            //FirstTrap.Dirty = true;
-
-            // Control flow valve to maintain constant downstream pressure until flow valve is fully opened.
-            //SampleLog.Record($"Bleed pressure: {FirstTrapBleedPressure} Torr");
-            Bleed(FirstTrap, FirstTrapBleedPressure);
-
-            // Open flow bypass when conditions allow it without producing an excessive
-            // downstream pressure spike. Then wait for the spike to be evacuated.
-            ProcessSubStep.Start("Wait for remaining pressure to bleed down");
-            WaitFor(() => IM.Pressure - FirstTrap.Pressure < FirstTrapFlowBypassPressure);
-            FirstTrap.Open();   // open bypass if available
-            WaitFor(() => FirstTrap.Pressure < FirstTrapEndPressure);
-            ProcessSubStep.End();
-
-            // Process-specific override; allows code to ensure entire sample is trapped
-            // (does nothing by default).
-            FinishBleed();
-
-            // TODO: This procedure is clumsy and limiting. Replace it with a better, generalized version.
-            var v = InletPort.Valve;
-            ProcessSubStep.Start($"Waiting to close {v.Name}");
-            Wait(5000);
-            WaitFor(() => FirstTrap.Pressure < FirstTrapEndPressure && !FirstTrap.Manometer.IsRising);
-            v.CloseWait();
-            ProcessSubStep.End();
-
-            // Close the Sample Source-to-VTT path
-            im_trap.InternalValves.ForEach(v =>
-            {
-                ProcessSubStep.Start($"Waiting to close {v.Name}");
-                Wait(5000);
-                WaitFor(() => FirstTrap.Pressure < FirstTrapEndPressure && !FirstTrap.Manometer.IsRising);
-                v.CloseWait();
-                ProcessSubStep.End();
-            });
-
-
-            // Isolate the trap once the pressure has stabilized
-            ProcessSubStep.Start($"Waiting to isolate {FirstTrap.Name} from vacuum");
-            WaitFor(() => FirstTrap.Pressure < FirstTrapEndPressure && !FirstTrap.Manometer.IsRising);
-            WaitFor(() => !FirstTrap.Manometer.IsFalling);
-            FirstTrap.IsolateFromVacuum();
-            ProcessSubStep.End();
-
-            ProcessStep.End();
-
-            InletPort.State = LinePort.States.Complete;
-        }
         #endregion Collect
 
         #region Extract
@@ -2749,61 +2988,6 @@ namespace AeonHacs.Components
 
         #endregion Graphitize
 
-        protected virtual void Clean(ISection section)
-        {
-            //if (!section.Dirty) return;
-
-            ProcessStep.Start($"Clean {section.Name}");
-            var vtc = section.VTColdfinger;
-            var gs = InertGasSupply(section);
-            var flowClean = gs != null && section.FlowValve != null;
-
-            if (flowClean)
-            {
-                ProcessSubStep.Start($"Pressurize {section.Name} with {gs.GasName}");
-                gs.Admit(PressureOverAtm);
-                section.Close();   // close any bypass valve
-                gs.EvacuatePath();
-                ProcessSubStep.End();
-            }
-
-            if (vtc != null)
-            {
-                ProcessSubStep.Start($"Warm {section.Name} to {vtc.CleanupTemperature} °C");
-                vtc.Regulate(Math.Min(vtc.Heater.MaximumSetpoint, Math.Max(vtc.CleanupTemperature, vtc.Coldfinger.AirTemperature) + 10));
-            }
-
-
-            if (!flowClean) section.Open();
-            section.Evacuate();
-
-            if (flowClean)
-            {
-                if (vtc != null)
-                {
-                    // start flow before too much water starts coming off
-                    WaitFor(() => vtc.Temperature >= -5);
-                }
-                else if (section.Coldfinger is Coldfinger cf)
-                {
-                    WaitFor(() => cf.Temperature >= -5);
-                }
-                Bleed(section, FirstTrapBleedPressure);
-                section.Open();    // open any bypass valve
-            }
-
-            if (vtc != null)
-            {
-                WaitFor(() => vtc.Temperature >= vtc.CleanupTemperature);
-                vtc.Standby();
-                ProcessSubStep.End();
-            }
-
-            section.VacuumSystem.WaitForPressure(OkPressure);
-            //section.Dirty = false;
-            ProcessStep.End();
-        }
-
         protected virtual void CollectEtc()
         {
             Collect();
@@ -3240,7 +3424,7 @@ namespace AeonHacs.Components
         /// </summary>
         protected virtual void MeasureValveVolumes()
         {
-            SampleLog.Record($"MC\tMC+vH+vOD\tMC+vH");
+            TestLog.Record($"MC\tMC+vH+vOD\tMC+vH");
 
             var volumeCalibrationPortValve = FindAll<VolumeCalibration>().FirstOrDefault(vol => vol.ExpansionVolumeIsKnown).Expansions?[0].ValveList?[0];
             double t2sum = 0, t3sum = 0;
@@ -3279,7 +3463,7 @@ namespace AeonHacs.Components
                 volumeCalibrationPortValve.Close();
                 WaitMinutes(1);
                 var p2 = MC.Manometer.WaitForAverage((int)MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
-                SampleLog.Record($"{p0:0.00000}\t{p1:0.00000}\t{p2:0.00000}");
+                TestLog.Record($"{p0:0.00000}\t{p1:0.00000}\t{p2:0.00000}");
                 t2sum += p0 / p1 - 1;
                 t3sum += p0 / p2 - 1;
                 ProcessSubStep.End();
@@ -3295,15 +3479,15 @@ namespace AeonHacs.Components
             var prior = mc.MilliLiters;
             var t1 = kv / prior;
             mc.MilliLiters = kv / (t1 - t3);
-            SampleLog.Record($"{mc.Name} (mL): {prior} => {mc.MilliLiters}");
+            TestLog.Record($"{mc.Name} (mL): {prior} => {mc.MilliLiters}");
 
             // valve headspace
             var vH = MC.MilliLiters * t3;
-            SampleLog.Record($"{volumeCalibrationPortValve.Name} headspace (mL) = {vH}");
+            TestLog.Record($"{volumeCalibrationPortValve.Name} headspace (mL) = {vH}");
 
             // valve OpenedVolumeDelta;
             var vOD = MC.MilliLiters * t2 - vH;
-            SampleLog.Record($"{volumeCalibrationPortValve.Name} OpenedVolumeDelta (mL) = {vOD}");
+            TestLog.Record($"{volumeCalibrationPortValve.Name} OpenedVolumeDelta (mL) = {vOD}");
 
             OpenLine();
         }
@@ -3356,9 +3540,9 @@ namespace AeonHacs.Components
                 Wait();
             ProcessStep.End();
 
-            SampleLog.WriteLine();
-            SampleLog.Record("H2DensityRatio test");
-            SampleLog.Record("GR\tpInitial\tpFinal\tpNormalized\tpRatio");
+            TestLog.WriteLine();
+            TestLog.Record("H2DensityRatio test");
+            TestLog.Record("GR\tpInitial\tpFinal\tpNormalized\tpRatio");
 
             GrGmH2(grs[0], out ISection gm, out IGasSupply gs);
 
@@ -3407,7 +3591,7 @@ namespace AeonHacs.Components
                     // The above uses the measured, GR-specific volume. To avoid errors,
                     // this procedure should only be performed if the Fe and perchlorate
                     // tubes have never been altered since the GR volumes were measured.
-                    SampleLog.Record($"{gr.Name}\t{pInitial:0.00}\t{pFinal:0.00}\t{p:0.00}\t{pFinal / p:0.000}");
+                    TestLog.Record($"{gr.Name}\t{pInitial:0.00}\t{pFinal:0.00}\t{p:0.00}\t{pFinal / p:0.000}");
                 });
                 ProcessStep.End();
             }
@@ -3511,14 +3695,14 @@ namespace AeonHacs.Components
             }
 
             ProcessStep.Start($"Calibrating {h.Name} power level");
-            SampleLog.Record($"Calibrating {h.Name}'s PowerLevel");
+            TestLog.Record($"Calibrating {h.Name}'s PowerLevel");
 
             var pvIncreasing = tc.Temperature * 0.90323 + 102.42;        // +25 @ 800 C, +100 @ 25 C
             ProcessSubStep.Start($"Pre-heat furnace: wait for {pvIncreasing:0} °C");
             h.PowerLevel = Math.Min(24, h.Config.MaximumPowerLevel);
             h.TurnOn();
 
-            SampleLog.Record($"{h.Name} calibration: Temperature = {tc.Temperature:0.00} °C; PowerLevel = {h.Config.PowerLevel}; Waiting for {pvIncreasing:0.00} °C.");
+            TestLog.Record($"{h.Name} calibration: Temperature = {tc.Temperature:0.00} °C; PowerLevel = {h.Config.PowerLevel}; Waiting for {pvIncreasing:0.00} °C.");
             if (!(WaitFor(() => tc.Temperature > pvIncreasing, 2 * oneMinute, oneSecond)))
             {
                 h.TurnOff();
@@ -3569,7 +3753,7 @@ namespace AeonHacs.Components
                 }
 
                 h.PowerLevel = Math.Min(h.MaximumPowerLevel, h.Config.PowerLevel + delta);
-                SampleLog.Record($"{h.Name} calibration: {tc.Temperature:0.00} °C: setting PowerLevel to {h.Config.PowerLevel:0.00}.");
+                TestLog.Record($"{h.Name} calibration: {tc.Temperature:0.00} °C: setting PowerLevel to {h.Config.PowerLevel:0.00}.");
             }
             h.TurnOff();
 
@@ -3586,7 +3770,7 @@ namespace AeonHacs.Components
             void RecordAlert(string caption, string message)
             {
                 Alert(caption, message);
-                SampleLog.Record(caption + ". " + message);
+                TestLog.Record(caption + ". " + message);
             }
         }
 
@@ -3733,8 +3917,8 @@ namespace AeonHacs.Components
 
         protected virtual void MeasureExtractEfficiency()
         {
-            SampleLog.WriteLine("\r\n");
-            SampleLog.Record("Measure VTT extract efficiency");
+            TestLog.WriteLine("\r\n");
+            TestLog.Record("Measure VTT extract efficiency");
             MeasureProcessEfficiency(CleanupCO2InMC);
         }
 
@@ -3743,8 +3927,8 @@ namespace AeonHacs.Components
         protected int amountOfCarrier;
         protected virtual void MeasureIpCollectionEfficiency()
         {
-            SampleLog.WriteLine("\r\n");
-            SampleLog.Record("IP collection efficiency test");
+            TestLog.WriteLine("\r\n");
+            TestLog.Record("IP collection efficiency test");
             if (FirstTrap.FlowManager == null)
                 admitCarrier = null;
             else
@@ -3762,9 +3946,9 @@ namespace AeonHacs.Components
         /// </summary>
         protected virtual void MeasureOrganicExtractEfficiency()
         {
-            SampleLog.WriteLine("\r\n");
-            SampleLog.Record("Organic bleed yield test");
-            SampleLog.Record($"Bleed target: {FirstTrapBleedPressure} Torr");
+            TestLog.WriteLine("\r\n");
+            TestLog.Record("Organic bleed yield test");
+            TestLog.Record($"Bleed target: {FirstTrapBleedPressure} Torr");
             admitCarrier = AdmitIPO2EvacuateIM;
             MeasureProcessEfficiency(CO2LoopMC_IP_MC);
         }
@@ -3791,7 +3975,6 @@ namespace AeonHacs.Components
             ProcessStep.Start("Measure transfer efficiency");
             if (ugCinMC < Sample.Micrograms * 0.8)
             {
-                //VTT.Dirty = false;  // keep cold
                 OpenLine();
                 MC.VacuumSystem.WaitForPressure(CleanPressure);
                 AdmitDeadCO2();
@@ -3851,6 +4034,104 @@ namespace AeonHacs.Components
             //VTT.Stop();
             //measure();
         }
+
+        void ValvePositionDriftTest()
+        {
+            var v = FirstOrDefault<RS232Valve>();
+            var pos = v.ClosedValue / 2;
+            var op = new ActuatorOperation()
+            {
+                Name = "test",
+                Value = pos,
+                Incremental = false
+            };
+            v.ActuatorOperations.Add(op);
+
+            v.DoWait(op);
+
+            //op.Incremental = true;
+            var rand = new Random();
+            for (int i = 0; i < 100; i++)
+            {
+                op.Value = pos + rand.Next(-15, 16);
+                v.DoWait(op);
+            }
+            op.Value = pos;
+            op.Incremental = false;
+            v.DoWait(op);
+
+            v.ActuatorOperations.Remove(op);
+        }
+
+        void TestPort(IPort p)
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                p.Open();
+                p.Close();
+            }
+            p.Open();
+            WaitMinutes(5);
+            p.Close();
+        }
+
+        // two minutes of moving the valve at a moderate pace
+        void TestValve(IValve v)
+        {
+            TestLog.Record($"Operating {v.Name} for 2 minutes");
+            for (int i = 0; i < 24; ++i)
+            {
+                v.CloseWait();
+                WaitSeconds(2);
+                v.OpenWait();
+                WaitSeconds(2);
+            }
+        }
+
+        void TestUpstream(IValve v)
+        {
+            TestLog.Record($"Checking {v.Name}'s 10-minute bump");
+            v.OpenWait();
+            WaitMinutes(5);     // empty the upstream side (assumes the downstream side is under vacuum)
+            v.CloseWait();
+            WaitMinutes(10);    // let the upstream pressure rise for 10 minutes
+            v.OpenWait();       // how big is the pressure bump?
+        }
+
+
+        protected virtual void ExercisePorts(ISection s)
+        {
+            s.Isolate();
+            s.Open();
+            s.OpenPorts();
+            WaitSeconds(5);
+            s.ClosePorts();
+            s.Evacuate(OkPressure);
+        }
+
+        protected virtual void TestAdmit(string gasSupply, double pressure)
+        {
+            var gs = Find<GasSupply>(gasSupply);
+            gs?.Destination?.OpenAndEvacuate();
+            gs?.Destination?.ClosePorts();
+            gs?.Admit(pressure);
+            WaitSeconds(10);
+            EventLog.Record($"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}");
+            gs?.Destination?.OpenAndEvacuate();
+        }
+
+        protected virtual void TestPressurize(string gasSupply, double pressure)
+        {
+            var gs = Find<GasSupply>(gasSupply);
+            gs?.Destination?.OpenAndEvacuate(OkPressure);
+            gs?.Destination?.ClosePorts();
+            gs?.Pressurize(pressure);
+            WaitSeconds(60);
+            EventLog.Record($"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}");
+            gs?.Destination?.OpenAndEvacuate();
+        }
+
+
 
         protected virtual void Test() { }
 

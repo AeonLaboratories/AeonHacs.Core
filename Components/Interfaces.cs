@@ -1516,8 +1516,6 @@ namespace AeonHacs.Components
         IHeater Heater { get; set; }
         IColdfinger Coldfinger { get; set; }
         IVTColdfinger VTColdfinger { get; set; }
-//        bool Dirty { get; set; }
-//        Action Clean { get; set; }
     }
 
     public interface IFlowChamber : IChamber

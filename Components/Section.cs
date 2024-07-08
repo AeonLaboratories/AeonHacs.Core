@@ -1,13 +1,10 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Text;
-using AeonHacs.Utilities;
 using static AeonHacs.Utilities.Utility;
-using static AeonHacs.Components.CegsPreferences;
 
 namespace AeonHacs.Components
 {
@@ -279,20 +276,6 @@ namespace AeonHacs.Components
             set => Ensure(ref flowManager, value);
         }
         IFlowManager flowManager;
-
-        ///// <summary>
-        ///// Gets whether any of the Chambers are Dirty, or sets
-        ///// them all Dirty.
-        ///// </summary>
-        //public bool Dirty
-        //{
-        //    get => Chambers.Find(x => x.Dirty) is IChamber c;
-        //    set
-        //    {
-        //        Chambers.ForEach(x => x.Dirty = value);
-        //        NotifyPropertyChanged();
-        //    }
-        //}
 
         protected StepTracker StepTracker => StepTracker.Default;
 
@@ -692,7 +675,6 @@ namespace AeonHacs.Components
         {
             //TODO flesh out
             var sb = new StringBuilder();
-            //sb.Append($"{Name}{(Dirty ? " (Dirty)" : "")}");
             sb.Append($"{Name}");
             if (Manometer != null)
                 sb.Append(Environment.NewLine + Utility.IndentLines(Manometer.ToString()));

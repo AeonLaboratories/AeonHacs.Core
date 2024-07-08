@@ -1,9 +1,8 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Text;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
@@ -91,13 +90,6 @@ namespace AeonHacs.Components
 
 
         //[JsonProperty]
-        //public virtual bool Dirty
-        //{
-        //    get => dirty;
-        //    set => Ensure(ref dirty, value);
-        //}
-        //bool dirty;
-
         public virtual Action Clean { get; set; }
 
         // instead of using NotifyPropertyChanged() directly, so it can be overridden in derived classes
@@ -110,7 +102,6 @@ namespace AeonHacs.Components
         {
             //TODO flesh out
             var sb = new StringBuilder();
-            //sb.Append($"{Name}{(Dirty ? " (Dirty)" : "")}");
             sb.Append($"{Name}");
             if (Manometer != null)
                 sb.Append(Environment.NewLine + Utility.IndentLines(Manometer.ToString()));
