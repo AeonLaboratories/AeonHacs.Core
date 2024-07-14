@@ -603,18 +603,4 @@ namespace AeonHacs.Components
             return sb.ToString();
         }
     }
-
-    public class VTFlowChamber : VTColdfinger
-    {
-        protected override void Connect()
-        {
-            base.Connect();
-            FlowChamber = Find<FlowChamber>(flowChamberName);
-        }
-
-        [JsonProperty("FlowChamber")]
-        string FlowChamberName { get => FlowChamber?.Name; set => flowChamberName = value; }
-        string flowChamberName;
-        public FlowChamber FlowChamber { get; set; }
-    }
-}
+ }
