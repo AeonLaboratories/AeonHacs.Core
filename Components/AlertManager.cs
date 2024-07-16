@@ -195,22 +195,23 @@ namespace AeonHacs.Components
         {
             try
             {
-                var address = new MailboxAddress(SmtpInfo.SenderName, SmtpInfo.EmailAddress);
+                var smtpInfo = SmtpInfo;
+                var address = new MailboxAddress(smtpInfo.SenderName, smtpInfo.EmailAddress);
                 var mail = new MimeMessage();
                 mail.From.Add(address);
                 mail.To.Add(address);
                 mail.Subject = subject;
                 mail.Body = new TextPart(MimeKit.Text.TextFormat.Plain)
                 {
-                    Text = $"{message}\r\n{SmtpInfo.SenderName}: {DateTime.Now}"
+                    Text = $"{message}\r\n{smtpInfo.SenderName}: {DateTime.Now}"
                 };
 
                 using (var client = new SmtpClient())
                 {
                     client.ServerCertificateValidationCallback = (l, j, c, m) => true;
-                    client.Connect(SmtpInfo.Host, SmtpInfo.Port/*, MailKit.Security.SecureSocketOptions.SslOnConnect*/);
+                    client.Connect(smtpInfo.Host, smtpInfo.Port/*, MailKit.Security.SecureSocketOptions.SslOnConnect*/);
                     //client.AuthenticationMechanisms.Remove("XOAUTH2");
-                    client.Authenticate(SmtpInfo.EmailAddress, SmtpInfo.Password);
+                    client.Authenticate(smtpInfo.EmailAddress, smtpInfo.Password);
                     var response = client.Send(mail);
                     SystemLog.Record($"{response}\r\n\t{subject}\r\n\t{message}");
                     client.Disconnect(true);

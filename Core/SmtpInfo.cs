@@ -47,7 +47,7 @@ namespace AeonHacs
         /// <summary>
         /// Default Email account configuration, loaded from "Credentials.json".
         /// </summary>
-        public static SmtpInfo DefaultSmtpInfo = Load(DefaultCredentialsFilename);
+        public static SmtpInfo DefaultSmtpInfo => Load(DefaultCredentialsFilename);
 
         #endregion static
 
