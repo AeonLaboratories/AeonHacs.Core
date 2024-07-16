@@ -2632,19 +2632,16 @@ namespace AeonHacs.Components
             }
 
             string yield = "";
-
             if (Sample.TotalMicrogramsCarbon == 0)    // first measurement
             {
+                yield = $"\tYield: {100 * ugC / Sample.Micrograms:0.00}%";
                 Sample.TotalMicrogramsCarbon = ugC;
-                yield = $"\tYield:\t{100 * Sample.TotalMicrogramsCarbon / Sample.Micrograms:0.00}%";
             }
 
-            SampleLog.Record(
-                "Sample measurement:\r\n" +
+            SampleLog.Record( "Sample measurement:\r\n" +
                 $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
-                $"\tCarbon:\t{ugC:0.0}\tµgC\t={ugC / GramsCarbonPerMole:0.00}\tµmolC{yield}"
+                $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
             );
-
             ProcessStep.End();
         }
 
@@ -2733,8 +2730,13 @@ namespace AeonHacs.Components
                 var estimatedTotal = Sample.SelectedMicrogramsCarbon * Math.Pow(splitRatio, Sample.Discards);
                 if (estimatedTotal > Sample.TotalMicrogramsCarbon)
                 {
-                    SampleLog.Record($"Updated TotalMicrogramsCarbon from {Sample.TotalMicrogramsCarbon} to {estimatedTotal}");
-                    Sample.TotalMicrogramsCarbon = estimatedTotal;
+                    var ugC = Sample.TotalMicrogramsCarbon = estimatedTotal;
+                    var yield = $"\tYield: {100 * ugC / Sample.Micrograms:0.00}%";
+
+                    SampleLog.Record($"Updated TotalMicrogramsCarbon based on post-Discard measurement\r\n" +
+                        $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
+                        $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
+                    );
                 }
             }
             ProcessStep.End();
