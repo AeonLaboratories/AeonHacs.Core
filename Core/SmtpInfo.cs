@@ -39,7 +39,10 @@ namespace AeonHacs
             }
             catch (Exception e)
             {
-                Notice.Send(e.ToString());
+                if (e is FileNotFoundException)
+                    Notice.Send("File not found", $"Credentials file is missing: {credentialsFileName}");
+                else
+                    Notice.Send(e.ToString());
             }
             return info;
         }
