@@ -1076,7 +1076,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Set all collection condition parameters to NaN
         /// </summary>
-        protected void ClearCollectionConditions()
+        protected virtual void ClearCollectionConditions()
         {
             ClearParameter("CollectUntilTemperatureRises");
             ClearParameter("CollectUntilTemperatureFalls");
@@ -1098,6 +1098,10 @@ namespace AeonHacs.Components
             {
                 if (CollectStopwatch.IsRunning && CollectStopwatch.ElapsedMilliseconds < 1000)
                     return false;
+
+                // TODO: what if flow manager becomes !Busy (because, e.g., FlowValve is fully open)?
+                // TODO: should we invoke DuringBleed()? When?
+                // TODO: should we disable/enable CT.VacuumSystem.Manometer?
 
                 // Open flow bypass when conditions allow it without producing an excessive
                 // downstream pressure spike.
@@ -1202,7 +1206,7 @@ namespace AeonHacs.Components
         protected virtual void FinishCollecting()
         {
             var p = FirstTrap?.Manometer;
-            ProcessStep.Start($"Wait for {p.Name} pressure to stop falling");
+            ProcessStep.Start($"Wait for {FirstTrap.Name} pressure to stop falling");
             WaitFor(() => !(p?.IsFalling ?? true)); // don't wait if there's no manometer
             ProcessStep.End();
         }
