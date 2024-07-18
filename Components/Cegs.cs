@@ -1195,7 +1195,7 @@ namespace AeonHacs.Components
                 FinishCollecting();
             IM_FirstTrap.Close();
             FirstTrap.Isolate();
-            FirstTrap.FlowValve.CloseWait();
+            FirstTrap.FlowValve?.CloseWait();
 
             ProcessStep.End();
         }
