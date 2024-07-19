@@ -36,16 +36,22 @@ namespace AeonHacs
                 using (var reader = new StreamReader(credentialsFileName))
                     info = (SmtpInfo)Serializer.Deserialize(reader, typeof(SmtpInfo));
                 info.loadingCredentialsFile = false;
+                credentialsOk = true;
             }
             catch (Exception e)
             {
-                if (e is FileNotFoundException)
-                    Notice.Send("File not found", $"Credentials file is missing: {credentialsFileName}");
-                else
-                    Notice.Send(e.ToString());
+                if (credentialsOk)          // avoid nagging
+                {
+                    credentialsOk = false;
+                    if (e is FileNotFoundException)
+                        Notice.Send("File not found", $"Credentials file is missing: {credentialsFileName}");
+                    else
+                        Notice.Send(e.ToString());
+                }
             }
             return info;
         }
+        static bool credentialsOk = true;
 
         /// <summary>
         /// Default Email account configuration, loaded from "Credentials.json".
