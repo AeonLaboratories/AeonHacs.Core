@@ -1,9 +1,8 @@
-﻿using AeonHacs;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Linq;
-using System.Security.Permissions;
+using System.Linq.Expressions;
 using System.Text;
 
 namespace AeonHacs.Components
@@ -15,8 +14,8 @@ namespace AeonHacs.Components
         public static bool DefaultChanged(Column col) =>
             col.Resolution < 0 ?
                 false :
-            col.PriorValue is double p && col.Source?.Value is double v ?
-                Math.Abs(p - col.Source.Value) >= col.Resolution :
+            col.PriorValue is double p && col.Value is double v ?
+                Math.Abs(v - p) >= col.Resolution :
             true;
 
         [JsonObject(MemberSerialization.OptIn)]
@@ -45,17 +44,53 @@ namespace AeonHacs.Components
             [JsonProperty]
             public string Format { get => format; set => Ensure(ref format, value); }
 
-            IValue source;
             /// <summary>
-            /// The IValue source for the Column data
+            /// The NamedObject that provides the Column's data.
             /// </summary>
-            public IValue Source { get => source; set => Ensure(ref source, value); }
+            public NamedObject Source { get; set; }
+
+            /// <summary>
+            /// A reference to a function that returns the desired value from the Column's Source.
+            /// </summary>
+            public Func<double> Function { get; set; }
+
+            /// <summary>
+            /// A string containing the expression (&quot;source code&quot;) to be compiled into a Function that returns the Column's value.
+            /// </summary>
+            [JsonProperty("Source")]        // TODO: is there a better name?
+            public string Expression { get; set; }
+
+            /// <summary>
+            /// Compiles the Source expression string into a function that returns a double.
+            /// </summary>
+            public Func<double> CompileSourceExpression(string expression)
+            {
+                if (expression.IndexOf('.') == -1)
+                    expression += ".Value";
+
+                var tokens = expression.Split('.');
+                Source = Find<NamedObject>(tokens[0]);
+                Expression expr = System.Linq.Expressions.Expression.Constant(Source);
+
+                foreach (var token in tokens.Skip(1))
+                {
+                    expr = System.Linq.Expressions.Expression.PropertyOrField(expr, token);
+                }
+
+                return System.Linq.Expressions.Expression.Lambda<Func<double>>(expr).Compile();
+            }
+
 
             double? priorValue;
             /// <summary>
             /// The most recent data value recorded for this Column
             /// </summary>
             public double? PriorValue { get => priorValue; set => Ensure(ref priorValue, value); }
+
+            /// <summary>
+            /// The current value of the Source object.
+            /// </summary>
+            public double? Value => Function?.Invoke();
 
             public override string ToString() => Name ?? "Column";
         }
@@ -75,6 +110,9 @@ namespace AeonHacs.Components
         public override string Header { get => base.Header; set => base.Header = value; }
 
         bool insertLatestSkippedEntry;
+        /// <summary>
+        /// If true, the most recently skipped log entry is inserted when a new log entry is recorded.
+        /// </summary>
         [JsonProperty, DefaultValue(false)]
         public virtual bool InsertLatestSkippedEntry
         {
@@ -91,20 +129,17 @@ namespace AeonHacs.Components
         ObservableList<Column> columns;
         protected virtual void OnColumnsChanged(object sender = null, PropertyChangedEventArgs e = null)
         {
-            if (sender == Columns)
-            {
-                if (Connected)
-                {
-                    SetSources();
-                    SetHeader();
-                }
-            }
+            if (sender == Columns && Connected)
+                Connect();      // re-connect
         }
 
         void SetSources()
         {
             foreach (var col in Columns)
-                col.Source = (IValue)FirstOrDefault<NamedObject>(x => x.Name == col.Name && x is IValue);
+            {
+                // Compile the Column's expression if provided
+                col.Function = col.CompileSourceExpression(col.Expression.IsBlank() ? col.Name : col.Expression);
+            }
         }
 
         void SetHeader()
@@ -118,34 +153,38 @@ namespace AeonHacs.Components
             }
         }
 
-        public void AddNewValue(string name, double resolution, string format, Func<double> getValue)
-        {
-            if (!(Columns.Find(x => x.Name == name) is Column c))
-                c = new Column() { Name = name };
-            c.Resolution = resolution;
-            c.Format = format;
-            c.Source = new NamedValue(name, getValue);
-        }
-
+        // Constructor for DataLog class
         public DataLog(string fileName, bool archiveDaily = true) : base(fileName, archiveDaily)
         {
             Update = Report;
         }
 
+        /// <summary>
+        /// Compiled expression for Changed, evaluated at runtime.
+        /// </summary>
         public virtual Func<Column, bool> Changed { get; set; } = DefaultChanged;
 
+        /// <summary>
+        /// Determines if any column has changed according to the Changed function.
+        /// </summary>
         bool AnyChanged() => Columns.Any(c => Changed(c));
 
         double[] currentValues;
+        /// <summary>
+        /// Retrieves the current value for a column at the given index.
+        /// </summary>
         string value(int index)
         {
             var col = Columns[index];
-            var v = col?.Source?.Value ?? Double.NaN;
+            var v = col.Value ?? double.NaN;
             currentValues[index] = v;
             return v.ToString(col.Format);
         }
 
         long changeTimeoutMilliseconds = 30000;
+        /// <summary>
+        /// The timeout in milliseconds after which a new log entry is recorded even if no column has changed.
+        /// </summary>
         [JsonProperty, DefaultValue(30000)]
         public virtual long ChangeTimeoutMilliseconds
         {
@@ -154,6 +193,9 @@ namespace AeonHacs.Components
         }
 
         bool onlyLogWhenChanged = false;
+        /// <summary>
+        /// If true, logs are only recorded when a column has changed.
+        /// </summary>
         [JsonProperty, DefaultValue(false)]
         public virtual bool OnlyLogWhenChanged
         {
@@ -162,6 +204,9 @@ namespace AeonHacs.Components
         }
 
         StringBuilder entryBuilder = new StringBuilder();
+        /// <summary>
+        /// Generates a log entry string from the current column values.
+        /// </summary>
         string GenerateEntry()
         {
             entryBuilder.Clear();
@@ -174,18 +219,27 @@ namespace AeonHacs.Components
 
         string skippedTimeStamp;
         string skippedEntry = "";
+        /// <summary>
+        /// Skips a log entry by storing it for potential later insertion.
+        /// </summary>
         void Skip(string entry)
         {
             skippedTimeStamp = TimeStamp();
             skippedEntry = entry;
         }
 
+        /// <summary>
+        /// Writes the most recently skipped log entry to the log.
+        /// </summary>
         void WriteSkippedEntry()
         {
             WriteLine(skippedTimeStamp + skippedEntry);
             skippedEntry = "";
         }
 
+        /// <summary>
+        /// Writes a log entry, optionally including the most recently skipped entry.
+        /// </summary>
         void WriteLog(string entry)
         {
             if (OnlyLogWhenChanged)
@@ -200,6 +254,9 @@ namespace AeonHacs.Components
                 Columns[i].PriorValue = currentValues[i];
         }
 
+        /// <summary>
+        /// Generates a log report, writing the current values if any column has changed or the timeout has been reached.
+        /// </summary>
         protected virtual void Report()
         {
             if (Columns == null || Columns.Count == 0) return;

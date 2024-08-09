@@ -12,15 +12,6 @@ namespace AeonHacs.Components
         static double percentToPpm = 1000000 / 100;
         static Command StatusCommand { get; set; } = new Command() { Message = "?", ResponsesExpected = 1, Hurry = false };
 
-        [HacsPreConnect]
-        public void PreConnect()
-        {
-            CO2Ppm = new($"{Name}.CO2Ppm", () => co2Percent * percentToPpm);
-            CO2PartialPressureTorr = new($"{Name}.CO2PartialPressureTorr", () => co2PartialPressurekPa * kPaToTorr);
-            Pressure = new($"{Name}.Pressure", () => barometricPressurekPa * kPaToTorr);
-            Temperature = new($"{Name}.Temperature", () => cellTemperature);
-        }
-
         /// <summary>
         /// Carbon dioxide percentage, pressure corrected % to 0.0001% (&gt;= 1000 ppm) or 0.00001% (&lt; 1000 ppm)
         /// </summary>
@@ -34,7 +25,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Carbon dioxide content in parts per million
         /// </summary>
-        public NamedValue CO2Ppm { get; private set; }
+        public double CO2Ppm => co2Percent * percentToPpm;
 
         /// <summary>
         /// Carbon dioxide partial pressure in kPa to 0.0001 kPa (&gt;= 1 kPa) or 0.00001 kPa (&lt; 1 kPa)
@@ -48,7 +39,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Carbon dioxide partial pressure in Torr
         /// </summary>
-        public NamedValue CO2PartialPressureTorr { get; private set; }
+        public double CO2PartialPressureTorr => co2PartialPressurekPa * kPaToTorr;
 
         /// <summary>
         /// Barometric pressure in kPa to 0.001 kPa
@@ -62,7 +53,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Carbon Analyzer chamber pressure in Torr
         /// </summary>
-        public NamedValue Pressure { get; private set; }
+        public double Pressure => barometricPressurekPa * kPaToTorr;
 
         /// <summary>
         /// Cell temperature in degrees C, to 0.001 deg C
@@ -73,7 +64,6 @@ namespace AeonHacs.Components
             set => Ensure(ref cellTemperature, value);
         }
         double cellTemperature;
-        public NamedValue Temperature { get; private set; }
 
         /// <summary>
         /// HacsComponent interface for Sable Systems CA-10 carbon dioxide analyzer.
@@ -165,10 +155,10 @@ namespace AeonHacs.Components
 
         public override string ToString()
         {
-            return $"{Name}: CO2 {CO2Ppm.Value:0.0} ppm\r\n" +
-                IndentLines($"CO2 Partial Pressure: {CO2PartialPressureTorr.Value:0.0e0} Torr\r\n" +
-                            $"Ambient Pressure: {Pressure.Value:0.0e0} Torr\r\n" +
-                            $"Sensor Temperature: {Temperature.Value:0.000} °C");
+            return $"{Name}: CO2 {CO2Ppm:0.0} ppm\r\n" +
+                IndentLines($"CO2 Partial Pressure: {CO2PartialPressureTorr:0.0e0} Torr\r\n" +
+                            $"Ambient Pressure: {Pressure:0.0e0} Torr\r\n" +
+                            $"Sensor Temperature: {CellTemperature:0.000} °C");
         }
     }
 }
