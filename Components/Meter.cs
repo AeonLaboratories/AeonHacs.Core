@@ -291,7 +291,7 @@ namespace AeonHacs.Components
 
             ResolvedValue = value;
 
-            if (Sensitivity > 0 && Math.Abs(value) <= Sensitivity)
+            if (Sensitivity > 0 && Math.Abs(value) < Sensitivity)
                 value = 0;
 
             var wasStable = IsStable;
