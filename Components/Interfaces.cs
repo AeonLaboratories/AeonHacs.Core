@@ -1974,6 +1974,11 @@ namespace AeonHacs.Components
         ISection VacuumManifold { get; set; }
 
         /// <summary>
+        /// The Section to be evacuated by this VacuumSystem during OpenLine().
+        /// </summary>
+        ISection MySection { get; set; }
+
+        /// <summary>
         /// The Vacuum system controls whether Manometer is on or off.
         /// </summary>
         bool AutoManometer { get; set; }
@@ -2059,6 +2064,11 @@ namespace AeonHacs.Components
         /// </summary>
         /// <param name="pressure">Target pressure</param>
         void Evacuate(double pressure);
+
+        /// <summary>
+        /// Evacuates the (non-port) chambers normally serviced by this VacuumSystem.
+        /// </summary>
+        void OpenLine();
 
         /// <summary>
         /// Waits 3 seconds, then until the given pressure is reached.

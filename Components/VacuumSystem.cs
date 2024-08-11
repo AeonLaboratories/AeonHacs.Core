@@ -1,12 +1,9 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
@@ -40,6 +37,7 @@ namespace AeonHacs.Components
             BackingValve = Find<IValve>(backingValveName);
             RoughingValve = Find<IValve>(roughingValveName);
             VacuumManifold = Find<ISection>(vacuumManifoldName);
+            MySection = Find<ISection>(mySectionName);
         }
 
         [HacsStart]
@@ -194,6 +192,19 @@ namespace AeonHacs.Components
             set => Ensure(ref vacuumManifold, value);
         }
         ISection vacuumManifold;
+
+        [JsonProperty("MySection")]
+        string MySectionName { get => MySection?.Name; set => mySectionName = value; }
+        string mySectionName;
+        /// <summary>
+        /// The Section to be evacuated by this VacuumSystem during OpenLine().
+        /// </summary>
+        public ISection MySection
+        {
+            get => mySection;
+            set => Ensure(ref mySection, value);
+        }
+        ISection mySection;
 
         protected enum TargetStateCode
         {
@@ -453,13 +464,24 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
+        /// Opens and evacuates MySection
+        /// </summary>
+        public void OpenLine()
+        {
+            if (MySection == null) return;
+            ProcessStep?.Start($"Open {Name} line");
+            if (!MySection.IsOpened || !MySection.PathToVacuum.IsOpened())
+                MySection.OpenAndEvacuate();
+            ProcessStep.End();
+        }
+
+        /// <summary>
         /// Waits 3 seconds, then until the given pressure is reached.
         /// Use 0 to wait for baseline, &lt;0 to just wait 3 seconds.
         /// </summary>
         /// <param name="pressure">Use 0 to wait for baseline, &lt;0 to just wait 3 seconds.</param>
         public void WaitForPressure(double pressure)
         {
-
             Thread.Sleep(3000);                 // always wait at least 3 seconds
             if (pressure < 0) return;   // don't wait for a specific pressure
             if (pressure == 0) pressure = BaselinePressure;

@@ -17,10 +17,56 @@ namespace AeonHacs.Components
     {
         #region HacsComponent
 
+        [HacsPreConnect]
+        protected virtual void PreConnect()
+        {
+            #region Logs
+            SampleLog = Find<HacsLog>("SampleLog");
+            TestLog = Find<HacsLog>("TestLog");
+
+            List<string> somePotentialPressureLogNames = new()
+            {
+                "VMPressureLog",
+                "VM1PressureLog",
+                "VM2PressureLog"
+            };
+            somePotentialPressureLogNames.ForEach((logName) =>
+            {
+                if (Find<DataLog>(logName) is DataLog log)
+                    log.Changed = (col) => col.Resolution > 0 && col.Source is Manometer m ?
+                        (col.PriorValue is double p ?
+                            Manometer.SignificantChange(p, m.Pressure) :
+                            true) :
+                        false;
+            });
+
+            #endregion Logs
+        }
+
         [HacsConnect]
         protected virtual void Connect()
         {
             InletPort = Find<InletPort>(inletPortName);
+
+            Power = Find<Power>("Power");
+            Ambient = Find<Chamber>("Ambient");
+            VacuumSystem1 = Find<VacuumSystem>("VacuumSystem1");
+
+            IM = Find<Section>("IM");
+            CT = Find<Section>("CT");
+            VTT = Find<Section>("VTT");
+            MC = Find<Section>("MC");
+            Split = Find<Section>("Split");
+            GM = Find<Section>("GM");
+            VTT_MC = Find<Section>("VTT_MC");
+            MC_Split = Find<Section>("MC_Split");
+
+            ugCinMC = Find<Meter>("ugCinMC");
+
+            InletPorts = CachedList<IInletPort>();
+            GraphiteReactors = CachedList<IGraphiteReactor>();
+            d13CPorts = CachedList<Id13CPort>();
+
         }
 
 
@@ -39,7 +85,6 @@ namespace AeonHacs.Components
         protected virtual void PostConnect()
         {
             // check that the essentials are found
-            //CegsNeeds(Power, nameof(Power));
             CegsNeeds(Ambient, nameof(Ambient));
             CegsNeeds(VacuumSystem1, nameof(VacuumSystem1));
             CegsNeeds(IM, nameof(IM));
@@ -73,6 +118,7 @@ namespace AeonHacs.Components
             MC.Thermometer.PropertyChanged += UpdateSampleMeasurement;
             MaximumAliquotsPerSample = 1 + MC.Ports?.Count ?? 0;
 
+            // TODO: move this functionality into VolumeCalibration class
             foreach (var c in VolumeCalibrations.Values)
             {
                 c.ProcessStep = ProcessStep;
@@ -190,8 +236,6 @@ namespace AeonHacs.Components
         [JsonProperty] public virtual Power Power { get; set; }
 
         #region Data Logs
-        public virtual DataLog AmbientLog { get; set; }
-        public virtual DataLog VM1PressureLog { get; set; }
         public virtual HacsLog SampleLog { get; set; }
         public virtual HacsLog TestLog { get; set; }
         #endregion Data Logs
@@ -205,7 +249,6 @@ namespace AeonHacs.Components
         public virtual ISection MC { get; set; }
         public virtual ISection Split { get; set; }
         public virtual ISection d13C { get; set; }
-        public virtual ISection d13C_14C { get; set; }
         public virtual ISection GM { get; set; }
 
         public virtual ISection d13CM { get; set; }
@@ -214,6 +257,7 @@ namespace AeonHacs.Components
 
         // insist on an actual Meter, to enable implicit double
         public virtual Meter ugCinMC { get; set; }
+        public virtual double umolCinMC => ugCinMC.Value / gramsCarbonPerMole;
 
         /// <summary>
         /// The sample gas collection path.
@@ -764,18 +808,32 @@ namespace AeonHacs.Components
         protected virtual void UpdateSampleMeasurement(object sender = null, PropertyChangedEventArgs e = null)
         {
             if (e?.PropertyName == nameof(IValue.Value))
+            {
+                var ugC = ugCinMC.Value;
                 ugCinMC.Update(MicrogramsCarbon(MC));
+                if (ugCinMC.Value != ugC)
+                    NotifyPropertyChanged(nameof(umolCinMC));
+            }
         }
 
 
-        // value > Km * sensitivity ==> meter needs zeroing
-        protected virtual void ZeroIfNeeded(IMeter m, double Km)
+        protected virtual void ZeroPressureGauges()
         {
-            if (m != null && Math.Abs(m.Value) >= Km * m.Sensitivity)
+            void tryToZero(ISection section)
+            {
+                if (Busy) return;
+                if (section == null) return;
+                if (section.VacuumSystem.TimeAtBaseline.TotalSeconds < 20) return;
+                if (!section.PathToVacuum?.IsOpened() ?? true) return;
+                var m = section.Manometer;
+                if (m == null) return;
+                var excessiveError = 5 * m.Sensitivity;
+                if (Math.Abs(m.Value) < excessiveError) return;
                 m.ZeroNow();
+            }
+            List<ISection> sections = new(){ MC, CT, VTT, IM, GM };
+            sections.ForEach(tryToZero);
         }
-
-        protected virtual void ZeroPressureGauges() { }
 
         protected virtual void DeleteCompletedSamples()
         {
@@ -1233,9 +1291,6 @@ namespace AeonHacs.Components
         }
 
         #endregion Process Steps
-
-
-
 
         /// <summary>
         /// This method must be provided by the derived class.
@@ -2116,11 +2171,48 @@ namespace AeonHacs.Components
 
         #endregion Vacuum System
 
-        #region Joining and isolating sections
+        #region OpenLine
+        protected virtual void CloseGasSupplies()
+        {
+            ProcessSubStep.Start("Close gas supplies");
 
-        protected virtual void OpenLine() => OverrideNeeded();
+            // Look only in CEGS vacuum systems; ignore other process managers
+            var cegsGasSupplies = GasSupplies.Values.Where(gs => VacuumSystems.ContainsValue(gs.Destination.VacuumSystem)).ToList();
+            cegsGasSupplies.ForEach(gs => gs.ShutOff());
+            // close gas flow valves after all shutoff valves are closed
+            cegsGasSupplies.ForEach(gs => gs.FlowValve?.CloseWait());
 
-        #endregion Joining and isolating sections
+            ProcessSubStep.End();
+        }
+
+        /// <summary>
+        /// Open and evacuate the entire vacuum line. This establishes
+        /// the baseline system state: the condition it is normally left in
+        /// when idle, and the expected starting point for major
+        /// processes such as running samples.
+        /// </summary>
+        protected virtual void OpenLine()
+        {
+            ProcessStep.Start("Close gas supplies");
+            CloseGasSupplies();
+            ProcessStep.End();
+            OpenLine(VacuumSystem1);
+        }
+
+        protected virtual void OpenLine(IVacuumSystem vacuumSystem)
+        {
+            ProcessStep.Start($"Make sure all {vacuumSystem.Name}'s sections are all well above freezing.");
+            var coldSections = Sections.Values.Where(s => s.VacuumSystem == VacuumSystem1 && s.Temperature < 5).ToList();
+            coldSections.ForEach(s => s.Thaw());
+            if (!WaitFor(() => coldSections.All(s => s.Temperature < 5), 120))
+            {
+                // Timed out, not warming, what's going on? What to do?
+            }
+            ProcessStep.End();
+            VacuumSystem1.OpenLine();
+        }
+
+        #endregion OpenLine
 
         #region Running samples
 
@@ -2999,7 +3091,6 @@ namespace AeonHacs.Components
             Collect();
             ExtractEtc();
         }
-
 
         protected virtual void ExtractEtc()
         {
