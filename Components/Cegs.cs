@@ -3129,8 +3129,11 @@ namespace AeonHacs.Components
         // fromSection, it must be removed before calling this method).
         protected virtual void TransferCO2(ISection fromSection, ISection toSection)
         {
-            var combinedSection = Find<Section>(fromSection.Name + "_" + toSection.Name)
-                ?? Find<Section>(toSection.Name + "_" + fromSection.Name);
+            var c1f = fromSection.Chambers.First().Name;
+            var c1l = fromSection.Chambers.Last().Name;
+            var c2f = toSection.Chambers.First().Name;
+            var c2l = toSection.Chambers.Last().Name;
+            var combinedSection = Find<Section>(c1f + "_" + c2l) ?? Find<Section>(c2f + "_" + c1l);
             if (combinedSection == null)
                 return;
 
