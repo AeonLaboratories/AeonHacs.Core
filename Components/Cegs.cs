@@ -61,7 +61,12 @@ namespace AeonHacs.Components
             VTT_MC = Find<Section>("VTT_MC");
             MC_Split = Find<Section>("MC_Split");
 
+            d13C = Find<Section>("d13C");
+            d13CM = Find<Section>("d13CM");
+
             ugCinMC = Find<Meter>("ugCinMC");
+
+            IpOvenRamper = Find<OvenRamper>("IpOvenRamper");
 
             InletPorts = CachedList<IInletPort>();
             GraphiteReactors = CachedList<IGraphiteReactor>();
@@ -258,6 +263,11 @@ namespace AeonHacs.Components
         // insist on an actual Meter, to enable implicit double
         public virtual Meter ugCinMC { get; set; }
         public virtual double umolCinMC => ugCinMC.Value / gramsCarbonPerMole;
+
+        /// <summary>
+        /// Ramped temperature controller for Inlet Port
+        /// </summary>
+        public OvenRamper IpOvenRamper { get; set; }
 
         /// <summary>
         /// The sample gas collection path.
@@ -1104,6 +1114,24 @@ namespace AeonHacs.Components
         /// </summary>
         protected virtual void TurnOffIpSampleFurnace() => InletPort.SampleFurnace.TurnOff();
 
+        /// <summary>
+        /// Adjust the Inlet Port sample furnace ramp rate.
+        /// </summary>
+        protected virtual void AdjustIpRampRate() => IpOvenRamper.RateDegreesPerMinute = IpRampRate;
+
+        /// <summary>
+        /// Enable the Inlet Port sample furnace setpoint ramp.
+        /// </summary>
+        protected virtual void EnableIpRamp()
+        {
+            IpOvenRamper.Oven = InletPort.SampleFurnace;
+            IpOvenRamper.Enable();
+        }
+
+        /// <summary>
+        /// Disable the Inlet Port sample furnace setpoint ramp.
+        /// </summary>
+        protected virtual void DisableIpRamp() => IpOvenRamper.Disable();
 
         /// <summary>
         /// Start collecting sample into the first trap.
@@ -1144,7 +1172,6 @@ namespace AeonHacs.Components
             ClearParameter("CollectUntilMinutes");
         }
 
-        string stoppedBecause = "";
         /// <summary>
         /// Wait for a collection stop condition to occur.
         /// </summary>
@@ -1152,6 +1179,7 @@ namespace AeonHacs.Components
         {
             ProcessStep.Start($"Wait for a collection stop condition");
 
+            string stoppedBecause = "";
             bool shouldStop()
             {
                 if (CollectStopwatch.IsRunning && CollectStopwatch.ElapsedMilliseconds < 1000)
@@ -3729,6 +3757,20 @@ namespace AeonHacs.Components
             return SectionLeakRate(manifold, LeakTightTorrLitersPerSecond);
         }
 
+        protected void LeakCheckAllPorts()
+        {
+            var ports = FindAll<IPort>();
+            List<string> exclude = ["MCP1", "MCP2", "DeadCO2"];
+            ports.ForEach(port =>
+            {
+                if (!exclude.Contains(port.Name))
+                {
+                    var rate = PortLeakRate(port);
+                    SampleLog.Record($"{port.Name} leak rate: {rate:0.0e0} Torr L/s");
+                }
+            });
+        }
+
         /// <summary>
         /// Checks a section's leak rate. The section must be currently isolated and under vacuum.
         /// </summary>
@@ -3871,6 +3913,19 @@ namespace AeonHacs.Components
             {
                 Alert(caption, message);
                 TestLog.Record(caption + ". " + message);
+            }
+        }
+
+        /// <summary>
+        /// Calibrate all manual Inlet Port Quartz furnaces.
+        /// </summary>
+        protected void CalibrateIPQuartzHeaters()
+        {
+            var tc = Find<IThermocouple>("tCal");
+            foreach (var inletPort in FindAll<IInletPort>())
+            {
+                if (inletPort.QuartzFurnace is Heater h && h.ManualMode)
+                    CalibrateManualHeater(h, tc);
             }
         }
 
