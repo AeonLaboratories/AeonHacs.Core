@@ -23,7 +23,7 @@ namespace AeonHacs.Components
 
         #endregion Device interfaces
 
-        [JsonProperty]
+        //[JsonProperty]
         public virtual double Temperature
         {
             get => Value;

@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using AeonHacs.Utilities;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +10,7 @@ namespace AeonHacs
     /// Provides Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation for a set of data.
     /// This class uses a monotonic interpolation method that preserves the shape of the data and avoids overshoots.
     /// </summary>
-    public class PchipInterpolator : BindableObject
+    public class PchipInterpolator : Operation
     {
         /// <summary>
         /// List of (double X, double Y) tuples of calibration data points, where
@@ -141,5 +142,7 @@ namespace AeonHacs
 
             return h00 * left.Y + h01 * right.Y + h10 * left.D + h11 * right.D;
         }
+
+        public override double Execute(double input) => Interpolate(input);
     }
 }

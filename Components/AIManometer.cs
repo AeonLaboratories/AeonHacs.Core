@@ -37,7 +37,7 @@ namespace AeonHacs.Components
             }
         }
 
-        [JsonProperty("Pressure")]
+        //[JsonProperty("Pressure")]
         double Manometer.IDevice.Pressure { get => Manometer.Device.Pressure; set => Manometer.Device.Pressure = value; }
         public double Pressure => Manometer.Pressure;
 

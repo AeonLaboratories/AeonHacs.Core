@@ -170,8 +170,9 @@ namespace AeonHacs.Components
         /// <returns>A string that represents the current object.</returns>
         public override string ToString()
         {
-            return $"{Name}: {Value:0.0} {UnitSymbol}\r\n" +
-                Utility.IndentLines($"{CalibratedValue:0.00} kg");
+            return $"{Name}: {Value:0.0} {UnitSymbol}";
+            //return $"{Name}: {Value:0.0} {UnitSymbol}\r\n" +
+            //    Utility.IndentLines($"{ConvertedValue:0.00} kg");
         }
     }
 }

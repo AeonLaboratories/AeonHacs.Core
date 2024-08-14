@@ -37,7 +37,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// The meter's filtered input voltage.
         /// </summary>
-        [JsonProperty]
+        //[JsonProperty]
         public virtual double Voltage
         {
             get => voltage;

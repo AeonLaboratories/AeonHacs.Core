@@ -52,7 +52,7 @@ namespace AeonHacs.Components
             }
         }
 
-        [JsonProperty]
+        //[JsonProperty]
         public virtual double Pressure
         {
             get => Value;

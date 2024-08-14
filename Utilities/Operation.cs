@@ -14,7 +14,7 @@ namespace AeonHacs.Utilities
         public event PropertyChangedEventHandler PropertyChanged;
 
         [JsonProperty(Order = -99)]
-        public string Name { get; set; }
+        public virtual string Name { get; set; }
 
         public virtual double Execute(double input)
         {
@@ -37,8 +37,7 @@ namespace AeonHacs.Utilities
 
         public OperationSet(params Operation[] operations)
         {
-            Operations = new List<Operation>();
-            Operations.AddRange(operations);
+            Operations = [.. operations];
         }
 
         public override double Execute(double input)

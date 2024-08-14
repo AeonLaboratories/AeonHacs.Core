@@ -46,14 +46,13 @@ namespace AeonHacs.Components
         public double RawValue { get; private set; }
         public double FilteredValue { get; private set; }
         public double PriorValue { get; private set; }
-        public double CalibratedValue { get; private set; }
         public double ConvertedValue { get; private set; }
         public double ResolvedValue { get; private set; }
 
         /// <summary>
         /// The current output value.
         /// </summary>
-        [JsonProperty]
+        //[JsonProperty]
         public virtual double Value
         {
             get => value;
@@ -159,13 +158,6 @@ namespace AeonHacs.Components
             set => Ensure(ref filter, value);
         }
         DigitalFilter filter;
-
-        /// <summary>
-        /// An optional PCHIP interpolator that maps input onto a curve that fits
-        /// selected test data.
-        /// </summary>
-        [JsonProperty]
-        public PchipInterpolator Interpolator { get; set; }
 
         /// <summary>
         /// The set of arithmetic operations that converts the input data
@@ -278,7 +270,6 @@ namespace AeonHacs.Components
             }
             PriorValue = FilteredValue; // save for next Zeroing "toomuch" check
 
-            CalibratedValue = value = Interpolator?.Interpolate(value) ?? value;
             ConvertedValue = value = Conversion?.Execute(value) ?? value;
 
             if (Resolution > 0)

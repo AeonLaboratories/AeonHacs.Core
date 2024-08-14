@@ -37,7 +37,7 @@ namespace AeonHacs.Components
             }
         }
 
-        [JsonProperty("Temperature")]
+        //[JsonProperty("Temperature")]
         double Thermometer.IDevice.Temperature { get => Thermometer.Device.Temperature; set => Thermometer.Device.Temperature = value; }
         public double Temperature => Thermometer.Temperature;
 
