@@ -13,6 +13,15 @@ namespace AeonHacs.Components
     public class GraphiteReactor : Port, IGraphiteReactor
     {
         #region HacsComponent
+
+        [HacsPreConnect]
+        protected virtual void PreConnect()
+        {
+            StateStopwatch ??= new Stopwatch();
+            ProgressStopwatch ??= new Stopwatch();
+            GraphitizationStopwatch ??= new Stopwatch();
+        }
+
         [HacsConnect]
         protected override void Connect()
         {
@@ -32,8 +41,19 @@ namespace AeonHacs.Components
             get => state;
             set
             {
-                Ensure(ref state, value, OnPropertyChanged);
-                if (Initialized) StateStopwatch.Reset();
+                if (Ensure(ref state, value, OnPropertyChanged))
+                {
+                    if (Initialized)
+                    {
+                        StateStopwatch.Reset();
+                        bool waiting = state == States.WaitFalling || state == States.WaitFinish;
+                        if (!waiting)
+                        {
+                            ProgressStopwatch.Reset();
+                            GraphitizationStopwatch.Reset();
+                        }
+                    }
+                }
             }
         }
         States state = States.WaitService;
@@ -126,11 +146,11 @@ namespace AeonHacs.Components
 
 
         [JsonProperty]
-        public Stopwatch StateStopwatch { get; protected set; } = new Stopwatch();
+        public Stopwatch StateStopwatch { get; protected set; }
         [JsonProperty]
-        public Stopwatch ProgressStopwatch { get; protected set; } = new Stopwatch();
+        public Stopwatch ProgressStopwatch { get; protected set; }
         [JsonProperty]
-        public Stopwatch GraphitizationStopwatch { get; protected set; } = new Stopwatch();
+        public Stopwatch GraphitizationStopwatch { get; protected set; }
 
         [JsonProperty, DefaultValue(2000)]
         public double PriorPressure
