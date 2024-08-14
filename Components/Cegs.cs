@@ -826,24 +826,37 @@ namespace AeonHacs.Components
             }
         }
 
-
-        protected virtual void ZeroPressureGauges()
+        /// <summary>
+        /// Tries to auto-zero the manometer for the 'chamber'. The chamber must
+        /// be a Section or a GraphiteReactor.
+        /// </summary>
+        /// <param name="chamber"></param>
+        protected virtual void TryToZeroManometer(IChamber chamber)
         {
-            void tryToZero(ISection section)
-            {
-                if (Busy) return;
-                if (section == null) return;
-                if (section.VacuumSystem.TimeAtBaseline.TotalSeconds < 20) return;
-                if (!section.PathToVacuum?.IsOpened() ?? true) return;
-                var m = section.Manometer;
-                if (m == null) return;
-                var excessiveError = 5 * m.Sensitivity;
-                if (Math.Abs(m.Value) < excessiveError) return;
-                m.ZeroNow();
-            }
-            List<ISection> sections = new(){ MC, CT, VTT, IM, GM };
-            sections.ForEach(tryToZero);
+            if (Busy) return;
+            var gr = chamber as IGraphiteReactor;
+            if (gr != null && !gr.IsOpened) return;
+            var section = chamber as Section ?? Manifold(gr);
+            if (section == null) return;
+            if (section.VacuumSystem.TimeAtBaseline.TotalSeconds < 20) return;
+            if (!section.IsOpened) return;
+            var m = gr?.Manometer ?? section.Manometer;
+            if (m == null) return;
+            var excessiveError = 5 * m.Sensitivity;     // TODO: magic number
+            if (Math.Abs(m.Value) < excessiveError) return;
+            m.ZeroNow();
         }
+
+        /// <summary>
+        /// Attempts to zero the Manometers on the given chambers.
+        /// </summary>
+        /// <param name="chambers">List of Sections and/or GraphiteReactors with manometers to be zeroed.</param>
+        protected virtual void ZeroPressureGauges(List<IChamber> chambers) => chambers.ForEach(TryToZeroManometer);
+
+        /// <summary>
+        /// Auto-zero the manometers that normally need it.
+        /// </summary>
+        protected virtual void ZeroPressureGauges() => ZeroPressureGauges([MC, CT, VTT, IM, GM, .. GraphiteReactors]);
 
         protected virtual void DeleteCompletedSamples()
         {
