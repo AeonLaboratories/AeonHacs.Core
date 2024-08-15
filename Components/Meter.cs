@@ -387,7 +387,7 @@ namespace AeonHacs.Components
         /// </summary>
         public virtual void ZeroNow(bool waitToFinish = false)
         {
-            if (!Zeroing)
+            if (Conversion != null && !Zeroing)
             {
                 Zeroing = true;
                 if (waitToFinish)
@@ -400,7 +400,7 @@ namespace AeonHacs.Components
 
         void offset(double offset)
         {
-            var firstOp = Conversion?.Operations?.FirstOrDefault();
+            var firstOp = Conversion.Operations?.FirstOrDefault();
             while (firstOp is OperationSet os)
                 firstOp = os?.Operations?.FirstOrDefault();
 
