@@ -2243,14 +2243,17 @@ namespace AeonHacs.Components
         protected virtual void OpenLine(IVacuumSystem vacuumSystem)
         {
             ProcessStep.Start($"Make sure all {vacuumSystem.Name}'s sections are all well above freezing.");
-            var coldSections = Sections.Values.Where(s => s.VacuumSystem == VacuumSystem1 && s.Temperature < 5).ToList();
+            var coldSections = Sections.Values.Where(s => 
+                s.VacuumSystem == vacuumSystem && 
+                s.Thermometer != null && 
+                s.Temperature < 5).ToList();
             coldSections.ForEach(s => s.Thaw());
             if (!WaitFor(() => coldSections.All(s => s.Temperature < 5), 120))
             {
                 // Timed out, not warming, what's going on? What to do?
             }
             ProcessStep.End();
-            VacuumSystem1.OpenLine();
+            vacuumSystem.OpenLine();
         }
 
         #endregion OpenLine
