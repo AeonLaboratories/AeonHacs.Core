@@ -114,7 +114,7 @@ namespace AeonHacs.Components
             foreach (var x in LNManifolds.Values)
             {
                 x.OverflowDetected += OnOverflowDetected;
-                x.SlowToFill += OnSlowToFill;
+                x.SlowToFill += () => OnSlowToFill(x);
             }
 
             //ugCinMC depends on both of these, but they are both updated
@@ -779,8 +779,8 @@ namespace AeonHacs.Components
         protected virtual void OnOverflowDetected() =>
             Warn("System Alert!", "LN Containment Failure");
 
-        protected virtual void OnSlowToFill() =>
-            Alert("System Warning!", "LN Manifold is slow to fill!");
+        protected virtual void OnSlowToFill(ILNManifold manifold) =>
+            Alert("System Warning!", $"{manifold.Name ?? "An LN Manifold"} is slow to fill!");
 
         protected virtual void OnSlowToFreeze()
         {
