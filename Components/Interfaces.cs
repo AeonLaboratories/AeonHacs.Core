@@ -983,8 +983,6 @@ namespace AeonHacs.Components
     {
         new AIManometer.IDevice Device { get; }
         new AIManometer.IConfig Config { get; }
-
-        double MaxPressure { get; set; }
     }
 
     public interface IAIThermometer : IAIVoltmeter, IThermometer

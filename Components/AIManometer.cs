@@ -41,9 +41,6 @@ namespace AeonHacs.Components
         double Manometer.IDevice.Pressure { get => Manometer.Device.Pressure; set => Manometer.Device.Pressure = value; }
         public double Pressure => Manometer.Pressure;
 
-        [JsonProperty]
-        public double MaxPressure { get => MaxValue; set => MaxValue = value; }
-
         public override void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             var propertyName = e?.PropertyName;
