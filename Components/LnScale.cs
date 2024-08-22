@@ -10,7 +10,7 @@ namespace AeonHacs.Components
     /// <summary>
     /// Liquid Nitrogen Scale: A Meter-based class that reads and converts mass data from a SerialDevice to Liters of LN.
     /// </summary>
-    public class LnScale : Meter
+    public class LNScale : Meter
     {
         #region HacsComponent
 

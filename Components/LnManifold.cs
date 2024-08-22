@@ -42,7 +42,6 @@ namespace AeonHacs.Components
 
         #endregion HacsComponent
 
-
         [JsonProperty("LNSupplyValve")]
         string LNSupplyValveName { get => LNSupplyValve?.Name; set => lnSupplyValveName = value; }
         string lnSupplyValveName;
