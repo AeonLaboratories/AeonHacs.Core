@@ -68,21 +68,9 @@ namespace AeonHacs.Components
         public List<int> Separators = new List<int>();
 
         public Dictionary<string, ThreadStart> ProcessDictionary { get; protected set; } = new Dictionary<string, ThreadStart>();
-        public List<string> ProcessNames { get; protected set; }
+        public List<string> ProcessNames => ProcessDictionary.Keys.ToList();
 
-        // The derived class should call its BuildProcessDictionary override in its own Connect() method.
-        // The derived class' BuildProcessDictionary override should call base.BuildProcessDictionary() after
-        // populating the dictionary.
-        protected virtual void BuildProcessDictionary()
-        {
-            if (ProcessDictionary.Any())
-            {
-                var list = new List<string>();
-                foreach (var kvpair in ProcessDictionary)
-                    list.Add(kvpair.Key);
-                ProcessNames = list;
-            }
-        }
+        protected virtual void BuildProcessDictionary() { }
 
         [JsonProperty(Order = -98)]
         public Dictionary<string, ProcessSequence> ProcessSequences { get; set; } = new Dictionary<string, ProcessSequence>();
