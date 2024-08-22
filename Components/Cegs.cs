@@ -1068,12 +1068,17 @@ namespace AeonHacs.Components
         protected virtual void TurnOffIpQuartzFurnace() => InletPort.QuartzFurnace.TurnOff();
 
         /// <summary>
-        /// Adjust the Inlet Port sample furnace setpoint.
+        /// Adjust the Inlet Port sample furnace setpoint. If its
+        /// setpoint ramp is enabled, the working setpoint will be managed
+        /// to reach the new setpoint at the programmed ramp rate.
         /// </summary>
         protected virtual void AdjustIpSetpoint()
         {
             if (IpSetpoint.IsNaN()) return;
-            InletPort.SampleFurnace.Setpoint = IpSetpoint;
+            if (IpOvenRamper?.Enabled ?? false)
+                IpOvenRamper.Setpoint = IpSetpoint;
+            else
+                InletPort.SampleFurnace.Setpoint = IpSetpoint;
         }
 
         /// <summary>
