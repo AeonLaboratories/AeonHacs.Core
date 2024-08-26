@@ -57,7 +57,7 @@ namespace AeonHacs.Components
             /// <summary>
             /// A string containing the expression (&quot;source code&quot;) to be compiled into a Function that returns the Column's value.
             /// </summary>
-            [JsonProperty("Source")]        // TODO: is there a better name?
+            [JsonProperty("Path")]        // TODO: is there a better name?
             public string Expression { get; set; }
 
             /// <summary>
