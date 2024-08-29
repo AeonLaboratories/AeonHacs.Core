@@ -2211,7 +2211,9 @@ namespace AeonHacs.Components
         protected virtual void EvacuateIP(double pressure)
         {
             if (!IpIm(out ISection im)) return;
+            ProcessStep.Start($"Evacuate {InletPort.Name} to below {pressure:0e0}.");
             im.OpenAndEvacuate(pressure, InletPort);
+            ProcessStep.End();
         }
         protected virtual void EvacuateIP() => EvacuateIP(OkPressure);
 
