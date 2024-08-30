@@ -48,58 +48,56 @@ namespace AeonHacs.Components
         {
             InletPort = Find<InletPort>(inletPortName);
 
-            Power = Find<Power>("Power");
-            Ambient = Find<Chamber>("Ambient");
-            VacuumSystem1 = Find<VacuumSystem>("VacuumSystem1");
+            Power = Find<Power>(powerName);
+            Ambient = Find<Chamber>(ambientName);
+            VacuumSystem = Find<VacuumSystem>(vacuumSystemName);
 
-            IM = Find<Section>("IM");
-            CT = Find<Section>("CT");
-            VTT = Find<Section>("VTT");
-            MC = Find<Section>("MC");
-            Split = Find<Section>("Split");
-            GM = Find<Section>("GM");
-            VTT_MC = Find<Section>("VTT_MC");
-            MC_Split = Find<Section>("MC_Split");
+            IM = Find<Section>(imName);
+            CT = Find<Section>(ctName);
+            VTT = Find<Section>(vttName);
+            MC = Find<Section>(mcName);
+            Split = Find<Section>(splitName);
+            GM = Find<Section>(gmName);
+            VTT_MC = Find<Section>(vtt_mcName);
+            MC_Split = Find<Section>(mc_splitName);
 
-            d13C = Find<Section>("d13C");
-            d13CM = Find<Section>("d13CM");
+            d13C = Find<Section>(_d13CName);
+            d13CM = Find<Section>(_d13CMName);
 
-            ugCinMC = Find<Meter>("ugCinMC");
-
-            IpOvenRamper = Find<OvenRamper>("IpOvenRamper");
+            ugCinMC = Find<Meter>(sampleMeterName);
+            IpOvenRamper = Find<OvenRamper>(ipOvenRamperName);
 
             InletPorts = CachedList<IInletPort>();
             GraphiteReactors = CachedList<IGraphiteReactor>();
             d13CPorts = CachedList<Id13CPort>();
-
         }
 
 
         /// <summary>
         /// Notify the operator if the required object is missing.
         /// </summary>
-        private void CegsNeeds(object obj, string objName)
+        private void CegsNeeds(object obj, string objName, string expectedName)
         {
             if (obj == null)
                 Warn("Configuration Error",
-                    $"Can't find {objName}. Cegs needs one Connected.");
+                    $"Can't find {objName} \"{expectedName}\". Cegs expects one.");
         }
 
 
         [HacsPostConnect]
         protected virtual void PostConnect()
         {
-            // check that the essentials are found
-            CegsNeeds(Ambient, nameof(Ambient));
-            CegsNeeds(VacuumSystem1, nameof(VacuumSystem1));
-            CegsNeeds(IM, nameof(IM));
-            CegsNeeds(VTT, nameof(VTT));
-            CegsNeeds(MC, nameof(MC));
-            CegsNeeds(Split, nameof(Split));
-            CegsNeeds(GM, nameof(GM));
-            CegsNeeds(VTT_MC, nameof(VTT_MC));
-            CegsNeeds(MC_Split, nameof(MC_Split));
-            CegsNeeds(ugCinMC, nameof(ugCinMC));
+            // check that the essentials were found
+            CegsNeeds(Ambient, nameof(Ambient), ambientName);
+            CegsNeeds(VacuumSystem, nameof(VacuumSystem), vacuumSystemName);
+            CegsNeeds(IM, nameof(IM), imName);
+            CegsNeeds(VTT, nameof(VTT), vttName);
+            CegsNeeds(MC, nameof(MC), mcName);
+            CegsNeeds(Split, nameof(Split), splitName);
+            CegsNeeds(GM, nameof(GM), gmName);
+            CegsNeeds(VTT_MC, nameof(VTT_MC), vtt_mcName);
+            CegsNeeds(MC_Split, nameof(MC_Split), mc_splitName);
+            CegsNeeds(ugCinMC, nameof(ugCinMC), sampleMeterName);
 
             foreach (var cf in Coldfingers.Values)
                 cf.SlowToFreeze += OnSlowToFreeze;
@@ -163,7 +161,6 @@ namespace AeonHacs.Components
             }
             catch (Exception e) { Notice.Send(e.ToString()); }
         }
-
 
         protected bool StopLogging { get; set; } = false;
 
@@ -238,36 +235,234 @@ namespace AeonHacs.Components
         #endregion Component lists
 
         #region HacsComponents
-        [JsonProperty] public virtual Power Power { get; set; }
+        [JsonProperty("Power")]
+        string PowerName { get => Power?.Name; set => powerName = value; }
+        string powerName = "Power";
+        /// <summary>
+        /// The power monitor.
+        /// </summary>
+        public virtual Power Power
+        {
+            get => power;
+            set => Ensure(ref power, value, NotifyPropertyChanged);
+        }
+        Power power;
+
 
         #region Data Logs
-        public virtual HacsLog SampleLog { get; set; }
-        public virtual HacsLog TestLog { get; set; }
+        [JsonProperty("SampleLog"), DefaultValue("SampleLog")]
+        string SampleLogName { get => SampleLog?.Name; set => samplelogName = value; }
+        string samplelogName;
+        /// <summary>
+        /// The sample data log.
+        /// </summary>
+        public virtual HacsLog SampleLog
+        {
+            get => samplelog;
+            set => Ensure(ref samplelog, value, NotifyPropertyChanged);
+        }
+        HacsLog samplelog;
+
+        [JsonProperty("TestLog"), DefaultValue("TestLog")]
+        string TestLogName { get => TestLog?.Name; set => testlogName = value; }
+        string testlogName;
+        /// <summary>
+        /// The test data log.
+        /// </summary>
+        public virtual HacsLog TestLog
+        {
+            get => testlog;
+            set => Ensure(ref testlog, value, NotifyPropertyChanged);
+        }
+        HacsLog testlog;
+
         #endregion Data Logs
 
-        public virtual IChamber Ambient { get; set; }
-        public virtual IVacuumSystem VacuumSystem1 { get; set; }
+        [JsonProperty("Ambient"), DefaultValue("Ambient")]
+        string AmbientName { get => Ambient?.Name; set => ambientName = value; }
+        string ambientName;
+        /// <summary>
+        /// The ambient 'Chamber'.
+        /// </summary>
+        public virtual IChamber Ambient
+        {
+            get => ambient;
+            set => Ensure(ref ambient, value, NotifyPropertyChanged);
+        }
+        IChamber ambient;
 
-        public virtual ISection IM { get; set; }
-        public virtual ISection CT { get; set; }
-        public virtual ISection VTT { get; set; }
-        public virtual ISection MC { get; set; }
-        public virtual ISection Split { get; set; }
-        public virtual ISection d13C { get; set; }
-        public virtual ISection GM { get; set; }
+        [JsonProperty("VacuumSystem"), DefaultValue("VacuumSystem")]
+        string VacuumSystemName { get => VacuumSystem?.Name; set => vacuumSystemName = value; }
+        string vacuumSystemName;
+        /// <summary>
+        /// The main VacuumSystem (services VTT-GM).
+        /// </summary>
+        public virtual IVacuumSystem VacuumSystem
+        {
+            get => vacuumSystem;
+            set => Ensure(ref vacuumSystem, value, NotifyPropertyChanged);
+        }
+        IVacuumSystem vacuumSystem;
 
-        public virtual ISection d13CM { get; set; }
-        public virtual ISection VTT_MC { get; set; }
-        public virtual ISection MC_Split { get; set; }
+        [JsonProperty("InletManifold"), DefaultValue("IM")]
+        string IMName { get => IM?.Name; set => imName = value; }
+        string imName;
+        /// <summary>
+        /// The default Inlet Manifold Section, IM.
+        /// </summary>
+        public virtual ISection IM
+        {
+            get => im;
+            set => Ensure(ref im, value, NotifyPropertyChanged);
+        }
+        ISection im;
+
+        [JsonProperty("CoilTrap"), DefaultValue("CT")]
+        string CTName { get => CT?.Name; set => ctName = value; }
+        string ctName;
+        /// <summary>
+        /// The default Coil Trap Section, CT.
+        /// </summary>
+        public virtual ISection CT
+        {
+            get => ct;
+            set => Ensure(ref ct, value, NotifyPropertyChanged);
+        }
+        ISection ct;
+
+        [JsonProperty("VariableTemperatureTrap"), DefaultValue("VTT")]
+        string VTTName { get => VTT?.Name; set => vttName = value; }
+        string vttName;
+        /// <summary>
+        /// The default Variable Temperature Trap Section, VTT.
+        /// </summary>
+        public virtual ISection VTT
+        {
+            get => vtt;
+            set => Ensure(ref vtt, value, NotifyPropertyChanged);
+        }
+        ISection vtt;
+
+        [JsonProperty("MeasurementChamber"), DefaultValue("MC")]
+        string MCName { get => MC?.Name; set => mcName = value; }
+        string mcName;
+        /// <summary>
+        /// The Measurement Chamber Section, MC.
+        /// </summary>
+        public virtual ISection MC
+        {
+            get => mc;
+            set => Ensure(ref mc, value, NotifyPropertyChanged);
+        }
+        ISection mc;
+
+        [JsonProperty("SplitSection"), DefaultValue("Split")]
+        string SplitName { get => Split?.Name; set => splitName = value; }
+        string splitName;
+        /// <summary>
+        /// The discard Split Section, Split.
+        /// </summary>
+        public virtual ISection Split
+        {
+            get => split;
+            set => Ensure(ref split, value, NotifyPropertyChanged);
+        }
+        ISection split;
+
+        [JsonProperty("d13CSection"), DefaultValue("d13C")]
+        string d13CName { get => d13C?.Name; set => _d13CName = value; }
+        string _d13CName;
+        /// <summary>
+        /// The d13C volume Section, d13C.
+        /// </summary>
+        public virtual ISection d13C
+        {
+            get => _d13C;
+            set => Ensure(ref _d13C, value, NotifyPropertyChanged);
+        }
+        ISection _d13C;
+
+        [JsonProperty("GraphiteManifold"), DefaultValue("GM")]
+        string GMName { get => GM?.Name; set => gmName = value; }
+        string gmName;
+        /// <summary>
+        /// The default Graphite Manifold Section, GM.
+        /// </summary>
+        public virtual ISection GM
+        {
+            get => gm;
+            set => Ensure(ref gm, value, NotifyPropertyChanged);
+        }
+        ISection gm;
+
+        [JsonProperty("d13CManifold"), DefaultValue("d13CM")]
+        string d13CMName { get => d13CM?.Name; set => _d13CMName = value; }
+        string _d13CMName;
+        /// <summary>
+        /// The default d13C Manifold Section, d13CM.
+        /// </summary>
+        public virtual ISection d13CM
+        {
+            get => _d13CM;
+            set => Ensure(ref _d13CM, value, NotifyPropertyChanged);
+        }
+        ISection _d13CM;
+
+        [JsonProperty("VTT_MC"), DefaultValue("VTT_MC")]
+        string VTT_MCName { get => VTT_MC?.Name; set => vtt_mcName = value; }
+        string vtt_mcName;
+        /// <summary>
+        /// The VTT-MC Section.
+        /// </summary>
+        public virtual ISection VTT_MC
+        {
+            get => vtt_mc;
+            set => Ensure(ref vtt_mc, value, NotifyPropertyChanged);
+        }
+        ISection vtt_mc;
+
+        [JsonProperty("MC_Split"), DefaultValue("MC_Split")]
+        string MC_SplitName { get => MC_Split?.Name; set => mc_splitName = value; }
+        string mc_splitName;
+        /// <summary>
+        /// The MC-Split Section.
+        /// </summary>
+        public virtual ISection MC_Split
+        {
+            get => mc_split;
+            set => Ensure(ref mc_split, value, NotifyPropertyChanged);
+        }
+        ISection mc_split;
 
         // insist on an actual Meter, to enable implicit double
-        public virtual Meter ugCinMC { get; set; }
+        [JsonProperty("SampleMeter"), DefaultValue("ugCinMC")]
+        string SampleMeterName { get => ugCinMC?.Name; set => sampleMeterName = value; }
+        string sampleMeterName;
+        /// <summary>
+        /// The Sample Meter, ugCinMC.
+        /// </summary>
+        public virtual Meter ugCinMC
+        {
+            get => _ugCinMC;
+            set => Ensure(ref _ugCinMC, value, NotifyPropertyChanged);
+        }
+        Meter _ugCinMC;
+
         public virtual double umolCinMC => ugCinMC.Value / gramsCarbonPerMole;
 
+        [JsonProperty("IpOvenRamper"), DefaultValue("IpOvenRamper")]
+        string IpOvenRamperName { get => IpOvenRamper?.Name; set => ipOvenRamperName = value; }
+        string ipOvenRamperName;
         /// <summary>
         /// Ramped temperature controller for Inlet Port
         /// </summary>
-        public OvenRamper IpOvenRamper { get; set; }
+        public virtual OvenRamper IpOvenRamper
+        {
+            get => ipOvenRamper;
+            set => Ensure(ref ipOvenRamper, value, NotifyPropertyChanged);
+        }
+        OvenRamper ipOvenRamper;
+
 
         /// <summary>
         /// The sample gas collection path.
@@ -1196,6 +1391,7 @@ namespace AeonHacs.Components
         protected virtual void CollectUntilConditionMet()
         {
             ProcessStep.Start($"Wait for a collection stop condition");
+            IpIm(out ISection im);
 
             string stoppedBecause = "";
             bool shouldStop()
@@ -1209,15 +1405,15 @@ namespace AeonHacs.Components
 
                 // Open flow bypass when conditions allow it without producing an excessive
                 // downstream pressure spike.
-                if (IM.Pressure - FirstTrap.Pressure < FirstTrapFlowBypassPressure)
+                if (im != null && im.Pressure - FirstTrap.Pressure < FirstTrapFlowBypassPressure)
                     FirstTrap.Open();   // open bypass if available
 
 
-                if (CollectCloseIpAtPressure.IsANumber() && InletPort.IsOpened && IM.Pressure <= CollectCloseIpAtPressure)
+                if (CollectCloseIpAtPressure.IsANumber() && InletPort.IsOpened && im != null && im.Pressure <= CollectCloseIpAtPressure)
                 {
-                    var p = IM.Pressure;
+                    var p = im.Pressure;
                     InletPort.Close();
-                    SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {IM.Manometer.Name} = {p:0} Torr");
+                    SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {im.Manometer.Name} = {p:0} Torr");
                 }
                 if (CollectCloseIpAtCtPressure.IsANumber() && InletPort.IsOpened && FirstTrap.Pressure <= CollectCloseIpAtCtPressure)
                 {
@@ -1244,7 +1440,7 @@ namespace AeonHacs.Components
 
                 if (CollectUntilCtPressureFalls.IsANumber() &&
                     FirstTrap.Pressure <= CollectUntilCtPressureFalls &&
-                    IM.Pressure < Math.Ceiling(CollectUntilCtPressureFalls) + 2)
+                    (im == null || im.Pressure < Math.Ceiling(CollectUntilCtPressureFalls) + 2))
                 {
                     stoppedBecause = $"{FirstTrap.Name}.Pressure fell to {CollectUntilCtPressureFalls:0.00} Torr";
                     return true;
@@ -1253,7 +1449,7 @@ namespace AeonHacs.Components
                 // old?: FirstTrap.Pressure < FirstTrapEndPressure;
                 if (FirstTrapEndPressure.IsANumber() &&
                     FirstTrap.Pressure <= FirstTrapEndPressure &&
-                    IM.Pressure < Math.Ceiling(FirstTrapEndPressure) + 2)
+                    (im == null || im.Pressure < Math.Ceiling(FirstTrapEndPressure) + 2))
                 {
                     stoppedBecause = $"{FirstTrap.Name}.Pressure fell to {FirstTrapEndPressure:0.00} Torr";
                     return true;
@@ -1376,21 +1572,40 @@ namespace AeonHacs.Components
         /// <returns>The section found, or null if there isn't one</returns>
         protected virtual Section Manifold(IPort port)
         {
+            Section manifold = null;
             var sections = FindAll<Section>(s => (s.Ports?.Contains(port) ?? false) && s.Manometer != null);
-            if (sections == null) return null;
-            if (sections.Count == 0) return null;
-            var smallest = sections.First();
-            var smallestVolume = smallest.MilliLiters;
-            foreach (var s in sections)
+            sections.ForEach(s =>
             {
-                if (s.MilliLiters > 0 && (smallestVolume <= 0 || s.MilliLiters < smallestVolume))
-                {
-                    smallest = s;
-                    smallestVolume = s.MilliLiters;
-                }
-            }
-            return smallest;
+                if (manifold == null || s.MilliLiters < manifold.MilliLiters)
+                    manifold = s;
+            });
+            return manifold;
+
+            // equivalent and simpler, but slower:
+            // protected virtual Section Manifold(IPort port) => Manifold([port]);
         }
+
+        /// <summary>
+        /// Find the smallest Section that contains all of the ports and has a manometer.
+        /// Note: It usually is, but might not actually be, a manifold.
+        /// </summary>
+        /// <param name="ports"></param>
+        /// <returns>The section found, or null if there isn't one</returns>
+        protected virtual Section Manifold(IEnumerable<IPort> ports)
+        {
+            var n = ports?.Count() ?? 0;
+            if (n == 0) return null;
+            Section manifold = null;
+
+            var sections = FindAll<Section>(s => s.Ports != null && s.Manometer != null);
+            sections.ForEach(s =>
+            {
+                if (ports.Count(s.Ports.Contains) == n && (manifold == null || s.MilliLiters < manifold.MilliLiters))
+                    manifold = s;
+            });
+            return manifold;
+        }
+
 
 
         /// <summary>
@@ -1877,19 +2092,26 @@ namespace AeonHacs.Components
         protected virtual void PressurizeGRsWithInertGas(List<IGraphiteReactor> grs)
         {
             ProcessStep.Start("Backfill the graphite reactors with inert gas");
-            var gasSupply = InertGasSupply(GM);
+            var gm = Manifold(grs);
+            if (gm == null)
+            {
+                var grList = string.Join(", ", grs.Select(gr => gr.Name));
+                Notice.Send("Configuration Error", $"Can't find graphite manifold for {grList}.", Notice.Type.Tell);
+                return;
+            }
+            var gasSupply = InertGasSupply(gm);
             if (gasSupply == null)
             {
-                Warn("Configuration Error", $"Section {GM.Name} has no inert GasSupply.");
+                Warn("Configuration Error", $"Section {gm.Name} has no inert GasSupply.");
                 return;
             }
 
-            var pressure = Ambient.Pressure + 20;
+            var pressure = Ambient.Pressure + 10;
 
-            ProcessSubStep.Start($"Admit {pressure:0} Torr {gasSupply.GasName} into {GM.Name}");
-            GM.ClosePorts();
+            ProcessSubStep.Start($"Admit {pressure:0} Torr {gasSupply.GasName} into {gm.Name}");
+            gm.ClosePorts();
             gasSupply.Admit();
-            while (GM.Pressure < pressure)
+            while (gm.Pressure < pressure)
                 Wait();
             ProcessSubStep.End();
 
@@ -1898,9 +2120,9 @@ namespace AeonHacs.Components
             grs.ForEach(gr => gr.Open());
             ProcessSubStep.End();
 
-            ProcessSubStep.Start($"Ensure {GM.Name} pressure is ≥ {pressure:0} Torr");
+            ProcessSubStep.Start($"Ensure {gm.Name} pressure is ≥ {pressure:0} Torr");
             Wait(3000);
-            while (GM.Pressure < pressure)
+            while (gm.Pressure < pressure)
                 Wait();
             gasSupply.ShutOff(true);
             ProcessSubStep.End();
@@ -1985,16 +2207,23 @@ namespace AeonHacs.Components
                 Notice.Send("Nothing to do", "No reactors are awaiting preparation.", Notice.Type.Tell);
                 return;
             }
-            var gsInert = InertGasSupply(GM);
-            if (gsInert == null)
+            var gm = Manifold(grs);
+            if (gm == null)
             {
-                Notice.Send("Configuration Error", "Can't find inert gas supply for GM.", Notice.Type.Tell);
+                var grList = string.Join(", ", grs.Select(gr => gr.Name));
+                Notice.Send("Configuration Error", $"Can't find graphite manifold for {grList}.", Notice.Type.Tell);
                 return;
             }
-            var gsH2 = GasSupply("H2", GM);
+            var gsInert = InertGasSupply(gm);
+            if (gsInert == null)
+            {
+                Notice.Send("Configuration Error", $"Can't find inert gas supply for {gm.Name}.", Notice.Type.Tell);
+                return;
+            }
+            var gsH2 = GasSupply("H2", gm);
             if (gsH2 == null)
             {
-                Notice.Send("Configuration Error", "Can't find H2 gas supply for GM.", Notice.Type.Tell);
+                Notice.Send("Configuration Error", $"Can't find H2 gas supply for {gm.Name}.", Notice.Type.Tell);
                 return;
             }
 
@@ -2007,12 +2236,12 @@ namespace AeonHacs.Components
 
             // on the first flush, get the sizes
             ProcessSubStep.Start("Evacuate graphite reactors");
-            GM.Isolate();
+            gm.Isolate();
             grs.ForEach(gr => gr.Open());
-            GM.OpenAndEvacuate();
-            WaitForStablePressure(GM.VacuumSystem, CleanPressure);
+            gm.OpenAndEvacuate();
+            WaitForStablePressure(gm.VacuumSystem, CleanPressure);
             WaitMinutes((int)GRFirstEvacuationMinutes);
-            HoldForLeakTightness(GM);
+            HoldForLeakTightness(gm);
             ProcessSubStep.End();
 
             ProcessSubStep.Start($"Zero GR manometers.");
@@ -2026,15 +2255,15 @@ namespace AeonHacs.Components
             {
                 ProcessStep.Start($"Measure {gr.Name} volume");
                 gsInert.Admit(PressureOverAtm);
-                GM.Isolate();
+                gm.Isolate();
                 WaitSeconds(10);
-                var p0 = GM.Manometer.WaitForAverage((int)MeasurementSeconds);
-                var gmMilliLiters = GM.CurrentVolume(true);
+                var p0 = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
+                var gmMilliLiters = gm.CurrentVolume(true);
                 gr.Open();
                 WaitSeconds(5);
                 gr.Close();
                 WaitSeconds(5);
-                var p1 = GM.Manometer.WaitForAverage((int)MeasurementSeconds);
+                var p1 = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
 
                 ProcessSubStep.Start($"Calibrate {gr.Manometer.Name}");
                 // TODO: make this safe and move it into AIVoltmeter
@@ -2050,12 +2279,12 @@ namespace AeonHacs.Components
             }
 
             grs.ForEach(gr => gr.Open());
-            GM.OpenAndEvacuate(OkPressure);
+            gm.OpenAndEvacuate(OkPressure);
             ProcessStep.End();
 
             ProcessStep.Start("Evacuate & Flush GRs with inert gas");
-            Flush(GM, 2);
-            GM.VacuumSystem.WaitForPressure(OkPressure);
+            Flush(gm, 2);
+            gm.VacuumSystem.WaitForPressure(OkPressure);
             ProcessStep.End();
 
 
@@ -2077,7 +2306,7 @@ namespace AeonHacs.Components
                 if (IronPreconditionH2Pressure > 0)
                 {
                     ProcessStep.Start("Admit H2 into GRs");
-                    GM.IsolateFromVacuum();
+                    gm.IsolateFromVacuum();
                     gsH2.FlowPressurize(IronPreconditionH2Pressure);
                     grs.ForEach(gr => gr.Close());
                     ProcessStep.End();
@@ -2086,7 +2315,7 @@ namespace AeonHacs.Components
                 ProcessStep.Start("Precondition iron for " + MinutesString((int)IronPreconditioningMinutes));
                 if (IronPreconditionH2Pressure > 0)
                 {
-                    GM.OpenAndEvacuate(OkPressure);
+                    gm.OpenAndEvacuate(OkPressure);
                     OpenLine();
                 }
                 WaitRemaining((int)IronPreconditioningMinutes);
@@ -2095,14 +2324,14 @@ namespace AeonHacs.Components
                 if (IronPreconditionH2Pressure > 0)
                 {
                     ProcessStep.Start("Evacuate GRs");
-                    GM.Isolate();
+                    gm.Isolate();
                     CloseAllGRs();
                     grs.ForEach(gr => { gr.Heater.TurnOff(); gr.Open(); });
-                    GM.OpenAndEvacuate(OkPressure);
+                    gm.OpenAndEvacuate(OkPressure);
                     ProcessStep.End();
 
                     ProcessStep.Start("Flush GRs with inert gas");
-                    Flush(GM, 3);
+                    Flush(gm, 3);
                     ProcessStep.End();
                 }
                 else
@@ -2134,15 +2363,15 @@ namespace AeonHacs.Components
                 ip.Close();
 
             ProcessStep.Start("Evacuate & Flush IPs with inert gas");
-
-            IM.Isolate();
+            var im = Manifold(ips);
+            im.Isolate();
             ips.ForEach(ip => ip.Open());
-            IM.Evacuate(OkPressure);
-            WaitForStablePressure(IM.VacuumSystem, CleanPressure);
-            HoldForLeakTightness(IM);
+            im.Evacuate(OkPressure);
+            WaitForStablePressure(im.VacuumSystem, CleanPressure);
+            HoldForLeakTightness(im);
 
-            Flush(IM, 3);
-            IM.VacuumSystem.WaitForPressure(CleanPressure);
+            Flush(im, 3);
+            im.VacuumSystem.WaitForPressure(CleanPressure);
 
             ProcessStep.End();
 
@@ -2175,6 +2404,13 @@ namespace AeonHacs.Components
                 Notice.Send("Nothing to do", "No sulfur traps are awaiting service.", Notice.Type.Tell);
                 return;
             }
+            var gm = Manifold(grs);
+            if (gm == null)
+            {
+                var grList = string.Join(", ", grs.Select(gr => gr.Name));
+                Notice.Send("Configuration Error", $"Can't find graphite manifold for {grList}.", Notice.Type.Tell);
+                return;
+            }
 
             PressurizeGRsWithInertGas(grs);
 
@@ -2186,13 +2422,14 @@ namespace AeonHacs.Components
             // assume the Fe has been replaced
 
             ProcessStep.Start("Evacuate sulfur traps");
-            GM.Isolate();
+
+            gm.Isolate();
             grs.ForEach(gr => gr.Open());
-            GM.OpenAndEvacuate(OkPressure);
+            gm.OpenAndEvacuate(OkPressure);
             ProcessStep.End();
 
             ProcessStep.Start("Flush GRs with He");
-            Flush(GM, 3);
+            Flush(gm, 3);
             ProcessStep.End();
 
             grs.ForEach(gr => gr.PreparationComplete());
@@ -2244,7 +2481,7 @@ namespace AeonHacs.Components
             ProcessStep.Start("Close gas supplies");
             CloseGasSupplies();
             ProcessStep.End();
-            OpenLine(VacuumSystem1);
+            OpenLine(VacuumSystem);
         }
 
         protected virtual void OpenLine(IVacuumSystem vacuumSystem)
@@ -2525,8 +2762,8 @@ namespace AeonHacs.Components
             if (!IpImInertGas(out ISection im, out IGasSupply gs)) return;
 
             ProcessStep.Start($"Provide positive He pressure at {InletPort.Name} needle");
-            IM.ClosePorts();
-            IM.Isolate();
+            im.ClosePorts();
+            im.Isolate();
             gs.Admit();
             gs.WaitForPressure(PressureOverAtm);
             InletPort.Open();
@@ -2536,20 +2773,20 @@ namespace AeonHacs.Components
 
             PlaySound();
             ProcessStep.Start("Remove previous sample or plug from IP needle");
-            while (!IM.Manometer.IsFalling && ProcessStep.Elapsed.TotalSeconds < 10)
+            while (!im.Manometer.IsFalling && ProcessStep.Elapsed.TotalSeconds < 10)
                 Wait(); // wait up to 10 seconds for pIM clearly falling
             ProcessStep.End();
 
             ProcessStep.Start("Wait for stable He flow at IP needle");
-            while (!IM.Manometer.IsStable)
+            while (!im.Manometer.IsStable)
                 Wait();
             ProcessStep.End();
 
             PlaySound();
             ProcessStep.Start("Load next sample vial or plug at IP needle");
-            while (IM.Manometer.RateOfChange < IMPluggedTorrPerSecond && ProcessStep.Elapsed.TotalSeconds < 20)
+            while (im.Manometer.RateOfChange < IMPluggedTorrPerSecond && ProcessStep.Elapsed.TotalSeconds < 20)
                 Wait();
-            if (IM.Manometer.RateOfChange > IMLoadedTorrPerSecond)
+            if (im.Manometer.RateOfChange > IMLoadedTorrPerSecond)
                 InletPort.State = LinePort.States.Loaded;
             else
                 InletPort.State = LinePort.States.Complete;
@@ -3122,7 +3359,17 @@ namespace AeonHacs.Components
 
         protected virtual void GraphitizeAliquots()
         {
-            GM.IsolateFromVacuum();
+            var grs = Sample.Aliquots.Select(a => Find<IGraphiteReactor>(a.GraphiteReactor));
+
+            var gm = Manifold(grs);
+            if (gm == null)
+            {
+                var grList = string.Join(", ", grs.Select(gr => gr.Name));
+                Notice.Send("Configuration Error", $"Can't find graphite manifold for {grList}.", Notice.Type.Tell);
+                return;
+            }
+
+            gm.IsolateFromVacuum();
             foreach (Aliquot aliquot in Sample.Aliquots)
             {
                 ProcessStep.Start("Graphitize aliquot " + aliquot.Name);
@@ -3130,8 +3377,8 @@ namespace AeonHacs.Components
                 Find<IGraphiteReactor>(aliquot.GraphiteReactor).Start();
                 ProcessStep.End();
             }
-            GM.ClosePorts();
-            GM.OpenAndEvacuate();
+            gm.ClosePorts();
+            gm.OpenAndEvacuate();
         }
 
 
@@ -4089,8 +4336,9 @@ namespace AeonHacs.Components
 
         protected virtual void AdmitIPO2EvacuateIM()
         {
-            AdmitIPO2();
-            IM.Evacuate();
+            if (!IpIm(out ISection im)) return;
+            Admit("O2", im, InletPort, IMO2Pressure);
+            im.Evacuate();
         }
 
         protected virtual void MeasureExtractEfficiency()
