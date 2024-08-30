@@ -66,11 +66,14 @@ namespace AeonHacs.Components
                     return;
                 }
                 if (value < MinimumSetpoint)
-                    setpoint = MinimumSetpoint;
+                    value = MinimumSetpoint;
                 else if (value > MaximumSetpoint)
-                    setpoint = MaximumSetpoint;
-                else
+                    value = MaximumSetpoint;
+                if (setpoint != value)
+                {
                     setpoint = value;
+                    if (Initialized) Hacs.SystemLog.Record($"{Name}.Setpoint = {value}");
+                }
                 TurnOn(setpoint);
                 NotifyPropertyChanged();
             }

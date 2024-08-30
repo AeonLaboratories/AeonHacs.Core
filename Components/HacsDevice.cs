@@ -1,5 +1,4 @@
-﻿using AeonHacs;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace AeonHacs.Components
@@ -37,7 +36,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// This property provides access to device property values
         /// which are generally provided to the class from another source
-        /// (e.g., as a result of a hadware device input).
+        /// (e.g., as a result of a hardware device input).
         /// </summary>
         public virtual IDevice Device { get; private set; }
 

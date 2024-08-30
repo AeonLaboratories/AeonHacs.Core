@@ -1,8 +1,5 @@
-﻿using AeonHacs;
-using Newtonsoft.Json;
-using System;
+﻿using Newtonsoft.Json;
 using System.ComponentModel;
-using System.Text;
 
 namespace AeonHacs.Components
 {
@@ -63,8 +60,13 @@ namespace AeonHacs.Components
         protected virtual bool UpdateSwitchState(bool value) =>
             UpdateSwitchState(value.ToSwitchState());
 
-        protected virtual bool UpdateSwitchState(SwitchState value) =>
-            Ensure(ref state, value, NotifyConfigChanged, nameof(State));
+        protected virtual bool UpdateSwitchState(SwitchState value)
+        {
+            var changed = Ensure(ref state, value, NotifyConfigChanged, nameof(State));
+            if (changed && Initialized)
+                Hacs.SystemLog.Record($"Turned {Name} {state}");
+            return changed;
+        }
 
         /// <summary>
         /// The configured/desired state of the switch.

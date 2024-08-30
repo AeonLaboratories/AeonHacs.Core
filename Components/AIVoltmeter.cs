@@ -96,6 +96,11 @@ namespace AeonHacs.Components
                 base.OnConfigChanged(sender, e);
         }
 
+        public override string Name
+        {
+            get => base.Name;
+            set { base.Name = value; AnalogInput.Name = $"({value})"; }
+        }
 
         AnalogInput AnalogInput;
         public AIVoltmeter(IHacsDevice d = null) : base(d)

@@ -43,6 +43,11 @@ namespace AeonHacs.Components
                 base.OnConfigChanged(sender, e);
         }
 
+        public override string Name 
+        { 
+            get => base.Name;
+            set { base.Name = value; ManagedDevice.Name = $"({value})"; }
+        }
 
         ManagedDevice ManagedDevice;
         public ManagedSwitch(IHacsDevice d = null) : base(d)

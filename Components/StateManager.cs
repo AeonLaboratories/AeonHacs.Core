@@ -1,9 +1,8 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Threading;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
@@ -294,6 +293,7 @@ namespace AeonHacs.Components
             StateSignal.Set();        // release the StateLoop if it's waiting
             while (!predicate?.Invoke(this) ?? false)
                 Wait();
+            if (Initialized) Hacs.SystemLog.Record($"{Name}.State = {State}");
         }
 
         public override string ToString()

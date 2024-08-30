@@ -108,6 +108,12 @@ namespace AeonHacs.Components
         string DigitalOutputName { get => Switch?.Name; set => digitalOutputName = value; }
         string digitalOutputName;
 
+        public override string Name
+        {
+            get => base.Name;
+            set { base.Name = value; AnalogInput.Name = $"({value})"; }
+        }
+
         public EdwardsAimX(IHacsDevice d = null) : base(d)
         {
             AnalogInput = new AnalogInput(this);

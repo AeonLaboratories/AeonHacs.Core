@@ -67,6 +67,12 @@ namespace AeonHacs.Components
                 base.OnConfigChanged(sender, e);
         }
 
+        public override string Name
+        {
+            get => base.Name;
+            set { base.Name = value; Thermometer.Name = $"({value})"; }
+        }
+
         Thermometer Thermometer;
         public AIThermometer(IHacsDevice d = null) : base(d)
         {

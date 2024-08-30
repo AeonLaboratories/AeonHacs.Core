@@ -47,7 +47,8 @@ namespace AeonHacs.Components
             get => voltage;
             set
             {
-                Ensure(ref TargetVoltage, value, NotifyConfigChanged, nameof(TargetVoltage));
+                if (Ensure(ref TargetVoltage, value, NotifyConfigChanged, nameof(TargetVoltage)) && Initialized)
+                    Hacs.SystemLog.Record($"{Name}.Voltage = {value}");
                 // The following triggers the DAQ to set the output voltage.
                 // Alternatively, the DAQ could monitor TargetVoltage changed instead
                 // of Config.Voltage. TODO: which is better?

@@ -61,6 +61,12 @@ namespace AeonHacs.Components
                 base.OnConfigChanged(sender, e);
         }
 
+        public override string Name
+        {
+            get => base.Name;
+            set { base.Name = value; Manometer.Name = $"({value})"; }
+        }
+
         Manometer Manometer;
         public AIManometer(IHacsDevice d = null) : base(d)
         {

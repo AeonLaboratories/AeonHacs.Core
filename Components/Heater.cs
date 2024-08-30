@@ -78,6 +78,12 @@ namespace AeonHacs.Components
                 base.OnConfigChanged(sender, e);
         }
 
+        public override string Name
+        {
+            get => base.Name;
+            set { base.Name = value; AutoManual.Name = $"({value})"; }
+        }
+
         AutoManual AutoManual;
         public Heater(IHacsDevice d = null) : base(d)
         {

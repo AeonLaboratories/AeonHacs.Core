@@ -1,6 +1,4 @@
-﻿using AeonHacs;
-using Newtonsoft.Json;
-using System;
+﻿using Newtonsoft.Json;
 using System.ComponentModel;
 
 namespace AeonHacs.Components
@@ -76,6 +74,12 @@ namespace AeonHacs.Components
                 NotifyConfigChanged(e?.PropertyName);
             else
                 base.OnConfigChanged(sender, e);
+        }
+
+        public override string Name
+        {
+            get => base.Name;
+            set { base.Name = value; Auto.Name = $"({value})"; }
         }
 
         Auto Auto { get; set; }
