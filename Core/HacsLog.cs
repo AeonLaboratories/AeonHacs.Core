@@ -46,6 +46,8 @@ namespace AeonHacs
             catch { return false; }
         }
 
+        static bool _isFirstInstance = true;
+
         #endregion static
 
         public Action Update
@@ -126,6 +128,16 @@ namespace AeonHacs
 
         public string TimeStamp()
         { return Log?.TimeStamp() ?? ""; }
+
+        public HacsLog()
+        {
+            if (_isFirstInstance)
+            {
+                _isFirstInstance = false;
+                ValidateFolder(LogFolder);
+                ValidateFolder(ArchiveFolder);
+            }
+        }
 
         public HacsLog(string filename, bool archiveDaily = true)
         {
