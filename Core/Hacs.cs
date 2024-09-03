@@ -4,15 +4,16 @@ namespace AeonHacs
 {
     public static class Hacs
     {
+        public static Action CloseApplication;
         public static HacsLog EventLog
         {
-            get => eventLog ??= new HacsLog("Event log.txt") { ArchiveDaily = false };
+            get => eventLog ??= new HacsLog("Event log.txt") { Name = "EventLog", ArchiveDaily = false };
             set => eventLog = value;
         }
         static HacsLog eventLog;
         public static HacsLog SystemLog
         {
-            get => systemLog ??= new HacsLog("System log.txt") { ArchiveDaily = true };
+            get => systemLog ??= new HacsLog("System log.txt") { Name = "SystemLog", ArchiveDaily = true };
             set => systemLog = value;
         }
         static HacsLog systemLog;

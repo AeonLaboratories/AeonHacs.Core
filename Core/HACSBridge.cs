@@ -1,10 +1,9 @@
-﻿using Newtonsoft.Json;
+﻿using AeonHacs.Utilities;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using System;
 using System.IO;
 using System.Resources;
-using AeonHacs.Utilities;
-using System.Collections.Generic;
 
 namespace AeonHacs
 {
@@ -23,7 +22,7 @@ namespace AeonHacs
     /// Coordinates the startup and shutdown of a user interface and a hacs implementation
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class HacsBridge<T> : HacsBridge where T : HacsBase, new()    // require parameterless constructor, needed for bootstrapping a new implementation
+    public class HacsBridge<T> : HacsBridge where T : HacsBase
     {
         protected T HacsImplementation { get; set; }
 
@@ -50,27 +49,7 @@ namespace AeonHacs
         string settingsFilename = "settings.json";
         string backupSettingsFilename = "settings.backup.json";
 
-        bool BootstrapNewSystem = false;
-        public HacsBridge() : this(false) { }
-
-        public HacsBridge(bool bootstrapNewSystem)
-        {
-            BootstrapNewSystem = bootstrapNewSystem;
-
-            if (bootstrapNewSystem)
-            {
-                JsonSerializer = new JsonSerializer()
-                {
-//                    Converters = { new StringEnumConverter(), HideNameInDictionaryConverter.Default },
-                    Converters = { new StringEnumConverter() },
-                    DefaultValueHandling = DefaultValueHandling.Populate,
-                    Formatting = Formatting.Indented,
-                    NullValueHandling = NullValueHandling.Include,
-                    FloatFormatHandling = FloatFormatHandling.String,
-                    TypeNameHandling = TypeNameHandling.Auto
-                };
-            }
-            else
+        public HacsBridge()
             {
                 JsonSerializer = new JsonSerializer()
                 {
@@ -85,26 +64,16 @@ namespace AeonHacs
                     TypeNameHandling = TypeNameHandling.Auto
                 };
             }
-        }
 
         public override void Start()
         {
-            if (BootstrapNewSystem)
-            {
-                HacsImplementation = new T();
-                SaveSettings("bootstrap.json");
-                CloseUI();
-                return;
-            }
-            else
-            {
+            Hacs.CloseApplication = CloseUI;
                 LoadSettings(settingsFilename);
                 if (HacsImplementation == null)
                 {
                     CloseUI();
                     return;
                 }
-            }
             Hacs.Connect();
         }
 
@@ -123,7 +92,7 @@ namespace AeonHacs
             catch (Exception e)
             {
                 Notice.Send(e.ToString());
-                HacsImplementation = default(T);
+                HacsImplementation = default;
                 return;
             }
             HacsImplementation.SaveSettings = SaveSettings;
