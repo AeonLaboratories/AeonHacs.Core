@@ -99,7 +99,7 @@ namespace AeonHacs.Components
 
 
         #region parameterized processes
-        protected override void Combust(int temperature, int minutes, bool admitO2, bool openLine, bool waitForSetpoint)
+        protected override void Combust(int temperature, int minutes, bool admitO2, bool waitForSetpoint)
         {
             TubeFurnace.TurnOn(temperature);
             ProcessStep.Start($"Waiting for temperature to reach {temperature} °C");

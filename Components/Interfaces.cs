@@ -2205,7 +2205,6 @@ namespace AeonHacs.Components
         int Temperature { get; set; }
         int Minutes { get; set; }
         bool AdmitO2 { get; set; }
-        bool OpenLine { get; set; }
         bool WaitForSetpoint { get; set; }
     }
     public interface IWaitMinutesStep : IProcessSequenceStep

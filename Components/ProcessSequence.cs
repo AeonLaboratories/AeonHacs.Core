@@ -111,36 +111,32 @@ namespace AeonHacs.Components
         public int Minutes { get; set; }
         [JsonProperty]
         public bool AdmitO2 { get; set; }
-        [JsonProperty]
-        public bool OpenLine { get; set; }
+
         [JsonProperty]
         public bool WaitForSetpoint { get; set; }
 
         public CombustionStep() : this(25, 0, false, false, false) { }
 
         public CombustionStep(int temperature, int minutes, bool admitO2, bool openLine, bool waitForSetpoint)
-            : this("Combust", temperature, minutes, admitO2, openLine, waitForSetpoint) { }
+            : this("Combust", temperature, minutes, admitO2, waitForSetpoint) { }
 
-        public CombustionStep(string name, int temperature, int minutes, bool admitO2, bool openLine, bool waitForSetpoint)
+        public CombustionStep(string name, int temperature, int minutes, bool admitO2, bool waitForSetpoint)
         {
             Name = name;
             Temperature = temperature;
             Minutes = minutes;
             AdmitO2 = admitO2;
-            OpenLine = openLine;
             WaitForSetpoint = waitForSetpoint;
         }
 
         public override ProcessSequenceStep Clone() =>
-            new CombustionStep(Name, Temperature, Minutes, AdmitO2, OpenLine, WaitForSetpoint);
+            new CombustionStep(Name, Temperature, Minutes, AdmitO2, WaitForSetpoint);
 
         public override string ToString()
         {
             var sb = new StringBuilder($"{Name} at {Temperature} for {Minutes} minutes.");
             if (AdmitO2)
                 sb.Append(" Admit O2.");
-            if (OpenLine)
-                sb.Append(" Open Line.");
             if (WaitForSetpoint)
                 sb.Append(" Wait For Setpoint.");
             return sb.ToString();

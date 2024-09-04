@@ -227,7 +227,7 @@ namespace AeonHacs.Components
             {
                 ProcessStep.Start(step.Name);
                 if (step is CombustionStep cs)
-                    Combust(cs.Temperature, cs.Minutes, cs.AdmitO2, cs.OpenLine, cs.WaitForSetpoint);
+                    Combust(cs.Temperature, cs.Minutes, cs.AdmitO2, cs.WaitForSetpoint);
                 else if (step is WaitMinutesStep wms)
                     WaitMinutes(wms.Minutes);
                 else if (step is ParameterStep sps)
@@ -244,7 +244,7 @@ namespace AeonHacs.Components
 
         // The derived class can implement a Combust() process
         // (if it doesn't those steps won't do anything)
-        protected virtual void Combust(int temperature, int minutes, bool admitO2, bool openLine, bool waitForSetpoint) { }
+        protected virtual void Combust(int temperature, int minutes, bool admitO2, bool waitForSetpoint) { }
 
         #endregion parameterized process steps
 

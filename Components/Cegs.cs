@@ -1780,7 +1780,7 @@ namespace AeonHacs.Components
         /// <param name="admitO2"></param>
         /// <param name="openLine"></param>
         /// <param name="waitForSetpoint"></param>
-        protected override void Combust(int temperature, int minutes, bool admitO2, bool openLine, bool waitForSetpoint)
+        protected override void Combust(int temperature, int minutes, bool admitO2, bool waitForSetpoint)
         {
             SetParameter("IpSetpoint", temperature);
             SetParameter("IpTemperatureCushion", 20);   // if waitForSetpoint and cushion is ok
@@ -1792,40 +1792,6 @@ namespace AeonHacs.Components
             WaitIpMinutes();
         }
 
-        //
-        // TODO: delete this old version of Combust()
-        //
-        //protected override void Combust(int temperature, int minutes, bool admitO2, bool openLine, bool waitForSetpoint)
-        //{
-        //    if (!IpImO2(out ISection im, out IGasSupply O2)) return;
-        //    if (admitO2)
-        //    {
-        //        ProcessStep.Start($"Combust at {temperature} °C, {MinutesString(minutes)}");
-        //        AdmitIPO2();
-        //    }
-        //    else
-        //        ProcessStep.Start($"Heat IP: {temperature} °C, {MinutesString(minutes)}");
-        //    if (InletPort.SampleFurnace.IsOn)
-        //        InletPort.SampleFurnace.Setpoint = temperature;
-        //    else
-        //        InletPort.SampleFurnace.TurnOn(temperature);
-        //    if (openLine)
-        //    {
-        //        im.Evacuate(OkPressure);
-        //        OpenLine();
-        //    }
-        //    if (waitForSetpoint)
-        //    {
-        //        ProcessStep.End();
-        //        int closeEnough = temperature - 20;
-        //        ProcessStep.Start($"Wait for {InletPort.SampleFurnace.Name} to reach {closeEnough} °C");
-        //        while (InletPort.SampleFurnace.Temperature < closeEnough) Wait();
-        //        ProcessStep.End();
-        //        ProcessStep.Start($"Combust at {temperature} °C for {MinutesString(minutes)}.");
-        //    }
-        //    WaitRemaining(minutes);
-        //    ProcessStep.End();
-        //}
         #endregion parameterized processes
 
         protected virtual void WaitForOperator()
