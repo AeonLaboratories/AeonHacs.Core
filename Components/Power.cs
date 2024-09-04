@@ -52,12 +52,12 @@ namespace AeonHacs.Components
         public Stopwatch MainsDownTimer = new Stopwatch();
 
         [JsonProperty]
-        int MilliSecondsMainsDownLimit
+        public int MilliSecondsMainsDownLimit
         {
             get => milliSecondsMainsDownLimit;
             set => Ensure(ref milliSecondsMainsDownLimit, value);
         }
-        int milliSecondsMainsDownLimit;
+        int milliSecondsMainsDownLimit = 60000;
 
         public bool MainsHasFailed => MainsDownTimer.ElapsedMilliseconds > MilliSecondsMainsDownLimit;
 
@@ -91,8 +91,8 @@ namespace AeonHacs.Components
                 }
                 else if (MainsHasFailed && !failureHandled)
                 {
-                    MainsFailed?.Invoke();
                     failureHandled = true;
+                    MainsFailed?.Invoke();
                 }
             }
             else if (MainsDownTimer.IsRunning)

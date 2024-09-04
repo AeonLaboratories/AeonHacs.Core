@@ -33,32 +33,6 @@ namespace AeonHacs.Components
         }
         AlertManager alertManager;
 
-        /// <summary>
-        /// Send a message to the remote operator.
-        /// </summary>
-        public virtual void Alert(string subject, string message) =>
-            AlertManager.Send(subject, message);
-
-        /// <summary>
-        /// Dispatch a message to the remote operator and to the local user interface.
-        /// The process is not paused.
-        /// </summary>
-        public virtual void Announce(string subject, string message) =>
-            AlertManager.Announce(subject, message);
-
-        /// <summary>
-        /// Send the message to the remote operator, then pause, giving
-        /// the local operator the option to continue.
-        /// </summary>
-        public virtual void Pause(string subject, string message) =>
-            AlertManager.Pause(subject, message);
-
-        /// <summary>
-        /// Make an entry in the EventLog, pause and give the local operator
-        /// the option to continue. The notice is transmitted as a Warning.
-        /// </summary>
-        public virtual void Warn(string subject, string message) =>
-            AlertManager.Warn(subject, message);
 
         #region process manager
 
@@ -212,7 +186,7 @@ namespace AeonHacs.Components
                     if (priorState == ProcessStateCode.Finished)
                         break;
                     if (priorState == ProcessState)
-                        Thread.Sleep(200);
+                        WaitMilliseconds(200);
                 }
             }
             catch { }
@@ -255,7 +229,7 @@ namespace AeonHacs.Components
                 if (step is CombustionStep cs)
                     Combust(cs.Temperature, cs.Minutes, cs.AdmitO2, cs.OpenLine, cs.WaitForSetpoint);
                 else if (step is WaitMinutesStep wms)
-                    WaitMinutes(wms.Minutes);       // this is provided by ProcessManager
+                    WaitMinutes(wms.Minutes);
                 else if (step is ParameterStep sps)
                     SetParameter(sps.Parameter);
                 else
@@ -272,56 +246,10 @@ namespace AeonHacs.Components
         // (if it doesn't those steps won't do anything)
         protected virtual void Combust(int temperature, int minutes, bool admitO2, bool openLine, bool waitForSetpoint) { }
 
-        public void WaitMinutes(int minutes)
-        { WaitMilliseconds("Wait " + MinutesString(minutes) + ".", minutes * 60000); }
-
         #endregion parameterized process steps
 
         #endregion ProcessSequences
 
         #endregion process manager
-
-        #region fundamental processes
-        /// <summary>
-        /// Puts the thread to sleep for the specified time.
-        /// </summary>
-        /// <param name="milliseconds"></param>
-        protected void Wait(int milliseconds) { Thread.Sleep(milliseconds); }
-        /// <summary>
-        /// Wait 35 milliseconds
-        /// </summary>
-        protected void Wait() { Wait(35); }
-
-        /// <summary>
-        /// Starts a ProcessSubStep timer and waits for it to expire.
-        /// </summary>
-        /// <param name="seconds"></param>
-        protected void WaitSeconds(int seconds)
-        { WaitMilliseconds("Wait " + SecondsString(seconds) + ".", seconds * 1000); }
-
-        /// <summary>
-        /// Starts a ProcessSubStep millisecond timer and waits for it to expire.
-        /// </summary>
-        /// <param name="description">ProcessSubStep description</param>
-        /// <param name="milliseconds"></param>
-        protected void WaitMilliseconds(string description, int milliseconds)
-        {
-            ProcessSubStep.Start(description);
-            WaitFor(() => (int)ProcessSubStep.Elapsed.TotalMilliseconds >= milliseconds);
-            ProcessSubStep.End();
-        }
-
-        /// <summary>
-        /// Wait until ProcessStep.Elapsed has reached the specified number of minutes.
-        /// </summary>
-        /// <param name="minutes"></param>
-        protected void WaitRemaining(int minutes)
-        {
-            int milliseconds = minutes * 60000 - (int)ProcessStep.Elapsed.TotalMilliseconds;
-            if (milliseconds > 0)
-                WaitMilliseconds("Wait for remainder of " + MinutesString(minutes) + ".", milliseconds);
-        }
-
-        #endregion fundamental processes
     }
 }

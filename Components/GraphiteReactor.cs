@@ -303,8 +303,8 @@ namespace AeonHacs.Components
 
                 if (FurnaceUnresponsive)
                 {
-                    Alert.Send("GraphiteReactor warning!",
-                        $"{Name} furnace is unresponsive.");
+                    Alert.Send("GraphiteReactor Warning",
+                        $"{Heater.Name} is unresponsive.");
                     State = State;  // reset the timer
                 }
 
@@ -314,16 +314,16 @@ namespace AeonHacs.Components
                         Stop();
                     else
                     {
-                        Alert.Send("Graphite reaction warning!",
+                        Alert.Send("Graphite Reaction Warning",
                             $"{Name} reaction hasn't started.\r\n" +
-                                "Is the furnace in place?");
+                            $"Is {Heater.Name} in place?");
                         State = State;  // reset the timer
                     }
                 }
 
                 if (ReactionNotFinishing)
                 {
-                    Alert.Send("Graphite reaction warning!",
+                    Alert.Send("Graphite Reaction Warning",
                         $"{Name} reaction hasn't finished.");
                     State = State;  // reset the timer
                 }

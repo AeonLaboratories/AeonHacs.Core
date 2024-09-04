@@ -309,11 +309,11 @@ namespace AeonHacs.Components
         {
             Stopwatch sw = new Stopwatch();
             sw.Restart();
-            while (sw.ElapsedMilliseconds < seconds * 1000 + 50)
+            while (!WaitFor(() => { if (!IsStable) sw.Restart(); return sw.Elapsed.TotalSeconds >= seconds; }, 15 * 60000, 50))
             {
-                Thread.Sleep(50);
-                if (!IsStable)
-                    sw.Restart();
+                Alert.Announce($"{Name}",
+                    $"{Name} is taking a long time to stabilize.\r\n" +
+                    $"Maybe its Filter is misconfigured?");
             }
         }
 
@@ -323,6 +323,7 @@ namespace AeonHacs.Components
             while ((DateTime.Now - now).TotalSeconds < seconds)
                 Thread.Sleep(50);
         }
+
         public double WaitForAverage(int seconds = 60)
         {
             var i = 1;

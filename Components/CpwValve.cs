@@ -162,7 +162,7 @@ namespace AeonHacs.Components
         public override bool ActionSucceeded
         {
             get => base.ActionSucceeded || StopRequested;
-            set => base.ActionSucceeded = value;
+            protected set => base.ActionSucceeded = value;
         }
         public override IActuatorOperation ValidateOperation(IActuatorOperation operation)
         {

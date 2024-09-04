@@ -44,9 +44,9 @@ namespace AeonHacs
                 {
                     credentialsOk = false;
                     if (e is FileNotFoundException)
-                        Notice.Send("File not found", $"Credentials file is missing: {credentialsFileName}");
+                        Notice.Send("File not found", $"Credentials file is missing: {credentialsFileName}", Notice.Type.Tell);
                     else
-                        Notice.Send(e.ToString());
+                        Notice.Send(e.ToString(), Notice.Type.Tell);
                 }
             }
             return info;

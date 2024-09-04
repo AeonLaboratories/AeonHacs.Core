@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Threading;
+using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {
@@ -165,9 +166,6 @@ namespace AeonHacs.Components
 
         #endregion State Management
 
-        protected void Wait() =>
-            Thread.Sleep(35);
-
         /// <summary>
         /// A place to record transmitted and received messages,
         /// and various status conditions for debugging.
@@ -291,8 +289,7 @@ namespace AeonHacs.Components
             if (Stopped) Start();
             TargetState = targetState;
             StateSignal.Set();        // release the StateLoop if it's waiting
-            while (!predicate?.Invoke(this) ?? false)
-                Wait();
+            WaitFor(() => predicate?.Invoke(this) ?? true || Hacs.Stopping, -1, 35); // TODO: implement timeout?
             if (Initialized) Hacs.SystemLog.Record($"{Name}.State = {State}");
         }
 

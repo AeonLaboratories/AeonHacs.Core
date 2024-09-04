@@ -709,7 +709,7 @@ namespace AeonHacs.Components
                     {
                         var message = $"{Name}.SelectDeviceService: Can't operate {a.Name} because {nameof(AeonServo)} is missing or unresponsive.";
                         Log?.Record(message);
-                        Alert.Warn("System error", message);
+                        Alert.Warn("System Error", message);
                         skipOperation = Notice.Ok(Name, $"Ok to skip ServiceRequest \"{ServiceRequest}\"?");
                         if (!skipOperation && AeonServo != null && !AeonServo.Responsive)
                             AeonServo.SerialDevice?.Reset();

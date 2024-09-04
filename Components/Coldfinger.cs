@@ -33,7 +33,7 @@ namespace AeonHacs.Components
         {
             LevelSensor = Find<IThermometer>(levelSensorName);
             LNValve = Find<IValve>(lnValveName);
-            AirValve = Find <IValve>(airValveName);
+            AirValve = Find<IValve>(airValveName);
             LNManifold = Find<ILNManifold>(lnManifoldName);
             AirThermometer = Find<HacsComponent>(airThermometerName);
             ambient = Find<Chamber>("Ambient");
@@ -190,6 +190,17 @@ namespace AeonHacs.Components
             set => Ensure(ref maximumSecondsLNFlowing, value);
         }
         int maximumSecondsLNFlowing = 60;
+
+        /// <summary>
+        /// Maximum time allowed when waiting for the Coldfinger to reach the Frozen state.
+        /// </summary>
+        [JsonProperty, DefaultValue(4)]
+        public int MaximumMinutesToFreeze
+        {
+            get => maximumMinutesToFreeze;
+            set => Ensure(ref maximumMinutesToFreeze, value);
+        }
+        int maximumMinutesToFreeze = 4;
 
         /// <summary>
         /// How many seconds to wait for temperature equilibrium after the Raise state
@@ -578,7 +589,7 @@ namespace AeonHacs.Components
                     break;
             }
 
-            if (State == States.Freezing && StateTimer.Elapsed.TotalMinutes > 10) // MaximumFreezeMinutes)
+            if (State == States.Freezing || State == States.Raising && StateTimer.Elapsed.TotalMinutes > MaximumMinutesToFreeze)
             {
                 SlowToFreeze?.Invoke();
                 StateTimer.Restart();
@@ -588,15 +599,24 @@ namespace AeonHacs.Components
         public Action SlowToFreeze { get; set; }
 
         /// <summary>
-        /// Freezes the coldfinger and waits for it to reach the Frozen state.
+        /// Sets the coldfinger to Freeze and waits for it to reach the Frozen state.
         /// </summary>
         public void FreezeWait()
         {
-            var st = StepTracker.Default;
             Freeze();
-            st?.Start($"Wait for {Name} < {FrozenTemperature + FreezeTrigger} °C");
-            while (State != States.Frozen) Wait();
-            st?.End();
+            StepTracker.Default?.Start($"Wait for {Name} < {FrozenTemperature + FreezeTrigger} °C");
+            while (!WaitFor(() => Hacs.Stopping || State == States.Frozen, MaximumMinutesToFreeze * 60000, 1000))
+            {
+                SlowToFreeze?.Invoke();
+                if (Alert.Warn("Process Exception",
+                    $"Coldfingers were shut down. \r\n" +
+                    "Restore their states manually and Ok to try again or \r\n" +
+                    "Cancel to continue in the present state.\r\n" +
+                    "Close and restart the application to abort the process.").Text == "Ok")
+                    continue;
+                break;
+            }
+            StepTracker.Default?.End();
         }
 
 
@@ -613,7 +633,17 @@ namespace AeonHacs.Components
             step?.End();
 
             step?.Start($"Wait for {Name} LN Raised temperature");
-            WaitFor(() => Temperature < Target + RaiseTrigger);
+            while (!WaitFor(() => Hacs.Stopping || Temperature >= Target + RaiseTrigger, MaximumMinutesToFreeze * 60000, 1000))
+            {
+                SlowToFreeze?.Invoke();
+                if (Alert.Warn("Process Exception",
+                    $"Coldfingers were shut down. \r\n" +
+                    "Restore their states manually and Ok to try again or \r\n" +
+                    "Cancel to continue in the present state.\r\n" +
+                    "Close and restart the application to abort the process.").Text == "Ok")
+                    continue;
+                break;
+            }
             step?.End();
 
             // Shortcut if the FTC supports overflow-trickle, in which case,
@@ -625,7 +655,7 @@ namespace AeonHacs.Components
             step?.End();
 
             step?.Start($"Wait {SecondsToWaitAfterRaised} seconds with LN raised");
-            WaitFor(() => false, SecondsToWaitAfterRaised * 1000);
+            WaitFor(() => false, SecondsToWaitAfterRaised * 1000, 1000);
             step?.End();
         }
 

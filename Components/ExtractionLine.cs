@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using System.Threading;
 using AeonHacs.Utilities;
 using static AeonHacs.Utilities.Utility;
+using System;
 
 namespace AeonHacs.Components
 {
@@ -102,8 +103,7 @@ namespace AeonHacs.Components
         {
             TubeFurnace.TurnOn(temperature);
             ProcessStep.Start($"Waiting for temperature to reach {temperature} °C");
-            while (TubeFurnace.Temperature < temperature - 10)
-                Wait(1000);
+            WaitFor(() => TubeFurnace.Temperature > temperature - 10, -1, 1000);
             ProcessStep.End();
 
         }
@@ -185,18 +185,10 @@ namespace AeonHacs.Components
             ProcessStep.End();
         }
 
-//        void waitForPressure(double pressure)
-//        {
-//            while (p_TF < pressure)
-//                Wait();
-//        }
-
-
         void waitForPressureBelow(double pressure)
         {
             ProcessStep.Start($"Wait for tube pressure < {pressure} Torr");
-            while (TubeFurnaceManometer.Pressure > pressure)
-                Wait();
+            WaitFor(() => TubeFurnaceManometer.Pressure < pressure);
             ProcessStep.End();
         }
 
@@ -204,24 +196,21 @@ namespace AeonHacs.Components
         void waitForPressureAbove(double pressure)
         {
             ProcessStep.Start($"Wait for tube pressure > {pressure} Torr");
-            while (TubeFurnaceManometer.Pressure < pressure)
-                Wait();
+            WaitFor(() => TubeFurnaceManometer.Pressure > pressure);
             ProcessStep.End();
         }
 
         void waitForTemperatureAbove(int temperature)
         {
             ProcessStep.Start($"Wait for tube temperature > {temperature} °C");
-            while (TubeFurnace.Temperature < temperature)
-                Wait();
+            WaitFor(() => TubeFurnace.Temperature > temperature);
             ProcessStep.End();
         }
 
         void WaitForTemperatureBelow(int temperature)
         {
             ProcessStep.Start($"Wait for tube temperature < {temperature} °C");
-            while (TubeFurnace.Temperature > temperature)
-                Wait();
+            WaitFor(() => TubeFurnace.Temperature < temperature);
             ProcessStep.End();
         }
 
@@ -251,9 +240,10 @@ namespace AeonHacs.Components
             pressurizeHe(AmbientManometer.Pressure + 20);
             purgeFlowManager.Start();
 
-            Alert("Operator Needed", "Tube furnace ready to be opened");
             ProcessStep.CurrentStep.Description = "Tube furnace ready to be opened";
-            Notice.Send("Purge flow is active", "Dismiss this window when furnace is closed again");
+            Alert.Pause("Operator Needed", 
+                "Tube furnace ready to be opened. Purge flow is active.\r\n" +
+                "Dismiss this window when furnace is closed again");
             purgeFlowManager.Stop();
 
             ProcessStep.End();
@@ -290,10 +280,7 @@ namespace AeonHacs.Components
                 pressurizeO2(O2Pressure);
 
                 ProcessStep.Start($"Bake at {bakeTemperature} °C for {MinutesString(bakeMinutes)} min, cycle {i+1} of {bakeCycles}");
-                while (ProcessStep.Elapsed.TotalMinutes < bakeMinutes)
-                {
-                    Wait(1000);
-                }
+                WaitMinutes(bakeMinutes);
                 ProcessStep.End();
                 evacuateTF(0.1);
             }
@@ -301,7 +288,7 @@ namespace AeonHacs.Components
             TubeFurnace.TurnOff();
             evacuateTF(OkPressure);
             SampleLog.Record($"{Name}: Tube bakeout process complete");
-            Alert("Sytem Status", $"{Name}: Tube bakeout process complete");
+            Alert.Send("Sytem Status", $"{Name}: Tube bakeout process complete");
             ProcessStep.End();
             TubeFurnacePort.State = LinePort.States.Complete;
         }
@@ -341,11 +328,7 @@ namespace AeonHacs.Components
 
             TubeFurnacePressureManager.Start(ptarget);
 
-            while (ProcessStep.Elapsed.TotalMinutes < bleedMinutes)
-            {
-                Wait(1000);
-            }
-
+            WaitRemaining(bleedMinutes);
             ProcessStep.End();
 
             ProcessStep.Start($"Cool to below {t_LiBO2_frozen} °C");
@@ -363,7 +346,7 @@ namespace AeonHacs.Components
 
             evacuateTF();
 
-            Alert("Sytem Status", $"{Name}: Degas LiBO2, boat, and sleeve process complete");
+            Alert.Send("Sytem Status", $"{Name}: Degas LiBO2, boat, and sleeve process complete");
             SampleLog.Record($"{Name}: Degas LiBO2, boat, and sleeve process complete");
             SampleLog.Record($"Degas O2 bleed volume\t{MFC.TrackedFlow}\tcc");
 
@@ -405,10 +388,7 @@ namespace AeonHacs.Components
 
                     TubeFurnacePressureManager.Start(targetPressure);
 
-                    while (ProcessStep.Elapsed.TotalMinutes < bleedMinutes)
-                    {
-                        Wait(1000);
-                    }
+                    WaitRemaining(bleedMinutes);
                     TubeFurnacePressureManager.Stop();
 
                     MFC.TurnOff();
@@ -439,8 +419,7 @@ namespace AeonHacs.Components
             ProcessStep.Start($"Combust sample at {extractTemperature} °C for {MinutesString(extractMinutes)}");
             {
                 waitForTemperatureAbove(extractTemperature - 10);
-                while (ProcessStep.Elapsed.TotalMinutes < extractMinutes)
-                    Wait(1000);
+                WaitRemaining(extractMinutes);
             }
             ProcessStep.End();
         }
@@ -450,8 +429,7 @@ namespace AeonHacs.Components
             int bakeMinutes = 10;
 
             ProcessStep.Start($"Continue bake for {MinutesString(bakeMinutes)} more");
-            while (ProcessStep.Elapsed.TotalMinutes < bakeMinutes)
-                Wait(1000);
+            WaitMinutes(bakeMinutes);
             ProcessStep.End();
 
             MFC.TurnOn(5);
@@ -491,10 +469,7 @@ namespace AeonHacs.Components
 
                 TubeFurnacePressureManager.Start(targetPressure);
 
-                while (ProcessStep.Elapsed.TotalMinutes < bleedMinutes)
-                {
-                    Wait(1000);
-                }
+                WaitRemaining(bleedMinutes);
 
                 TubeFurnace.Setpoint = 100;
                 WaitForTemperatureBelow(t_LiBO2_frozen);

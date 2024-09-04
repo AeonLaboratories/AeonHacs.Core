@@ -168,10 +168,7 @@ namespace AeonHacs.Components
                 valves[0].OpenWait();
                 ProcessSubStep.End();
 
-                ProcessSubStep.Start("Wait 15 seconds");
-                while (ProcessSubStep.Elapsed.TotalSeconds < 15)
-                    Thread.Sleep(100);
-                ProcessSubStep.End();
+                WaitSeconds(15);
 
                 // Take the measurement with valve closed to avoid error due to
                 // valve's OpenVolumeDelta.
@@ -180,11 +177,7 @@ namespace AeonHacs.Components
 
             if (CalibrationMinutes > 0)
             {
-                ProcessSubStep.Start($"Wait a minimum of {MinutesString(CalibrationMinutes)}.");
-                int tRemaining;
-                while ((tRemaining = CalibrationMinutes * 60000 - (int)ProcessSubStep.Elapsed.TotalMilliseconds) > 0)
-                    Thread.Sleep(Math.Min(35, tRemaining));
-                ProcessSubStep.End();
+                WaitMinutes(CalibrationMinutes);
             }
             else
             {

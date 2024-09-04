@@ -557,7 +557,7 @@ namespace AeonHacs.Components
                     Coldfinger.Freeze();
             }
             else
-                Alert.DefaultAlertManager.Pause("Operator needed", $"Put LN on {Name}.");
+                Alert.DefaultAlertManager.Pause("Operator Needed", $"Put LN on {Name}.");
         }
 
         public virtual bool Thawed =>
@@ -576,7 +576,7 @@ namespace AeonHacs.Components
             else if (Coldfinger != null)
                 Coldfinger.Thaw();
             else
-                Alert.DefaultAlertManager.Pause("Operator needed", $"Remove LN from {Name}.");
+                Alert.DefaultAlertManager.Pause("Operator Needed", $"Remove LN from {Name}.");
         }
 
         /// <summary>

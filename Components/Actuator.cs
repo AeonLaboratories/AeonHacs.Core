@@ -225,12 +225,12 @@ namespace AeonHacs.Components
         public virtual bool ActionSucceeded
         {
             get => actionSucceeded;
-            set
+            protected set
             {
                 Ensure(ref actionSucceeded, value);
                 if (!actionSucceeded && !Active && !StopRequested)
                 {
-                    Alert.Warn($"{Name} failure", $"\"{Operation?.Name ?? "Operation"}\" was unsuccessful.");
+                    Alert.Warn($"{Name} Failed", $"\"{Operation?.Name ?? "Operation"}\" was unsuccessful.");
                     while (!Notice.Ok(Name, $"Ok to continue in this state? If not, restart the program to dismiss this message.")) ;
                 }
             }

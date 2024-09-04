@@ -5,6 +5,7 @@ namespace AeonHacs
     public static class Hacs
     {
         public static Action CloseApplication;
+        public static bool RestartRequested { get; set; }
         public static HacsLog EventLog
         {
             get => eventLog ??= new HacsLog("Event log.txt") { Name = "EventLog", ArchiveDaily = false };
@@ -76,6 +77,7 @@ namespace AeonHacs
 
         public static void Stop()
         {
+            if (Stopping) return;
             Stopping = true;
             OnPreStop?.ParallelInvoke();
             OnStop?.ParallelInvoke();

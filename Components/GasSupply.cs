@@ -188,10 +188,6 @@ namespace AeonHacs.Components
         }
         int secondsToPurge = 20;   // max
 
-        // TODO these two methods do not belong here
-        void Wait(int milliseconds) { Thread.Sleep(milliseconds); }
-        void Wait() { Wait(35); }
-
         /// <summary>
         /// Isolate Destination and Path, then Open the Destination and Path,
         /// joined together.
@@ -281,21 +277,44 @@ namespace AeonHacs.Components
         /// Wait for pressure, but stop waiting if 10 seconds elapse with no increase.
         /// </summary>
         /// <param name="pressure"></param>
-        public void WaitForPressure(double pressure)
+        public void WaitForPressure(double pressure, bool thenCloseShutoff = false)
         {
             var sw = new Stopwatch();
             double peak = Meter.Value;
             ProcessStep?.Start($"Wait for {pressure:0} {Meter.UnitSymbol} {GasName} in {Destination.Name}");
             sw.Restart();
-            while (Meter.Value < pressure && sw.Elapsed.TotalSeconds < 10)
+            bool shouldStop()
             {
-                Wait();
                 if (Meter.Value > peak)
                 {
                     peak = Meter.Value;
                     sw.Restart();
                 }
+                return Meter.Value >= pressure || sw.Elapsed.TotalSeconds >= 10;
             }
+
+            while (Meter.Value < pressure)
+            {
+                WaitFor(shouldStop, -1, 35);
+
+                if (Meter.Value < pressure)
+                {
+                    ShutOff();
+                    if (Alert.Warn("Process Exception",
+                        $"It's taking too long for {Meter.Name} to reach {pressure:0} Torr.\r\n" +
+                        $"Ok to keep waiting or Cancel to move on.\r\n" +
+                        $"Close and restart the application to abort the process.").Text == "Ok")
+                    {
+                        SourceValve.OpenWait();
+                        continue;
+                    }
+                }
+                break;
+            }
+
+            if (thenCloseShutoff)
+                ShutOff();
+
             ProcessStep?.End();
         }
 
@@ -331,7 +350,7 @@ namespace AeonHacs.Components
             if (Meter == null)
             {
                 Admit();
-                Wait(1000);
+                WaitSeconds(1);
                 ShutOff(thenCloseFlow);
             }
             else
@@ -343,14 +362,14 @@ namespace AeonHacs.Components
                     Admit();
                     WaitForPressure(pressure);
                     ShutOff(thenCloseFlow);
-                    Wait(3000);
+                    WaitSeconds(3);
                     if (Meter.Value >= pressure)
                         break;
                 }
 
                 if (Meter.Value < 0.98 * pressure)       // tolerate 98% of target
                 {
-                    Alert.Send("Process Alert!", $"Couldn't admit {pressure:0} {Meter.UnitSymbol} of {GasName} into {Destination.Name}");
+                    Alert.Send("Process Exception", $"Couldn't admit {pressure:0} {Meter.UnitSymbol} of {GasName} into {Destination.Name}");
                 }
             }
             MajorStep.End();
@@ -444,7 +463,7 @@ namespace AeonHacs.Components
             }
 
             if (!normalized)
-                Alert.Send("Alert!", FlowValve.Name + " minimum flow is too high.");
+                Alert.Send("Configuration Warning", FlowValve.Name + " minimum flow is too high.");
 
             FlowPressurize(pressure);
         }
@@ -462,8 +481,6 @@ namespace AeonHacs.Components
         /// <param name="secondsFlow">Seconds to evacuate at maximum flow rate.</param>
         void RestoreRegulation(int secondsFlow)
         {
-            Stopwatch sw = new Stopwatch();
-
             var vacuumSystem = Path?.VacuumSystem;
             if (vacuumSystem == null) vacuumSystem = Destination.VacuumSystem;
             if (vacuumSystem == null) return;
@@ -478,16 +495,21 @@ namespace AeonHacs.Components
             JoinToVacuumManifold();
             vacuumSystem.Rough();
 
-            while
-            (
-                vacuumSystem.State != VacuumSystem.StateCode.Roughing &&
-                vacuumSystem.State != VacuumSystem.StateCode.Isolated
-            )
-                Wait();
+            if (!WaitFor(() => vacuumSystem.State == VacuumSystem.StateCode.Roughing || vacuumSystem.State == VacuumSystem.StateCode.Isolated, 30 * 1000, 35))
+            {
+                SourceValve.CloseWait();
+                vacuumSystem.Isolate();
+                if (Alert.Warn("System Error",
+                    $"{vacuumSystem.Name} failed to enter roughing or isolated state.\r\n" +
+                    "Establish the desired VacuumSystem state manually, then click Ok to continue.\r\n" +
+                    "Close and restart the application to abort the process.").Text == "Ok")
+                {
+                    SourceValve.OpenWait();
+                    vacuumSystem.Rough();
+                }
+            }
 
-            sw.Restart();
-            while (sw.Elapsed.TotalSeconds < secondsFlow)
-                Wait();
+            WaitSeconds(secondsFlow);
 
             Path?.InternalValves?.CloseLast();
             IsolateFromVacuum();
@@ -537,7 +559,7 @@ namespace AeonHacs.Components
             vacuumSystem.Evacuate();
 
             WaitFor(() => vacuumSystem.HighVacuumValve.IsOpened || vacuumSystem.LowVacuumValve.IsOpened);
-            Wait(2000);
+            WaitSeconds(2);
             MajorStep?.End();
 
             MajorStep?.Start("Drain flow-supply volume");

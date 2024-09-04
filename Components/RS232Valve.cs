@@ -284,7 +284,7 @@ namespace AeonHacs.Components
 
             if (currentLimit == 0 || timeLimit == 0)
             {
-                Alert.Warn("Configuration error", $"Can't calibrate {Name} without both currentLimit ({currentLimit}) and timeLimit ({timeLimit}). Calibration aborted.");
+                Alert.Warn("Configuration Error", $"Can't calibrate {Name} without both currentLimit ({currentLimit}) and timeLimit ({timeLimit}). Calibration aborted.");
                 return;
             }
 
@@ -333,11 +333,11 @@ namespace AeonHacs.Components
                 }
                 if (!CurrentLimitDetected)
                     ++multiplier;
-            } ;
+            }
 
             if (!CurrentLimitDetected)
             {
-                Alert.Warn("Valve failure", $"Cannot find closed position for {Name}.");
+                Alert.Warn($"{Name} Calibration Failed", "Cannot find closed position.");
                 ActuatorOperations.Remove(operation);
                 isCalibrating = false;
                 Calibrated = false;

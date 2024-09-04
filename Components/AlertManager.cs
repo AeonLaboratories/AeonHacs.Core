@@ -20,8 +20,12 @@ namespace AeonHacs.Components
 
     public static class Alert
     {
-        public static IAlertManager DefaultAlertManager { get; set; } = new AlertManager();
+        public static IAlertManager DefaultAlertManager { get; set; }
 
+        /// <summary>
+        /// Dispatch a message to the remote operator only.
+        /// The process is not paused.
+        /// </summary>
         public static void Send(string subject, string message) =>
             DefaultAlertManager?.Send(subject, message);
 
@@ -29,20 +33,20 @@ namespace AeonHacs.Components
         /// Dispatch a message to the remote operator and to the local user interface.
         /// The process is not paused.
         /// </summary>
-        public static void Announce(string subject, string message) =>
+        public static Notice Announce(string subject, string message) =>
             DefaultAlertManager?.Announce(subject, message);
 
         /// <summary>
         /// Pause and give the local operator the option to continue.
         /// </summary>
-        public static void Pause(string subject, string message) =>
+        public static Notice Pause(string subject, string message) =>
             DefaultAlertManager?.Pause(subject, message);
 
         /// <summary>
         /// Make an entry in the EventLog, pause and give the local operator
         /// the option to continue. The notice is transmitted as a Warning.
         /// </summary>
-        public static void Warn(string subject, string message) =>
+        public static Notice Warn(string subject, string message) =>
             DefaultAlertManager?.Warn(subject, message);
     }
 
@@ -101,15 +105,15 @@ namespace AeonHacs.Components
         }
         bool alertsEnabled = true;
 
-    //[JsonProperty] public ContactInfo ContactInfo
-    //{
-    //    get => contactInfo;
-    //    set => Ensure(ref contactInfo, value, OnPropertyChanged);
-    //}
-    //ContactInfo contactInfo;
+        //[JsonProperty] public ContactInfo ContactInfo
+        //{
+        //    get => contactInfo;
+        //    set => Ensure(ref contactInfo, value, OnPropertyChanged);
+        //}
+        //ContactInfo contactInfo;
 
-    // alert system
-    protected Queue<AlertMessage> QAlertMessage = new Queue<AlertMessage>();
+        // alert system
+        protected Queue<AlertMessage> QAlertMessage = new Queue<AlertMessage>();
         protected Thread alertThread;
         protected AutoResetEvent alertSignal = new AutoResetEvent(false);
         protected Stopwatch AlertTimer = new Stopwatch();
@@ -145,30 +149,30 @@ namespace AeonHacs.Components
         /// Dispatch a message to the remote operator and to the local user interface.
         /// The process is not paused.
         /// </summary>
-        public virtual void Announce(string subject, string message)
+        public virtual Notice Announce(string subject, string message)
         {
             Send(subject, message);
-            Notice.Send(subject, message, Notice.Type.Tell);
+            return Notice.Send(subject, message, Notice.Type.Tell);
         }
 
         /// <summary>
         /// Pause and give the local operator the option to continue.
         /// </summary>
-        public virtual void Pause(string subject, string message)
+        public virtual Notice Pause(string subject, string message)
         {
             Send(subject, message);
-            Notice.Send(subject, message + "\r\nPress Ok to continue");
+            return Notice.Send(subject, message + "\r\nPress Ok to continue");
         }
 
         /// <summary>
         /// Make an entry in the EventLog, pause and give the local operator
         /// the option to continue. The notice is transmitted as a Warning.
         /// </summary>
-        public virtual void Warn(string subject, string message)
+        public virtual Notice Warn(string subject, string message)
         {
             EventLog.Record(subject + ": " + message);
             Send(subject, message);
-            Notice.Send(subject, message, Notice.Type.Warn);
+            return Notice.Send(subject, message, Notice.Type.Warn);
         }
 
         protected void AlertHandler()

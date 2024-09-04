@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
+using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {
@@ -438,8 +439,8 @@ namespace AeonHacs.Components
         {
             if (State == StateCode.Stopped) Start();
             TargetState = TargetStateCode.Isolate;
-            while (State != StateCode.Isolated && waitForState)
-                Wait();
+            if (waitForState)
+                WaitFor(() => State == StateCode.Isolated || Stopping, -1, 35);
         }
 
         /// <summary>
@@ -458,8 +459,7 @@ namespace AeonHacs.Components
         public void Evacuate(double pressure)
         {
             Evacuate();
-            while (State < StateCode.Roughing)
-                Wait();
+            WaitFor(() => State == StateCode.Roughing || State == StateCode.HighVacuum || Stopping, -1, 35);
             WaitForPressure(pressure);
         }
 
@@ -482,22 +482,26 @@ namespace AeonHacs.Components
         /// <param name="pressure">Use 0 to wait for baseline, &lt;0 to just wait 3 seconds.</param>
         public void WaitForPressure(double pressure)
         {
-            Thread.Sleep(3000);                 // always wait at least 3 seconds
+            WaitSeconds(3);             // always wait at least 3 seconds
             if (pressure < 0) return;   // don't wait for a specific pressure
             if (pressure == 0) pressure = BaselinePressure;
             TargetPressure = pressure;
 
-            ProcessStep?.Start($"Wait for p_VM < {TargetPressure:0.0e0} Torr");
-            while (Pressure > TargetPressure)
+            ProcessStep?.Start($"Wait for {Manometer.Name} < {TargetPressure:0.0e0} Torr");
+            bool shouldStop()
             {
-                if (TargetPressure != pressure)
+                if (pressure != TargetPressure)
                 {
                     pressure = TargetPressure;
                     if (ProcessStep != null)
-                        ProcessStep.CurrentStep.Description = $"Wait for p_VM < {TargetPressure:0.0e0} Torr";
+                        ProcessStep.CurrentStep.Description = $"Wait for {Manometer.Name} < {TargetPressure:0.0e0} Torr";
                 }
-                Thread.Sleep(35);
+                return Pressure <= TargetPressure || Stopping;
             }
+
+            while (!WaitFor(shouldStop, 15 * 60000, 100))
+                Alert.Announce("System Error", $"{Manometer.Name} has failed to reach {TargetPressure:0.0e0} Torr within {ProcessStep.Elapsed.TotalMinutes:0} minutes.");
+
             ProcessStep?.End();
         }
 
@@ -506,23 +510,25 @@ namespace AeonHacs.Components
         /// </summary>
         public virtual void WaitForStableBaselinePressure()
         {
-            while (TimeAtBaseline.TotalSeconds < 10)
-                Wait();
+            WaitFor(() => TimeAtBaseline.TotalSeconds >= 10 || Stopping, -1, 35); // TODO magic number
         }
 
         public virtual void WaitForStablePressure(double pressure, int seconds = 5)
         {
             var sw = new Stopwatch();
-            while (sw.Elapsed.TotalSeconds < seconds)
+            bool shouldStop()
             {
-                Wait(100);
-                if (Pressure <= pressure && ForelineManometer.IsStable)
-                {
-                    if (!sw.IsRunning)
-                        sw.Restart();
-                }
-                else
+                if (Pressure > pressure || !ForelineManometer.IsStable)
                     sw.Reset();
+                else if (!sw.IsRunning)
+                    sw.Restart();
+                return sw.Elapsed.TotalSeconds >= seconds;
+            }
+            while (!WaitFor(shouldStop, 30 * 60000, 100)) // TODO magic number
+            {
+                if (Alert.Warn($"System Warning", $"{Manometer.Name} has failed to stabilize below {pressure:0.0e0} Torr for {sw.Elapsed.TotalMinutes:0} minutes. Ok to keep waiting or Cancel to move on.").Text == "Ok")
+                    continue;
+                break;
             }
         }
 
@@ -618,8 +624,8 @@ namespace AeonHacs.Components
 
                                         if (TurboPump?.IsOn ?? true)
                                         {
-                                            while (ForelineManometer.Pressure > GoodBackingPressure)
-                                                Wait();
+                                            if (!WaitFor(() => ForelineManometer.Pressure <= GoodBackingPressure || Hacs.Stopping, 10 * 60000, 35))
+                                                Alert.Announce("System Error", "Backing pump failed to reach operating pressure.");
                                             BackingValve.OpenWait();
                                         }
                                         else
@@ -791,17 +797,6 @@ namespace AeonHacs.Components
             }
             return stateChanged;
         }
-
-        /// <summary>
-        /// sleep for the given number of milliseconds
-        /// </summary>
-        /// <param name="milliseconds"></param>
-        protected void Wait(int milliseconds) { Thread.Sleep(milliseconds); }
-
-        /// <summary>
-        /// wait for 35 milliseconds
-        /// </summary>
-        protected void Wait() { Wait(35); }
 
         #endregion
 

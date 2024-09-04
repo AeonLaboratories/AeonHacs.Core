@@ -150,6 +150,7 @@ namespace AeonHacs.Components
         int FreezeTrigger { get; set; }
         int RaiseTrigger { get; set; }
         int MaximumSecondsLNFlowing { get; set; }
+        int MaximumMinutesToFreeze { get; set; }
         int SecondsToWaitAfterRaised { get; set; }
         double NearAirTemperature { get; set; }
         bool Thawing { get; }
@@ -1078,7 +1079,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// The prior operation completed successfully.
         /// </summary>
-        bool ActionSucceeded { get; set; }
+        bool ActionSucceeded { get; }
 
         /// <summary>
         /// Finds an ActuatorOperation by name.
@@ -1872,7 +1873,7 @@ namespace AeonHacs.Components
         void EvacuatePath(double pressure);
         void ShutOff();
         void ShutOff(bool alsoCloseFlow);
-        void WaitForPressure(double pressure);
+        void WaitForPressure(double pressure, bool thenCloseShutoff = false);
         void Admit();
         void Admit(double pressure);
         void Admit(double pressure, bool thenCloseFlow);
@@ -1909,16 +1910,16 @@ namespace AeonHacs.Components
         /// Dispatch a message to the remote operator and to the local user interface.
         /// The process is not paused.
         /// </summary>
-        void Announce(string subject, string message);
+        Notice Announce(string subject, string message);
         /// <summary>
         /// Pause and give the local operator the option to continue.
         /// </summary>
-        void Pause(string subject, string message);
+        Notice Pause(string subject, string message);
         /// <summary>
         /// Make an entry in the EventLog, pause and give the local operator
         /// the option to continue. The notice is transmitted as a Warning.
         /// </summary>
-        void Warn(string subject, string message);
+        Notice Warn(string subject, string message);
         void ClearLastAlertMessage();
 
     }
@@ -2185,7 +2186,6 @@ namespace AeonHacs.Components
         bool Busy { get; }
         void RunProcess(string processToRun);
         void AbortRunningProcess();
-        void WaitMinutes(int minutes);
     }
 
     public interface IProcessSequence : IHacsComponent
@@ -2258,7 +2258,6 @@ namespace AeonHacs.Components
         public Dictionary<string, IManagedDevice> ManagedDevices { get; set; }
         public Dictionary<string, IMeter> Meters { get; set; }
         public Dictionary<string, IValve> Valves { get; set; }
-        public Dictionary<string, ISwitch> Switches { get; set; }
         public Dictionary<string, IHeater> Heaters { get; set; }
         public Dictionary<string, IPidSetup> PidSetups { get; set; }
 

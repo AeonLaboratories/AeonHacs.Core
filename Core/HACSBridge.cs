@@ -5,144 +5,132 @@ using System;
 using System.IO;
 using System.Resources;
 
-namespace AeonHacs
+namespace AeonHacs;
+
+/// <summary>
+/// Coordinates the startup and shutdown of a user interface and a hacs implementation
+/// </summary>
+public class HacsBridge
 {
-    public abstract class HacsBridge
+    public static ResourceManager Resources { get; set; }
+    public Action CloseUI;
+
+    public HacsBase HacsImplementation { get; protected set; }
+
+    public bool Initialized { get; protected set; }
+
+    protected JsonSerializer JsonSerializer { get; set; }
+
+    public string SettingsFilename
     {
-        public static ResourceManager Resources { get; set; }
-        public Action CloseUI;
-        public abstract HacsBase GetHacs();
-        public abstract void Start();
-        public abstract void UILoaded();
-        public abstract void UIShown();
-        public abstract void UIClosing();
+        get => settingsFilename;
+        set
+        {
+            if (!value.IsBlank())
+            {
+                settingsFilename = value;
+                int period = settingsFilename.LastIndexOf('.');
+                if (period < 0) period = settingsFilename.Length;
+                backupSettingsFilename = settingsFilename.Insert(period, ".backup");
+            }
+        }
+    }
+    string settingsFilename = "settings.json";
+    string backupSettingsFilename = "settings.backup.json";
+
+    public HacsBridge()
+    {
+        JsonSerializer = new JsonSerializer()
+        {
+            //Converters = { new StringEnumConverter(), HideNameInDictionaryConverter.Default },
+            Converters = { new StringEnumConverter() },
+            //DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate,
+            DefaultValueHandling = DefaultValueHandling.Populate,
+            Formatting = Formatting.Indented,
+            NullValueHandling = NullValueHandling.Include,
+            //NullValueHandling = NullValueHandling.Ignore,
+            FloatFormatHandling = FloatFormatHandling.String,
+            TypeNameHandling = TypeNameHandling.Auto
+        };
     }
 
-    /// <summary>
-    /// Coordinates the startup and shutdown of a user interface and a hacs implementation
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public class HacsBridge<T> : HacsBridge where T : HacsBase
+    public virtual void Start()
     {
-        protected T HacsImplementation { get; set; }
-
-        public override HacsBase GetHacs() => HacsImplementation;
-
-        public bool Initialized { get; protected set; }
-
-        protected JsonSerializer JsonSerializer { get; set; }
-
-        public string SettingsFilename
+        Hacs.CloseApplication = CloseUI;
+        LoadSettings(settingsFilename);
+        if (HacsImplementation == null)
         {
-            get => settingsFilename;
-            set
+            CloseUI();
+            return;
+        }
+        Hacs.Connect();
+    }
+
+    private void loadJson(string settingsFile)
+    {
+        using (var reader = new StreamReader(settingsFile))
+            HacsImplementation = (HacsBase)JsonSerializer.Deserialize(reader, typeof(HacsBase));
+    }
+
+    protected virtual void LoadSettings(string settingsFile)
+    {
+        try
+        {
+            loadJson(settingsFile);
+        }
+        catch (Exception e)
+        {
+            Notice.Send(e.ToString());
+            HacsImplementation = default;
+            return;
+        }
+        HacsImplementation.SaveSettings = SaveSettings;
+        HacsImplementation.SaveSettingsToFile = SaveSettings;
+    }
+
+    private void saveJson(string filename)
+    {
+        using (var stream = File.CreateText(filename))
+            JsonSerializer?.Serialize(stream, HacsImplementation, typeof(HacsBase));
+    }
+
+    protected virtual void SaveSettings() { SaveSettings(SettingsFilename); }
+
+    protected virtual void SaveSettings(string filename)
+    {
+        if (filename.IsBlank())
+            throw new NullReferenceException("Settings filename can not be null or whitespace.");
+
+        try
+        {
+            if (filename == SettingsFilename)
             {
-                if (!value.IsBlank())
-                {
-                    settingsFilename = value;
-                    int period = settingsFilename.LastIndexOf('.');
-                    if (period < 0) period = settingsFilename.Length;
-                    backupSettingsFilename = settingsFilename.Insert(period, ".backup");
-                }
-            }
-        }
-        string settingsFilename = "settings.json";
-        string backupSettingsFilename = "settings.backup.json";
-
-        public HacsBridge()
-            {
-                JsonSerializer = new JsonSerializer()
-                {
-                    //Converters = { new StringEnumConverter(), HideNameInDictionaryConverter.Default },
-                    Converters = { new StringEnumConverter() },
-                    //DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate,
-                    DefaultValueHandling = DefaultValueHandling.Populate,
-                    Formatting = Formatting.Indented,
-                    NullValueHandling = NullValueHandling.Include,
-                    //NullValueHandling = NullValueHandling.Ignore,
-                    FloatFormatHandling = FloatFormatHandling.String,
-                    TypeNameHandling = TypeNameHandling.Auto
-                };
+                File.Delete(backupSettingsFilename);
+                File.Move(settingsFilename, backupSettingsFilename);
             }
 
-        public override void Start()
-        {
-            Hacs.CloseApplication = CloseUI;
-                LoadSettings(settingsFilename);
-                if (HacsImplementation == null)
-                {
-                    CloseUI();
-                    return;
-                }
-            Hacs.Connect();
+            saveJson(filename);
         }
-
-        private void loadJson(string settingsFile)
+        catch
         {
-            using (var reader = new StreamReader(settingsFile))
-                HacsImplementation = (T)JsonSerializer.Deserialize(reader, typeof(T));
+            // Typically a user has tried to reload settings.json just before a save.
+            // Do we need to do anything here? The exception being caught is important
+            // so the save loop doesn't break.
         }
+    }
 
-        protected virtual void LoadSettings(string settingsFile)
-        {
-            try
-            {
-                loadJson(settingsFile);
-            }
-            catch (Exception e)
-            {
-                Notice.Send(e.ToString());
-                HacsImplementation = default;
-                return;
-            }
-            HacsImplementation.SaveSettings = SaveSettings;
-            HacsImplementation.SaveSettingsToFile = SaveSettings;
-        }
+    public virtual void UILoaded()
+    {
+        Hacs.Initialize();
+    }
 
-        private void saveJson(string filename)
-        {
-            using (var stream = File.CreateText(filename))
-                JsonSerializer?.Serialize(stream, HacsImplementation);
-        }
+    public virtual void UIShown()
+    {
+        Hacs.Start();
+    }
 
-        protected virtual void SaveSettings() { SaveSettings(SettingsFilename); }
-
-        protected virtual void SaveSettings(string filename)
-        {
-            if (filename.IsBlank())
-                throw new NullReferenceException("Settings filename can not be null or whitespace.");
-
-            try
-            {
-                if (filename == SettingsFilename)
-                {
-                    File.Delete(backupSettingsFilename);
-                    File.Move(settingsFilename, backupSettingsFilename);
-                }
-
-                saveJson(filename);
-            }
-            catch
-            {
-                // Typically a user has tried to reload settings.json just before a save.
-                // Do we need to do anything here? The exception being caught is important
-                // so the save loop doesn't break.
-            }
-        }
-
-        public override void UILoaded()
-        {
-            Hacs.Initialize();
-        }
-
-        public override void UIShown()
-        {
-            Hacs.Start();
-        }
-
-        public override void UIClosing()
-        {
-            Hacs.Stop();
-        }
+    public virtual void UIClosing()
+    {
+        Hacs.Stop();
     }
 }

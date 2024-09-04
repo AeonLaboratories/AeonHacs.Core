@@ -6,6 +6,7 @@ using System.Numerics;
 using System.Collections;
 using System.Linq;
 using System.Threading;
+using System.ComponentModel.DataAnnotations;
 
 namespace AeonHacs.Utilities
 {
@@ -131,6 +132,55 @@ namespace AeonHacs.Utilities
             return r;
         }
 
+
+        /// <summary>
+        /// Starts a StepTracker.Default timer and waits for it to expire.
+        /// </summary>
+        /// <param name="milliseconds"></param>
+        /// <param name="description">StepTracker.Default description</param>
+        public static void WaitMilliseconds(int milliseconds, string description = "")
+        {
+            if (description.IsBlank())
+            {
+                if (milliseconds >= 60000)
+                    description = $"Wait {MinutesString(milliseconds / 60000)}.";
+                else if (milliseconds >= 1000)
+                    description = $"Wait {SecondsString(milliseconds / 1000)}.";
+                else
+                    description = $"Wait {ToUnitsString(milliseconds, "millisecond")}.";
+            }
+
+            StepTracker.Default.Start(description);
+            WaitFor(() => (int)StepTracker.Default.Elapsed.TotalMilliseconds >= milliseconds);
+            StepTracker.Default.End();
+        }
+
+        /// <summary>
+        /// Starts a StepTracker.Default timer and waits for it to expire.
+        /// </summary>
+        /// <param name="seconds"></param>
+        /// <param name="description">StepTracker.Default description</param>
+        public static void WaitSeconds(int seconds, string description = "") =>
+            WaitMilliseconds(seconds * 1000, description);
+
+        /// <summary>
+        /// Starts a StepTracker.Default timer and waits for it to expire.
+        /// </summary>
+        /// <param name="minutes"></param>
+        /// <param name="description">StepTracker.Default description</param>
+        public static void WaitMinutes(int minutes, string description = "") =>
+            WaitMilliseconds(minutes * 60000, description);
+
+        /// <summary>
+        /// Wait until StepTracker.DefaultMajor.Elapsed has reached the specified number of minutes.
+        /// </summary>
+        /// <param name="minutes"></param>
+        public static void WaitRemaining(int minutes)
+        {
+            int milliseconds = minutes * 60000 - (int)StepTracker.DefaultMajor.Elapsed.TotalMilliseconds;
+            if (milliseconds > 0)
+                WaitMilliseconds(milliseconds, $"Wait for remainder of {MinutesString(minutes)}.");
+        }
 
         /// <summary>
         /// Waits a potentially limited time for a condition to be true.
