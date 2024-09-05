@@ -136,8 +136,8 @@ namespace AeonHacs.Components
         protected virtual void PostStart()
         {
             Stopping = false;
-            SystemUpTime.Start();
             StartThreads();
+            SystemUpTime.Start();
             Started = true;
             SaveSettingsToFile("startup.json");
         }
@@ -820,6 +820,7 @@ namespace AeonHacs.Components
 
         int msUpdateLoop = 0;
         bool allDaqsOk = false;
+        bool monitorPower = false;
         List<IDaq> daqs = CachedList<IDaq>();
         protected virtual void Update()
         {
@@ -854,7 +855,9 @@ namespace AeonHacs.Components
             #endregion DAQs
 
             #region Power failure watchdog
-            if (Started && EnableWatchdogs && SystemUpTime.ElapsedMilliseconds > 500)
+            if (!monitorPower)
+                monitorPower = EnableWatchdogs && (Power?.MainsDetect?.UpdatesReceived ?? 0) > 5;
+            else
                 Power?.Update();
             #endregion Power failure watchdog
 

@@ -76,11 +76,6 @@ namespace AeonHacs.Components
         bool failureHandled = false;
         public void Update()
         {
-            // Power monitoring is not possible if we can't read voltages.
-            // TODO: make a Daq base class, and derive LabJackU6 from it.
-            if (MainsDetect is IManagedDevice d && d.Manager is LabJackU6 lj && !lj.IsUp)
-                return;
-
             if (MainsIsDown)
             {
                 if (!MainsDownTimer.IsRunning)
