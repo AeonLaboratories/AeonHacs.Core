@@ -134,13 +134,17 @@ namespace AeonHacs.Utilities
 
 
         /// <summary>
-        /// Starts a StepTracker.Default timer and waits for it to expire.
+        /// Waits a specified amount of time while optionally providing a StepTracker description of the wait operation.
         /// </summary>
-        /// <param name="milliseconds"></param>
-        /// <param name="description">StepTracker.Default description</param>
+        /// <param name="milliseconds">How long to wait, in milliseconds.</param>
+        /// <param name="description">
+        /// An optional description for the wait operation. If explicitly set to <c>null</c>, no StepTracker description is provided.
+        /// If empty (the default), a generic description is created based on the amount of time.
+        /// </param>
+
         public static void WaitMilliseconds(int milliseconds, string description = "")
         {
-            if (description.IsBlank())
+            if (description == "")
             {
                 if (milliseconds >= 60000)
                     description = $"Wait {MinutesString(milliseconds / 60000)}.";
@@ -150,24 +154,34 @@ namespace AeonHacs.Utilities
                     description = $"Wait {ToUnitsString(milliseconds, "millisecond")}.";
             }
 
-            StepTracker.Default.Start(description);
-            WaitFor(() => (int)StepTracker.Default.Elapsed.TotalMilliseconds >= milliseconds);
-            StepTracker.Default.End();
+            if (description != null) StepTracker.Default.Start(description);
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            WaitFor(() => Hacs.Stopping || sw.Elapsed.TotalMilliseconds >= milliseconds);
+
+            if (description != null) StepTracker.Default.End();
         }
 
         /// <summary>
-        /// Starts a StepTracker.Default timer and waits for it to expire.
+        /// Waits a specified amount of time while optionally providing a StepTracker description of the wait operation.
         /// </summary>
-        /// <param name="seconds"></param>
-        /// <param name="description">StepTracker.Default description</param>
+        /// <param name="seconds">How long to wait, in seconds.</param>
+        /// <param name="description">
+        /// An optional description for the wait operation. If explicitly set to <c>null</c>, no StepTracker description is provided.
+        /// If empty (the default), a generic description is created based on the amount of time.
+        /// </param>
         public static void WaitSeconds(int seconds, string description = "") =>
             WaitMilliseconds(seconds * 1000, description);
 
         /// <summary>
-        /// Starts a StepTracker.Default timer and waits for it to expire.
+        /// Waits a specified amount of time while optionally providing a StepTracker description of the wait operation.
         /// </summary>
-        /// <param name="minutes"></param>
-        /// <param name="description">StepTracker.Default description</param>
+        /// <param name="minutes">How long to wait, in minutes.</param>
+        /// <param name="description">
+        /// An optional description for the wait operation. If explicitly set to <c>null</c>, no StepTracker description is provided.
+        /// If empty (the default), a generic description is created based on the amount of time.
+        /// </param>
         public static void WaitMinutes(int minutes, string description = "") =>
             WaitMilliseconds(minutes * 60000, description);
 

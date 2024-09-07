@@ -186,7 +186,7 @@ namespace AeonHacs.Components
                     if (priorState == ProcessStateCode.Finished)
                         break;
                     if (priorState == ProcessState)
-                        WaitMilliseconds(200);
+                        WaitMilliseconds(200, null);
                 }
             }
             catch { }
