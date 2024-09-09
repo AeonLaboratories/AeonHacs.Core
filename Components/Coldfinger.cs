@@ -589,7 +589,7 @@ namespace AeonHacs.Components
                     break;
             }
 
-            if (State == States.Freezing || State == States.Raising && StateTimer.Elapsed.TotalMinutes > MaximumMinutesToFreeze)
+            if ((State == States.Freezing || State == States.Raising) && StateTimer.Elapsed.TotalMinutes > MaximumMinutesToFreeze)
             {
                 SlowToFreeze?.Invoke();
                 StateTimer.Restart();
