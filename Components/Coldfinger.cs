@@ -633,7 +633,8 @@ namespace AeonHacs.Components
             step?.End();
 
             step?.Start($"Wait for {Name} LN Raised temperature");
-            while (!WaitFor(() => Hacs.Stopping || Temperature >= Target + RaiseTrigger, MaximumMinutesToFreeze * 60000, 1000))
+            while (!WaitFor(() =>  Hacs.Stopping || 
+            	Temperature <= Target + RaiseTrigger, MaximumMinutesToFreeze * 60000, 1000))
             {
                 SlowToFreeze?.Invoke();
                 if (Alert.Warn("Process Exception",

@@ -1,11 +1,9 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Threading;
-using AeonHacs.Utilities;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -356,7 +354,13 @@ namespace AeonHacs.Components
             else
             {
                 if (pressure > Meter.MaxValue)
+                {
+                    Alert.Send("Process Warning",
+                        $"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.\r\n" +
+                        $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).");
                     pressure = Meter.MaxValue;
+                }
+
                 for (int i = 0; i < 5; ++i)
                 {
                     Admit();
@@ -424,6 +428,14 @@ namespace AeonHacs.Components
         /// <param name="minutesBetweenFlushes">dwell time between flushes, i.e., between pressureLow and pressureHigh</param>
         public void Flush(double pressureHigh, double pressureLow, int flushes, IPort port, double minutesAtPressureHigh, double minutesBetweenFlushes = 0)
         {
+            if (pressureHigh > Meter.MaxValue)
+            {
+                Alert.Send("Process Warning",
+                    $"Requested pressure ({pressureHigh:0} {Meter.UnitSymbol}) too high.\r\n" +
+                    $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).");
+                pressureHigh = Meter.MaxValue;
+            }
+
             for (int i = 1; i <= flushes; i++)
             {
                 MajorStep?.Start($"Flush {Destination.Name} with {GasName} ({i} of {flushes})");
@@ -453,6 +465,13 @@ namespace AeonHacs.Components
         /// <param name="pressure">desired final pressure</param>
         public void Pressurize(double pressure)
         {
+            if (pressure > Meter.MaxValue)
+            {
+                Alert.Send("Process Warning", 
+                    $"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.\r\n" +
+                    $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).");
+                pressure = Meter.MaxValue;
+            }
             bool normalized = false;
 
             for (int tries = 0; tries < 5; tries++)
@@ -583,6 +602,14 @@ namespace AeonHacs.Components
                 var message = $"GasSupply {Name}: FlowPressurize() requires a FlowManager.";
                 Alert.Warn(subject, message);
                 return;
+            }
+
+            if (targetValue > Meter.MaxValue)
+            {
+                Alert.Send("Process Warning",
+                    $"Requested targetValue ({targetValue:0} {Meter.UnitSymbol}) too high.\r\n" +
+                    $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).");
+                targetValue = Meter.MaxValue;
             }
 
             bool gasIsCO2 = Name.Contains("CO2");

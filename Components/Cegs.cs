@@ -1730,15 +1730,13 @@ namespace AeonHacs.Components
         protected virtual bool GrGm(IEnumerable<IGraphiteReactor> grs, out ISection gm)
         {
             gm = Manifold(grs);
-            if (grs == null || grs.Count() == 0)
-            {
-                Alert.Warn("Process Exception", "Graphite manifold search requires a valid graphite reactor.");
-                return false;
-            }
             if (gm == null)
             {
-                var grList = string.Join(", ", grs.Select(gr => gr.Name));
-                Alert.Warn("Process Exception", $"Can't find graphite manifold for {grList}.");
+                var subject = "Process Exception";
+                var message = grs == null || grs.Count() == 0 ?
+                    "Graphite manifold search requires a valid graphite reactor." :
+                    $"Can't find graphite manifold for {string.Join(", ", grs.Select(gr => gr.Name))}.";
+                Alert.Warn(subject, message);
                 return false;
             }
             return true;
@@ -3490,7 +3488,10 @@ namespace AeonHacs.Components
             fromSection.Thaw();
 
             ProcessStep.Start("Wait for transfer start conditions.");
-            while (!WaitFor(() => toSection.Frozen && fromSection.Temperature > CO2TransferStartTemperature, toSection.Coldfinger.MaximumMinutesToFreeze * 60000, 1000))
+            while (!WaitFor(() => 
+                toSection.Frozen && 
+                fromSection.Temperature > CO2TransferStartTemperature, 
+                toSection.Coldfinger.MaximumMinutesToFreeze * 60000, 1000))
             {
                 OnSlowToFreeze();
                 if (Alert.Warn("Process Exception",
