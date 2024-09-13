@@ -102,7 +102,7 @@ namespace AeonHacs.Components
             Port = port;
         }
 
-        public bool Connected => client?.Connected ?? false;
+        public override bool Connected => client?.Connected ?? false;
 
         public async Task Connect() => await client.ConnectAsync(host, port);
 
