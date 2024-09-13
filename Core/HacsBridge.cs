@@ -1,5 +1,4 @@
-﻿using AeonHacs.Utilities;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using System;
 using System.IO;
@@ -14,6 +13,7 @@ public class HacsBridge
 {
     public static ResourceManager Resources { get; set; }
     public Action CloseUI;
+    public Action Started;
 
     public HacsBase HacsImplementation { get; protected set; }
 
@@ -48,7 +48,6 @@ public class HacsBridge
             DefaultValueHandling = DefaultValueHandling.Populate,
             Formatting = Formatting.Indented,
             NullValueHandling = NullValueHandling.Include,
-            //NullValueHandling = NullValueHandling.Ignore,
             FloatFormatHandling = FloatFormatHandling.String,
             TypeNameHandling = TypeNameHandling.Auto
         };
@@ -64,6 +63,7 @@ public class HacsBridge
             return;
         }
         Hacs.Connect();
+        Started?.Invoke();
     }
 
     private void loadJson(string settingsFile)
@@ -78,9 +78,12 @@ public class HacsBridge
         {
             loadJson(settingsFile);
         }
-        catch (Exception e)
+        catch (Exception e) // Unable to load settings.json;
         {
-            Notice.Send(e.ToString());
+            var subject = "Json Deserialization Error";
+            var message = e.ToString();
+
+            Notify.Ask(message, subject, NoticeType.Error);
             HacsImplementation = default;
             return;
         }
@@ -117,20 +120,5 @@ public class HacsBridge
             // Do we need to do anything here? The exception being caught is important
             // so the save loop doesn't break.
         }
-    }
-
-    public virtual void UILoaded()
-    {
-        Hacs.Initialize();
-    }
-
-    public virtual void UIShown()
-    {
-        Hacs.Start();
-    }
-
-    public virtual void UIClosing()
-    {
-        Hacs.Stop();
     }
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
 using AeonHacs.Utilities;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -74,8 +75,10 @@ namespace AeonHacs.Components
         {
             if (!WaitFor(() => Idle, 500, 5))
             {
-                Notice.Send("System Warning!",
-                    $"{Name} is too busy! ({PendingOperations} pending operations)");
+                string subject = "System Warning";
+                string message = $"{Name} is too busy! ({PendingOperations} pending operations)";
+
+                Announce(message, subject, NoticeType.Warning);
                 PendingOperations = 0;
             }
         }

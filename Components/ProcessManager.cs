@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -23,16 +24,8 @@ namespace AeonHacs.Components
 
         public enum ProcessStateCode { Ready, Busy, Finished }
 
-        public HacsLog EventLog => Hacs.EventLog;
-
-        [JsonProperty(Order = -98)]
-        public AlertManager AlertManager
-        {
-            get => alertManager;
-            set { Components.Alert.DefaultAlertManager = alertManager = value; }
-        }
-        AlertManager alertManager;
-
+        // TODO delete after testing
+        //public HacsLog EventLog => Hacs.EventLog;
 
         #region process manager
 
@@ -203,14 +196,14 @@ namespace AeonHacs.Components
         {
             if (message.IsBlank())
                 message = $"Process{(ProcessType == ProcessTypeCode.Sequence ? " sequence" : "")} starting: {ProcessToRun}";
-            EventLog?.Record(message);
+            MajorEvent(message);
         }
 
         protected virtual void ProcessEnded(string message = "")
         {
             if (message.IsBlank())
                 message = $"Process {(RunCompleted ? "completed" : "aborted")}: {ProcessToRun}";
-            EventLog?.Record(message);
+            MajorEvent(message);
         }
 
         #region ProcessSequences

@@ -304,11 +304,11 @@ namespace AeonHacs.Components
         {
             if (LNSupplyValve.IsOpened)
             {
-                if (IsSlowToFill)
-                    SlowToFill?.Invoke();
-                if (OverflowIsDetected || full || !needed)
+                if (IsSlowToFill || OverflowIsDetected || full || !needed)
                 {
                     stopLN();
+                    if (IsSlowToFill)
+                        SlowToFill?.Invoke();
                     if (OverflowIsDetected)
                         OverflowDetected?.Invoke();
                 }

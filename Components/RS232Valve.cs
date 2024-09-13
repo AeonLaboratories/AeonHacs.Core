@@ -1,10 +1,11 @@
 ﻿using AeonHacs;
+using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Text;
 using System.Threading;
-using AeonHacs.Utilities;
+using static AeonHacs.Notify;
 
 namespace AeonHacs.Components
 {
@@ -284,7 +285,10 @@ namespace AeonHacs.Components
 
             if (currentLimit == 0 || timeLimit == 0)
             {
-                Alert.Warn("Configuration Error", $"Can't calibrate {Name} without both currentLimit ({currentLimit}) and timeLimit ({timeLimit}). Calibration aborted.");
+                string subject = "Configuration Error";
+                string message = $"Can't calibrate {Name} without both currentLimit ({currentLimit}) and timeLimit ({timeLimit}). Calibration aborted.";
+
+                Announce(message, subject, NoticeType.Error);
                 return;
             }
 
@@ -321,7 +325,11 @@ namespace AeonHacs.Components
                     {
                         // The valve is stuck trying to open. Calibrate() cannot continue
                         // because there is no way to tell whether it is stuck opened or closed
-                        Alert.Warn($"{Name} is stuck open or closed.", "Manually free it, then click OK to continue.");
+                        
+                        string subject = $"{Name} is stuck open or closed.";
+                        string message = "Manually free it, then click OK to continue.";
+
+                        Warn(message, subject);
                     }
                 }
 
@@ -337,7 +345,10 @@ namespace AeonHacs.Components
 
             if (!CurrentLimitDetected)
             {
-                Alert.Warn($"{Name} Calibration Failed", "Cannot find closed position.");
+                string subject = $"{Name} Calibration Failed";
+                string message = "Cannot find closed position.";
+
+                Warn(message, subject, NoticeType.Error);
                 ActuatorOperations.Remove(operation);
                 isCalibrating = false;
                 Calibrated = false;

@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Text.Json;
 using JsonSerializer = Newtonsoft.Json.JsonSerializer;
+using static AeonHacs.Notify;
 
 namespace AeonHacs
 {
@@ -44,9 +45,18 @@ namespace AeonHacs
                 {
                     credentialsOk = false;
                     if (e is FileNotFoundException)
-                        Notice.Send("File not found", $"Credentials file is missing: {credentialsFileName}", Notice.Type.Tell);
+                    {
+                        var subject = "File Not Found";
+                        var message = $"Credentials file is missing: {credentialsFileName}";
+
+                        Announce(message, subject);
+                    }
                     else
-                        Notice.Send(e.ToString(), Notice.Type.Tell);
+                    {
+                        var message = e.ToString();
+
+                        Announce(message, type: NoticeType.Error);
+                    }
                 }
             }
             return info;
@@ -135,7 +145,9 @@ namespace AeonHacs
             }
             catch
             {
-                Notice.Send($"Unable to save {CredentialsFilename}");
+                string message = $"Unable to save {CredentialsFilename}";
+
+                Announce(message, type: NoticeType.Error);
             }
         }
 

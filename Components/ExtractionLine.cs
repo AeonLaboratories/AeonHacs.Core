@@ -1,9 +1,8 @@
-﻿using AeonHacs;
+﻿using MimeKit;
 using Newtonsoft.Json;
 using System.Threading;
-using AeonHacs.Utilities;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
-using System;
 
 namespace AeonHacs.Components
 {
@@ -241,9 +240,14 @@ namespace AeonHacs.Components
             purgeFlowManager.Start();
 
             ProcessStep.CurrentStep.Description = "Tube furnace ready to be opened";
-            Alert.Pause("Operator Needed", 
-                "Tube furnace ready to be opened. Purge flow is active.\r\n" +
-                "Dismiss this window when furnace is closed again");
+            
+            var subject = "Operator Needed";
+            var message = "Tube furnace ready to be opened." +
+                          "Purge flow is active.\r\n" +
+                          "Dismiss this window when furnace is closed again.";
+
+            Alert(message, subject);
+            Ask(message, subject, NoticeType.Alert);
             purgeFlowManager.Stop();
 
             ProcessStep.End();
@@ -256,7 +260,11 @@ namespace AeonHacs.Components
             ProcessStep.Start($"{Name}: Bakeout tube furnace");
             isolateTF();
 
-            if (Notice.Send("Has the prior sample been removed?!", "Ok to Continue?").Text != "Ok")
+            var subject = "Process Paused";
+            var message = "Has the prior sample been removed?!\r\n" +
+                          "Ok to continue.";
+
+            if (!Ask(message, subject).Ok())
                 return;
 
             TubeFurnacePort.State = LinePort.States.InProcess;
@@ -287,8 +295,9 @@ namespace AeonHacs.Components
 
             TubeFurnace.TurnOff();
             evacuateTF(OkPressure);
-            SampleLog.Record($"{Name}: Tube bakeout process complete");
-            Alert.Send("Sytem Status", $"{Name}: Tube bakeout process complete");
+            var msg = $"{Name}: Tube bakeout process complete";
+            SampleLog.Record(msg);
+            Alert(msg, "Sytem Status");
             ProcessStep.End();
             TubeFurnacePort.State = LinePort.States.Complete;
         }
@@ -346,8 +355,9 @@ namespace AeonHacs.Components
 
             evacuateTF();
 
-            Alert.Send("Sytem Status", $"{Name}: Degas LiBO2, boat, and sleeve process complete");
-            SampleLog.Record($"{Name}: Degas LiBO2, boat, and sleeve process complete");
+            var msg = $"{Name}: Degas LiBO2, boat, and sleeve process complete";
+            Alert(msg, "Sytem Status");
+            SampleLog.Record(msg);
             SampleLog.Record($"Degas O2 bleed volume\t{MFC.TrackedFlow}\tcc");
 
             TubeFurnacePort.State = LinePort.States.Prepared;

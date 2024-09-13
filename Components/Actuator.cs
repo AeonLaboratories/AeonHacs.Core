@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.ComponentModel;
-using AeonHacs.Utilities;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -230,8 +230,12 @@ namespace AeonHacs.Components
                 Ensure(ref actionSucceeded, value);
                 if (!actionSucceeded && !Active && !StopRequested)
                 {
-                    Alert.Warn($"{Name} Failed", $"\"{Operation?.Name ?? "Operation"}\" was unsuccessful.");
-                    while (!Notice.Ok(Name, $"Ok to continue in this state? If not, restart the program to dismiss this message.")) ;
+                    var subject = $"{Name} Failed";
+                    var message = $"\"{Operation?.Name ?? "Operation"}\" was unsuccessful.\r\n" +
+                                  $"Ok to continue in this state?\r\n" +
+                                  $"If not, restart the program to dismiss this message.";
+
+                    while (!Warn(message, subject).Ok()) ;
                 }
             }
         }

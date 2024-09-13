@@ -174,11 +174,14 @@ namespace AeonHacs.Components
         /// Sets the furnace temperature and turns it on.
         /// </summary>
         /// <param name="setpoint">Desired furnace temperature (°C)</param>
-        public new void TurnOn(double setpoint)
+        public override void TurnOn(double setpoint)
         {
             if (Config.OperatingMode != AutoManualCode.Auto)
             {
-                Alert.DefaultAlertManager.Pause($"{Name} Error", "OperatingMode must be Auto for setpoint control.");
+                string subject = $"{Name} Error";
+                string message = "OperatingMode must be Auto for setpoint control.";
+
+                Notify.Warn(message, subject, NoticeType.Error);
                 return;
             }
             base.TurnOn(setpoint);

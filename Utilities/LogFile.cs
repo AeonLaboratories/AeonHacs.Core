@@ -30,11 +30,21 @@ namespace AeonHacs.Utilities
                     foreach (var log in List)
                     {
                         try { log.flush(); }
-                        catch (Exception e) { Notice.Send(e.ToString()); }
+                        catch (Exception e)
+                        {
+                            string message = e.ToString();
+
+                            Notify.Announce(message, type: NoticeType.Error);
+                        }
                     }
                 }
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                string message = e.ToString();
+
+                Notify.Announce(message, type: NoticeType.Error);
+            }
         }
 
         ConcurrentQueue<string> Q = new ConcurrentQueue<string>();

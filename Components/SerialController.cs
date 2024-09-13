@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Text;
 using System.Threading;
+using static AeonHacs.Notify;
 
 namespace AeonHacs.Components
 {
@@ -394,8 +395,11 @@ namespace AeonHacs.Components
                 lock (responseTimeoutsLocker) ResponseTimeouts++;
                 if (!Responsive)
                 {
-                    Alert.Warn("System Error", $"{Name}: No response to command {ServiceCommand}");
-                    if (Notice.Ok(Name, $"Ok to discard ServiceCommand \"{ServiceCommand}\"?"))
+                    var subject = "System Error";
+                    var message = $"{Name}: No response to command {ServiceCommand}.\r\n" +
+                                     $"Ok to discard it?";
+
+                    if (Warn(message, subject, NoticeType.Error).Ok())
                         AwaitingResponses = 0;
                     else
                     {

@@ -1896,32 +1896,10 @@ namespace AeonHacs.Components
 
     public interface IAlertManager : IHacsComponent
     {
-        new bool Stopped { get; }
-        string PriorAlertMessage { get; set; }
         /// <summary>
-        /// Email account and server settings. See Credentials.json.
+        /// Whether alerts are enabled.
         /// </summary>
-        SmtpInfo SmtpInfo { get; }
-        /// <summary>
-        /// Send a message to the remote operator.
-        /// </summary>
-        void Send(string subject, string message);
-        /// <summary>
-        /// Dispatch a message to the remote operator and to the local user interface.
-        /// The process is not paused.
-        /// </summary>
-        Notice Announce(string subject, string message);
-        /// <summary>
-        /// Pause and give the local operator the option to continue.
-        /// </summary>
-        Notice Pause(string subject, string message);
-        /// <summary>
-        /// Make an entry in the EventLog, pause and give the local operator
-        /// the option to continue. The notice is transmitted as a Warning.
-        /// </summary>
-        Notice Warn(string subject, string message);
-        void ClearLastAlertMessage();
-
+        public bool AlertsEnabled { get; set; }
     }
 
     public interface IVacuumSystem : IHacsComponent
@@ -2171,7 +2149,6 @@ namespace AeonHacs.Components
 
     public interface IProcessManager : IHacsBase
     {
-        AlertManager AlertManager { get; set; }
         Dictionary<string, ThreadStart> ProcessDictionary { get; }
         List<string> ProcessNames { get; }
         Dictionary<string, ProcessSequence> ProcessSequences { get; set; }
@@ -2279,7 +2256,6 @@ namespace AeonHacs.Components
         TimeSpan Uptime { get; }
         bool SampleIsRunning { get; }
         Func<bool, List<ISample>> SelectSamples { get; set; }
-        string PriorAlertMessage { get; }
         IInletPort InletPort { get; set; }
         ISample Sample { get; set; }
 

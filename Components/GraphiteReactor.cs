@@ -3,7 +3,9 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using static AeonHacs.Notify;
 
 namespace AeonHacs.Components
 {
@@ -303,8 +305,11 @@ namespace AeonHacs.Components
 
                 if (FurnaceUnresponsive)
                 {
-                    Alert.Send("GraphiteReactor Warning",
-                        $"{Heater.Name} is unresponsive.");
+                    string subject = "GraphiteReactor Warning";
+                    string message = $"{Heater.Name} is unresponsive.";
+
+                    Announce(message, subject, NoticeType.Warning);
+                    Alert(message, subject);
                     State = State;  // reset the timer
                 }
 
@@ -314,17 +319,23 @@ namespace AeonHacs.Components
                         Stop();
                     else
                     {
-                        Alert.Send("Graphite Reaction Warning",
-                            $"{Name} reaction hasn't started.\r\n" +
-                            $"Is {Heater.Name} in place?");
+                        var subject = "Graphite Reaction Warning";
+                        var message = $"{Name} reaction hasn't started.\r\n" +
+                                      $"Is {Heater.Name} in place?";
+
+                        Announce(message, subject, NoticeType.Warning);
+                        Alert(message, subject);
                         State = State;  // reset the timer
                     }
                 }
 
                 if (ReactionNotFinishing)
                 {
-                    Alert.Send("Graphite Reaction Warning",
-                        $"{Name} reaction hasn't finished.");
+                    var subject = "Graphite Reaction Warning";
+                    var message = $"{Name} reaction hasn't finished.";
+
+                    Announce(message, subject, NoticeType.Warning);
+                    Alert(message, subject);
                     State = State;  // reset the timer
                 }
             }

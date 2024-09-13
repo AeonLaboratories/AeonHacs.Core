@@ -1,23 +1,24 @@
 ﻿using System;
+using System.Threading;
 
 namespace AeonHacs
 {
     public static class Hacs
     {
+        private static readonly CancellationTokenSource cancellationTokenSource = new();
+        public static CancellationToken CancellationToken => cancellationTokenSource.Token;
+
         public static Action CloseApplication;
         public static bool RestartRequested { get; set; }
-        public static HacsLog EventLog
-        {
-            get => eventLog ??= new HacsLog("Event log.txt") { Name = "EventLog", ArchiveDaily = false };
-            set => eventLog = value;
-        }
+
         static HacsLog eventLog;
-        public static HacsLog SystemLog
-        {
-            get => systemLog ??= new HacsLog("System log.txt") { Name = "SystemLog", ArchiveDaily = true };
-            set => systemLog = value;
-        }
+        public static HacsLog EventLog => eventLog ??=
+            new HacsLog("Event log.txt") { Name = "EventLog", ArchiveDaily = false };
+
         static HacsLog systemLog;
+        public static HacsLog SystemLog => systemLog ??=
+            new HacsLog("System log.txt") { Name = "SystemLog", ArchiveDaily = true };
+
         public static bool Connected { get; private set; }
         public static bool Initialized { get; private set; }
         public static bool Started { get; private set; }
@@ -44,7 +45,18 @@ namespace AeonHacs
         public static Action OnStop;
         public static Action OnPostStop;
 
-        public static void Connect()
+        static Hacs()
+        {
+            Notify.OnActionTaken += notice => SystemLog.Record(notice.Message);
+            Notify.OnMajorEvent += notice => EventLog.Record(notice.Message);
+            Notify.OnError += async notice =>
+            {
+                EventLog.Record(notice.Message);
+                return await Notify.NoResponse();
+            };
+        }
+
+            public static void Connect()
         {
             OnPreConnect?.ParallelInvoke();
             OnConnect?.ParallelInvoke();
@@ -79,6 +91,7 @@ namespace AeonHacs
         {
             if (Stopping) return;
             Stopping = true;
+            cancellationTokenSource.Cancel();
             OnPreStop?.ParallelInvoke();
             OnStop?.ParallelInvoke();
             OnPostStop?.ParallelInvoke();

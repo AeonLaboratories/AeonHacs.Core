@@ -213,7 +213,7 @@ namespace AeonHacs.Components
             if (log != null)
                 Log.Record(message);
             else
-                Notice.Send(message);
+                Notify.Announce(message);
         }
     }
 

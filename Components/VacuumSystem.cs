@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -499,8 +500,19 @@ namespace AeonHacs.Components
                 return Pressure <= TargetPressure || Stopping;
             }
 
+            int timeouts = 0;
             while (!WaitFor(shouldStop, 15 * 60000, 100))
-                Alert.Announce("System Error", $"{Manometer.Name} has failed to reach {TargetPressure:0.0e0} Torr within {ProcessStep.Elapsed.TotalMinutes:0} minutes.");
+            {
+                if (timeouts % (4 * 24) == 0)
+                {
+                    var subject = "System Error";
+                    var message = $"{Manometer.Name} has failed to reach {TargetPressure:0.0e0} Torr within {ProcessStep.Elapsed.TotalMinutes:0} minutes.";
+
+                    Alert(message, subject);
+                    Announce(message, subject);
+                }
+                timeouts++;
+            }
 
             ProcessStep?.End();
         }
@@ -526,7 +538,11 @@ namespace AeonHacs.Components
             }
             while (!WaitFor(shouldStop, 30 * 60000, 100)) // TODO magic number
             {
-                if (Alert.Warn($"System Warning", $"{Manometer.Name} has failed to stabilize below {pressure:0.0e0} Torr for {sw.Elapsed.TotalMinutes:0} minutes. Ok to keep waiting or Cancel to move on.").Text == "Ok")
+                string subject = "System Warning";
+                string message = $"{Manometer.Name} has failed to stabilize below {pressure:0.0e0} Torr for {sw.Elapsed.TotalMinutes:0} minutes.\r\n" +
+                                 $"Ok to keep waiting or Cancel to move on.";
+
+                if (Warn(message, subject).Ok())
                     continue;
                 break;
             }
@@ -625,7 +641,13 @@ namespace AeonHacs.Components
                                         if (TurboPump?.IsOn ?? true)
                                         {
                                             if (!WaitFor(() => ForelineManometer.Pressure <= GoodBackingPressure || Hacs.Stopping, 10 * 60000, 35))
-                                                Alert.Announce("System Error", "Backing pump failed to reach operating pressure.");
+                                            {
+                                                var subject = "System Error";
+                                                var message = "Backing pump failed to reach operating pressure.";
+
+                                                Announce(message, subject, NoticeType.Error);
+                                            }
+
                                             BackingValve.OpenWait();
                                         }
                                         else
@@ -664,7 +686,15 @@ namespace AeonHacs.Components
                     stateSignal.WaitOne(idleTimeout);
                 }
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                var subject = $"VacuumSystem Error";
+                var message = e.ToString() + "\r\n" +
+                                 $"{Name} control has been lost.";
+
+                Alert(message, subject);
+                MajorEvent(message);
+            }
             stoppedSignal.Set();
         }
 

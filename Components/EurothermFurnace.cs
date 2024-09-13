@@ -255,7 +255,10 @@ namespace AeonHacs.Components
         {
             if (Device.ControlType != ControlTypeCode.PID)
             {
-                Alert.DefaultAlertManager.Pause($"{Name} Error", "ControlType must be PID for setpoint control.");
+                var subject = $"{Name} Error";
+                var message = "ControlType must be PID for setpoint control.";
+
+                Notify.Error(message, subject);
                 return;
             }
             base.TurnOn(setpoint);

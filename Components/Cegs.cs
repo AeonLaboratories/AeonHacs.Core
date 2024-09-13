@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using static AeonHacs.Components.CegsPreferences;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -78,9 +79,14 @@ namespace AeonHacs.Components
         /// </summary>
         private void CegsNeeds(object obj, string objName, string expectedName)
         {
-            if (obj == null)
-                Alert.Warn("Configuration Error",
-                    $"Can't find {objName} \"{expectedName}\". Cegs expects one.");
+            if (obj is not null)
+                return;
+
+            string subject = "Configuration Error";
+            string message = $"Can't find {objName} \"{expectedName}\". Cegs expects one.";
+
+            // TODO (Notify) Update to compile all missing needs and notify once?
+            Announce(message, subject, NoticeType.Error);
         }
 
 
@@ -148,7 +154,9 @@ namespace AeonHacs.Components
         {
             try
             {
-                EventLog.Record("System shutting down");
+                string message = "System shutting down";
+
+                MajorEvent(message);
                 Stopping = true;
 
                 lowPrioritySignal.Set();
@@ -159,7 +167,12 @@ namespace AeonHacs.Components
                 // effected in PreStop()
 
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                string message = e.ToString();
+
+                MajorEvent(message);
+            }
         }
 
         protected bool StopLogging { get; set; } = false;
@@ -180,7 +193,12 @@ namespace AeonHacs.Components
 
                 SerialPortMonitor.Stop();
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                string message = e.ToString();
+
+                MajorEvent(message);
+            }
         }
 
         /// <summary>
@@ -476,7 +494,10 @@ namespace AeonHacs.Components
                 var trap = CT ?? VTT;
                 if (trap == null)
                 {
-                    Alert.Warn("Configuration Error", $"Can't find first trap");
+                    string subject = "Configuration Error";
+                    string message = "Can't find first trap";
+
+                    Warn(message, subject, NoticeType.Error);
                     return null;
                 }
 
@@ -487,7 +508,13 @@ namespace AeonHacs.Components
                     s.Chambers?.Last() == lastChamber);
 
                 if (im_trap == null)
-                    Alert.Warn("Configuration Error", $"Can't find Section linking {im.Name} and {trap.Name}");
+                {
+                    string subject = "Configuration Error";
+                    string message = $"Can't find Section linking {im.Name} and {trap.Name}";
+
+                    Warn(message, subject, NoticeType.Error);
+                }
+
                 return im_trap;
             }
             set => Ensure(ref im_FirstTrap, value);
@@ -504,7 +531,10 @@ namespace AeonHacs.Components
                 var chamber = IM_FirstTrap?.Chambers?.Last();
                 if (chamber == null)
                 {
-                    Alert.Warn("Configuration Error", $"Can't find IM_FirstTrap Section.");
+                    string subject = "Configuration Error";
+                    string message = "Can't find IM_FirstTrap Section.";
+
+                    Warn(message, subject, NoticeType.Error);
                     return null;
                 }
                 var trap = FirstOrDefault<Section>(s =>
@@ -512,7 +542,10 @@ namespace AeonHacs.Components
                    s.Chambers.Count() == 1);
                 if (trap == null)
                 {
-                    Alert.Warn("Configuration Error", $"Can't find a Section containing only chamber {chamber.Name}.");
+                    string subject = "Configuration Error";
+                    string message = $"Can't find a Section containing only chamber {chamber.Name}.";
+
+                    Warn(message, subject, NoticeType.Error);
                 }
                 return trap;
             }
@@ -530,8 +563,6 @@ namespace AeonHacs.Components
         #region UI Communications
 
         public virtual Func<bool, List<ISample>> SelectSamples { get; set; }
-
-        public virtual void PlaySound() => Notice.Send("PlaySound", Notice.Type.Tell);
 
         #endregion UI Communications
 
@@ -562,8 +593,6 @@ namespace AeonHacs.Components
             set => Ensure(ref autoFeedEnabled, value);
         }
         bool autoFeedEnabled = false;
-
-        public virtual string PriorAlertMessage => AlertManager.PriorAlertMessage;
 
         public virtual List<IInletPort> InletPorts { get; set; }
         public virtual List<IGraphiteReactor> GraphiteReactors { get; set; }
@@ -662,7 +691,7 @@ namespace AeonHacs.Components
 
         protected virtual void StartThreads()
         {
-            EventLog.Record("System Started");
+            MajorEvent("System Started");
 
             systemLogThread = new Thread(LogSystemStatus)
             {
@@ -751,15 +780,32 @@ namespace AeonHacs.Components
             stoppedSignal1.Reset();
             try
             {
+                bool exceptionAnnounced = false;
                 while (!StopLogging)
                 {
                     if (!Started) continue;
                     try { HacsLog.UpdateAll(); }
-                    catch (Exception e) { Notice.Send(e.ToString()); }
+                    catch (Exception e)
+                    {
+                        if (!exceptionAnnounced)
+                        {
+                            var subject = "System Error";
+                            var message = e.ToString();
+
+                            Announce(message, subject, NoticeType.Error);
+                            exceptionAnnounced = true;
+                        }
+                    }
                     SystemLogSignal.WaitOne(500);
                 }
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                var message = e.ToString() + "\r\n" +
+                              "Logs will no longer be updated.";
+
+                Announce(message, type: NoticeType.Error);
+            }
             stoppedSignal1.Set();
         }
 
@@ -808,6 +854,7 @@ namespace AeonHacs.Components
             catch { }   // ignore any errors
         }
 
+        bool updateExceptionOccurred;
         protected virtual void UpdateTimerCallback(object state)
         {
             try
@@ -815,7 +862,19 @@ namespace AeonHacs.Components
                 if (!Stopping)
                     Update();
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                if (updateExceptionOccurred) return;
+
+                var subject = "System Error";
+                var message = $"{e}\r\n" +
+                              $"System should be restarted.\r\n" +
+                              $"This message will not be repeated.";
+
+                Alert(message, subject);
+                Announce(message, subject, NoticeType.Error);
+                updateExceptionOccurred = true;
+            }
         }
 
         int msUpdateLoop = 0;
@@ -832,14 +891,14 @@ namespace AeonHacs.Components
                 {
                     daqsOk = false;
                     if (!daq.IsStreaming)
-                        EventLog.LogParsimoniously(daq.Name + " is not streaming");
+                        Hacs.EventLog.LogParsimoniously(daq.Name + " is not streaming");
                     else if (!daq.DataAcquired)
-                        EventLog.LogParsimoniously(daq.Name + ": waiting for stream to start");
+                        Hacs.EventLog.LogParsimoniously(daq.Name + ": waiting for stream to start");
                     else
                     {
                         var error = daq.Error;
                         if (error != default)
-                            EventLog.LogParsimoniously(error);
+                            Hacs.EventLog.LogParsimoniously(error);
                         daq.ClearError();
                     }
                 }
@@ -899,10 +958,13 @@ namespace AeonHacs.Components
                         $"\tGraphite {gr.Contents}");
                     if (BusyGRCount() == 1 && !SampleIsRunning)  // the 1 is this GR; "Stop" is still 'Busy'
                     {
-                        string msg = "Last graphite reactor finished.";
+                        var subject = "Operator Needed";
+                        var message = $"Last graphite reactor finished.";
                         if (PreparedGRs() < 1)
-                            msg += "\r\nGraphite reactors need service.";
-                        Alert.Announce("Operator Needed", msg);         // it's ok not to Pause here
+                            message += "\r\nGraphite reactors need service.";
+
+                        Alert(message, subject);
+                        Announce(message, subject);         // it's ok not to Pause here
                     }
                 }
             }
@@ -953,15 +1015,31 @@ namespace AeonHacs.Components
 
         #region device event handlers
 
-        protected virtual void OnMainsDown() =>
-            Alert.Warn("System Warning", "Mains Power is down");
+        protected virtual void OnMainsDown()
+        {
+            string subject = "System Warning";
+            string message = "Mains Power is down";
 
-        protected virtual void OnMainsRestored() =>
-            Alert.Warn("System Message", $"Mains Power restored (down {Power.MainsDownTimer.ElapsedMilliseconds} ms)");
+            Alert(message, subject);
+            Announce(message, subject, NoticeType.Warning);
+        }
+
+        protected virtual void OnMainsRestored()
+        {
+            string subject = "System Message";
+            string message = $"Mains Power restored (down {Power.MainsDownTimer.ElapsedMilliseconds} ms)";
+
+            Alert(message, subject);
+            Announce(message, subject, NoticeType.Information);
+        }
 
         protected virtual void OnMainsFailed()
         {
-            Alert.Announce("System Failure", "Mains Power Failure. Shutting down...");
+            string subject = "System Failure";
+            string message = "Mains Power Failure. Shutting down...";
+
+            Alert(message, subject);
+            MajorEvent(message, subject);
 
             ShutDownAllColdfingers();
             FindAll<IHeater>().ForEach(h => h.TurnOff());
@@ -977,11 +1055,23 @@ namespace AeonHacs.Components
             Hacs.CloseApplication?.Invoke();
         }
 
-        protected virtual void OnOverflowDetected() =>
-            Alert.Warn("System Alert", "LN Containment Failure");
+        protected virtual void OnOverflowDetected()
+        {
+            var subject = "System Alert";
+            var message = "LN containment failure.";
 
-        protected virtual void OnSlowToFill(ILNManifold manifold) =>
-            Alert.Announce("System Warning", $"{manifold?.Name ?? "An LN Manifold"} is slow to fill!");
+            Alert(message, subject);
+            Warn(message, subject);
+        }
+
+        protected virtual void OnSlowToFill(ILNManifold manifold)
+        {
+            var subject = "System Warning";
+            var message = $"{manifold?.Name ?? "An LN Manifold"} is slow to fill.";
+
+            Alert(message, subject);
+            Warn(message, subject);
+        }
 
         protected virtual void OnSlowToFreeze()
         {
@@ -990,10 +1080,13 @@ namespace AeonHacs.Components
             coldfingers.ForEach(cf => cf.Standby());
             FindAll<VTColdfinger>().ForEach(vtc => vtc.Standby());
             var list = string.Join(", ", on.Select(cf => cf.Name));
-            Alert.Warn("Process Exception", 
-                $"A coldfinger is taking too long to freeze.\r\n" +
-                $"Active coldfingers: {list}.\r\n" +
-                $"The process is paused for operator.");
+
+            var subject = "Process Exception";
+            var message = $"A coldfinger is taking too long to freeze.\r\n" +
+                          $"Active coldfingers: {list}.\r\n" +
+                          $"The process is paused for operator.";
+
+            Warn(message, subject);
         }
 
         protected virtual void ShutDownAllColdfingers()
@@ -1018,7 +1111,14 @@ namespace AeonHacs.Components
                     lowPrioritySignal.WaitOne(500);
                 }
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                var subject = "System Error";
+                var message = $"{e}\r\n" +
+                              $"Low priority activities stopped.";
+
+                Announce(message, subject, NoticeType.Error);
+            }
             stoppedSignal2.Set();
         }
 
@@ -1319,8 +1419,14 @@ namespace AeonHacs.Components
             while (!WaitFor(() => Stopping || InletPort.Temperature < IpSetpoint, (int)MaximumMinutesIpToReachTemperature * 60000, 1000))
             {
                 InletPort.SampleFurnace.TurnOff();
-                if (Alert.Warn("Process Exception", $"{InletPort.SampleFurnace.Name} is taking too long to reach {IpSetpoint:0} °C. Ok to keep waiting or Cancel to move on. Close and restart the application to abort the process.").Text == "Ok")
-            {
+                
+                var subject = "Process Exception";
+                var message = $"{InletPort.SampleFurnace.Name} is taking too long to reach {IpSetpoint:0} °C.\r\n" +
+                              $"Ok to keep waiting or Cancel to move on.\r\n" +
+                              $"Restart the application to abort the process.";
+
+                if (Warn(message, subject).Ok())
+                {
                     InletPort.SampleFurnace.TurnOn(); ;
                     continue;
                 }
@@ -1349,7 +1455,13 @@ namespace AeonHacs.Components
             while (!WaitFor(() => Stopping || InletPort.Temperature >= closeEnough, (int)MaximumMinutesIpToReachTemperature * 60000, 1000))
             {
                 InletPort.SampleFurnace.TurnOff();
-                if (Alert.Warn("Process Exception", $"{InletPort.SampleFurnace.Name} is taking too long to reach {closeEnough:0} °C. Ok to keep waiting or Cancel to move on. Close and restart the application to abort the process.").Text == "Ok")
+
+                var subject = "Process Exception";
+                var message = $"{InletPort.SampleFurnace.Name} is taking too long to reach {closeEnough:0} °C.\r\n" +
+                              $"Ok to keep waiting or Cancel to move on.\r\n" +
+                              $"Restart the application to abort the process.";
+
+                if (Warn(message, subject).Ok())
                 {
                     InletPort.SampleFurnace.TurnOn(); ;
                     continue;
@@ -1573,12 +1685,6 @@ namespace AeonHacs.Components
 
         #endregion Process Steps
 
-        /// <summary>
-        /// This method must be provided by the derived class.
-        /// </summary>
-        protected virtual void OverrideNeeded([CallerMemberName] string caller = default) =>
-            Alert.Warn("Program Error", $"{Name} needs an override for {caller}().");
-
         protected virtual void SampleRecord(ISample sample) { }
         protected virtual void SampleRecord(IAliquot aliquot) { }
 
@@ -1656,12 +1762,20 @@ namespace AeonHacs.Components
             im = Manifold(InletPort);
             if (InletPort == null)
             {
-                Alert.Warn("Process Exception", "No InletPort is selected.");
+                var subject = "Process Exception";
+                var message = "No InletPort is selected.";
+
+                Alert(message, subject);
+                Announce(message, subject, NoticeType.Error);
                 return false;
             }
             if (im == null)
             {
-                Alert.Warn("Process Exception", $"Can't find manifold Section for {InletPort.Name}.");
+                var subject = "Process Exception";
+                var message = $"Can't find manifold Section for {InletPort.Name}.";
+
+                Alert(message, subject);
+                Announce(message, subject, NoticeType.Error);
                 return false;
             }
             return true;
@@ -1689,7 +1803,12 @@ namespace AeonHacs.Components
             if (!IpIm(out im)) return false;
             gs = InertGasSupply(im);
             if (gs != null) return true;
-            Alert.Warn("Configuration Error", $"Section {im.Name} has no inert GasSupply.");
+
+            var subject = "Configuration Error";
+            var message = $"Section {im.Name} has no inert GasSupply.";
+
+            Alert(message, subject);
+            Announce(message, subject, NoticeType.Error);
             return false;
         }
 
@@ -1706,7 +1825,11 @@ namespace AeonHacs.Components
             var trap = FirstTrap;
             if (trap == null)
             {
-                Alert.Warn("Configuration Error", $"Can't find Section {trap.Name}");
+                var subject = "Configuration Error";
+                var message = $"Can't find Section {trap.Name}.";
+
+                Alert(message, subject);
+                Announce(message, subject, NoticeType.Error);
                 return false;
             }
 
@@ -1718,7 +1841,11 @@ namespace AeonHacs.Components
 
             if (im_trap == null)
             {
-                Alert.Warn("Configuration Error", $"Can't find Section linking {im.Name} and {trap.Name}");
+                var subject = "Configuration Error";
+                var message = $"Can't find Section linking {im.Name} and {trap.Name}.";
+
+                Alert(message, subject);
+                Announce(message, subject, NoticeType.Error);
                 return false;
             }
             return true;
@@ -1737,7 +1864,8 @@ namespace AeonHacs.Components
                 var message = grs == null || grs.Count() == 0 ?
                     "Graphite manifold search requires a valid graphite reactor." :
                     $"Can't find graphite manifold for {string.Join(", ", grs.Select(gr => gr.Name))}.";
-                Alert.Warn(subject, message);
+
+                Tell(subject, message, NoticeType.Warning);
                 return false;
             }
             return true;
@@ -1765,7 +1893,12 @@ namespace AeonHacs.Components
             if (!GrGm(grs, out gm)) return false;
             gs = InertGasSupply(gm);
             if (gs != null) return true;
-            Alert.Warn("Configuration Error", $"Section {gm.Name} has no inert GasSupply.");
+
+            var subject = "Configuration Error";
+            var message = $"Section {gm.Name} has no inert GasSupply.";
+
+            Alert(message, subject);
+            Announce(message, subject, NoticeType.Error);
             return false;
         }
 
@@ -1798,7 +1931,11 @@ namespace AeonHacs.Components
 
         protected virtual void WaitForOperator()
         {
-            Alert.Pause("Operator Needed", "Waiting for Operator.");
+            var subject = "Operator Needed";
+            var message = "Waiting for Operator.";
+
+            Alert(message, subject);
+            Ask(message, subject, NoticeType.Alert);
         }
 
         #region Valve operations
@@ -1876,11 +2013,13 @@ namespace AeonHacs.Components
 
             if (InletPort.NotifySampleFurnaceNeeded)
             {
-                Alert.Pause("Operator Needed",
-                    $"{Sample?.LabId} is ready for sample furnace.\r\n" +
-                    $"Remove any coolant from combustion tube and \r\n" +
-                    $"raise the sample furnace at {InletPort.Name}.\r\n" +
-                    "Press Ok to continue");
+                var subject = "Operator Needed";
+                var message = $"{Sample?.LabId} is ready for sample furnace.\r\n" +
+                              $"Remove any coolant from combustion tube and \r\n" +
+                              $"raise the sample furnace at {InletPort.Name}.\r\n" +
+                              "Ok when ready to continue";
+
+                Ask(message, subject, NoticeType.Information);
             }
             ProcessStep.End();
         }
@@ -1951,7 +2090,12 @@ namespace AeonHacs.Components
             if (InertGasSupply(section) is GasSupply gs)
                 gs.Flush(PressureOverAtm, 0.1, n, port);
             else
-                Alert.Warn("Configuration Error", $"Section {section.Name} has no inert GasSupply.");
+            {
+                var subject = "Configuration Error";
+                var message = $"Section {section.Name} has no inert GasSupply.";
+
+                Warn(message, subject);
+            }
         }
 
         protected virtual void FlushIP()
@@ -2128,12 +2272,15 @@ namespace AeonHacs.Components
             while (!WaitFor(() => Hacs.Stopping || gm.Pressure > preAdmitPressure + 5, 3000, 20))
             {
                 gasSupply.ShutOff();
-                if (Alert.Warn("Process Exception",
-                    $"{gasSupply.GasName} is not flowing into {gm.Name}.\r\n" +
-                    $"Ok to try again or Cancel to continue without gas.\r\n" +
-                    $"Close and restart the application to abort the process.").Text == "Ok")
+
+                var subject = "Process Exception";
+                var message = $"{gasSupply.GasName} is not flowing into {gm.Name}.\r\n" +
+                              $"Ok to try again or Cancel to continue without gas.\r\n" +
+                              $"Restart the application to abort the process.";
+
+                if (Warn(message, subject, NoticeType.Error).Ok())
                 {
-            gasSupply.Admit();
+                    gasSupply.Admit();
                     continue;
                 }
                 break;
@@ -2142,10 +2289,13 @@ namespace AeonHacs.Components
             while (!WaitFor(() => Hacs.Stopping || gm.Pressure >= pressure, (int)MaximumSecondsAdmitGas * 1000, 250))
             {
                 gasSupply.ShutOff();
-                if (Alert.Warn("Process Exception",
-                    $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.\r\n" +
-                    $"Ok to keep waiting or Cancel to move on.\r\n" +
-                    $"Close and restart the application to abort the process.").Text == "Ok")
+
+                var subject = "Process Exception";
+                var message = $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.\r\n" +
+                                 $"Ok to keep waiting or Cancel to move on.\r\n" +
+                                 $"Restart the application to abort the process.";
+
+                if (Warn(message, subject, NoticeType.Error).Ok())
                 {
                     gasSupply.Admit();
                     continue;
@@ -2164,10 +2314,13 @@ namespace AeonHacs.Components
             while (!WaitFor(() => Hacs.Stopping || gm.Pressure >= pressure, (int)MaximumSecondsAdmitGas * 1000 / 2, 250))
             {
                 gasSupply.ShutOff();
-                if (Alert.Warn("Process Exception",
-                    $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.\r\n" +
-                    $"Ok to keep waiting or Cancel to move on.\r\n" +
-                    $"Close and restart the application to abort the process.").Text == "Ok")
+
+                var subject = "Process Exception";
+                var message = $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.\r\n" +
+                              $"Ok to keep waiting or Cancel to move on.\r\n" +
+                              $"Restart the application to abort the process.";
+
+                if (Warn(message, subject, NoticeType.Error).Ok())
                 {
                     gasSupply.Admit();
                     continue;
@@ -2195,22 +2348,31 @@ namespace AeonHacs.Components
                     gr.ServiceComplete();
             }
 
+            string subject, message;
+
             if (grs.Count < 1)
             {
-                Notice.Send("Nothing to do", "No reactors are awaiting service.", Notice.Type.Tell);
+                subject = "Nothing To Do";
+                message = "No graphite reactors are awaiting service.";
+
+                Announce(message, subject);
                 return;
             }
 
             grs.ForEach(gr => SampleRecord(gr.Aliquot));
 
-            Notice.Send("Operator Needed",
-                "Mark Fe/C tubes with graphite IDs.\r\n" +
-                "Press Ok to continue");
+            subject = "Operator Needed";
+            message = "Mark Fe/C tubes with graphite IDs.\r\n" +
+                      "Ok to continue";
+
+            Ask(message, subject, NoticeType.Information);
 
             PressurizeGRsWithInertGas(grs);
 
-            PlaySound();
-            Notice.Send("Operator Needed", "Ready to load new iron and desiccant.");
+            subject = "Operator Needed";
+            message = "Ready to load new iron and desiccant.";
+
+            Announce(message, subject, NoticeType.Information);
 
             List<IAliquot> toDelete = new List<IAliquot>();
             grs.ForEach(gr =>
@@ -2247,7 +2409,12 @@ namespace AeonHacs.Components
             var leakRateLimit = 2 * LeakTightTorrLitersPerSecond;
             while (SectionLeakRate(section, leakRateLimit) > leakRateLimit)
             {
-                if (Alert.Pause("Process Exception", $"Something in the {section.Name} isn't holding vacuum well enough. Ok to try again or Cancel to move on. Close and restart the application to abort the process.").Text == "Ok")
+                var subject = "Process Exception";
+                var message = $"Something in the {section.Name} isn't holding vacuum well enough.\r\n" +
+                              $"Ok to try again or Cancel to move on.\r\n" +
+                              $"Restart the application to abort the process.";
+
+                if (Warn(message, subject, NoticeType.Error).Ok())
                     continue;
                 break;
             }
@@ -2256,9 +2423,15 @@ namespace AeonHacs.Components
         protected virtual void PreconditionGRs()
         {
             var grs = GraphiteReactors.FindAll(gr => gr.State == GraphiteReactor.States.WaitPrep);
+
+            string subject, message;
+
             if (grs.Count < 1)
             {
-                Notice.Send("Nothing to do", "No reactors are awaiting preparation.", Notice.Type.Tell);
+                subject = "Nothing To Do";
+                message = "No graphite reactors are awaiting preparation.";
+
+                Announce(message, subject);
                 return;
             }
 
@@ -2268,7 +2441,10 @@ namespace AeonHacs.Components
             var gsH2Needed = IronPreconditionH2Pressure > 0;
             if (gsH2 == null && gsH2Needed)
             {
-                Notice.Send("Configuration Error", $"Can't find H2 gas supply for {gm.Name}.", Notice.Type.Tell);
+                subject = "Configuration Error";
+                message = $"Can't find H2 gas supply for {gm.Name}.";
+
+                Announce(message, subject, NoticeType.Error);
                 return;
             }
 
@@ -2331,7 +2507,6 @@ namespace AeonHacs.Components
             gm.VacuumSystem.WaitForPressure(OkPressure);
             ProcessStep.End();
 
-
             if (IronPreconditioningMinutes > 0)
             {
                 ProcessStep.Start("Start Heating Fe under vacuum");
@@ -2349,7 +2524,12 @@ namespace AeonHacs.Components
                         "GR " + sluggish.First().Name + " is " :
                         "GRs " + string.Join(", ", sluggish.Select(gr => gr.Name)) + " are ";
 
-                    if (Alert.Warn("Process Exception", $"{which} taking too long to freeze. Ok to keep waiting or Cancel to move on. Close and restart the application to abort the process.").Text == "Ok")
+                    subject = "Process Exception";
+                    message = $"{which} taking too long to reach {targetTemp} °C.\r\n" +
+                              $"Ok to keep waiting or Cancel to move on.\r\n" +
+                              $"Restart the application to abort the process.";
+
+                    if (Warn(message, subject, NoticeType.Error).Ok())
                     {
                         grs.ForEach(gr => gr.TurnOn(IronPreconditioningTemperature));
                         continue;
@@ -2396,7 +2576,12 @@ namespace AeonHacs.Components
             grs.ForEach(gr => gr.PreparationComplete());
 
             OpenLine();
-            Alert.Announce("Operator Needed", "Graphite reactor preparation complete");
+
+            subject = "Operator Needed";
+            message = "Graphite reactor preparation complete.";
+
+            Alert(message, subject);
+            Announce(message, subject);
         }
 
         protected virtual void PrepareIPsForCollection() =>
@@ -2434,7 +2619,12 @@ namespace AeonHacs.Components
             var msg = "Release the samples at the following ports:";
             ips.ForEach(ip => msg += $"\r\n\t{ip?.Sample?.LabId} at {ip.Name}");
 
-            Alert.Pause("Operator Needed", "Release the prepared samples. Then click Ok to continue.");
+            var subject = "Operator Needed";
+            var message = "Release the prepared samples.\r\n" +
+                          "Ok to continue.";
+
+            Alert(message, subject);
+            Ask(message, subject, NoticeType.Information);
             ProcessStep.End();
 
             ips.ForEach(ip => ip.State = LinePort.States.Prepared);
@@ -2450,25 +2640,37 @@ namespace AeonHacs.Components
             var grs = GraphiteReactors.FindAll(gr =>
                 IsSulfurTrap(gr) && gr.State == GraphiteReactor.States.WaitService);
 
+            string subject, message;
+
             if (grs.Count < 1)
             {
-                Notice.Send("Nothing to do", "No sulfur traps are awaiting service.", Notice.Type.Tell);
+                subject = "Nothing To Do";
+                message = "No sulfur traps are awaiting service.";
+
+                Announce(message, subject);
                 return;
             }
             var gm = Manifold(grs);
             if (gm == null)
             {
                 var grList = string.Join(", ", grs.Select(gr => gr.Name));
-                Notice.Send("Configuration Error", $"Can't find graphite manifold for {grList}.", Notice.Type.Tell);
+
+                subject = "Configuration Error";
+                message = $"Can't find graphite manifold for {grList}.";
+
+                Announce(message, subject, NoticeType.Error);
                 return;
             }
 
             PressurizeGRsWithInertGas(grs);
 
             PlaySound();
-            Notice.Send("Operator Needed",
-                "Replace iron in sulfur traps." + "\r\n" +
-                "Press Ok to continue");
+
+            subject = "Operator Needed";
+            message = "Replace iron in sulfur traps.\r\n" +
+                      "Ok to continue";
+
+            Ask(message, subject, NoticeType.Information);
 
             // assume the Fe has been replaced
 
@@ -2545,7 +2747,12 @@ namespace AeonHacs.Components
             coldSections.ForEach(s => s.Thaw());
             if (!WaitFor(() => coldSections.All(s => s.Temperature > 5), 120*1000, 1000))
             {
-                Alert.Announce("Process Exception", "At least one coldfinger is taking too long to thaw. Compressed air problem?");
+                var subject = "Process Exception";
+                var message = "At least one coldfinger is taking too long to thaw.\r\n" +
+                    "Compressed air problem?";
+
+                Alert(message, subject);
+                Announce(message, subject, NoticeType.Error);
             }
             ProcessStep.End();
             vacuumSystem.OpenLine();
@@ -2583,52 +2790,56 @@ namespace AeonHacs.Components
 
         protected virtual void RunSample()
         {
+            string subject, message;
+
             if (Sample == null)
             {
+                subject = "Process Exception";
                 if (InletPort != null)
-                    Notice.Send("Process Exception",
-                       $"{InletPort.Name} does not contain a sample.",
-                       Notice.Type.Tell);
+                    message = $"{InletPort.Name} does not contain a sample.";
                 else
-                    Notice.Send("Process Exception",
-                       $"No sample to run.",
-                       Notice.Type.Tell);
+                    message = $"No sample to run.";
+                Announce(message, subject, NoticeType.Error);
                 return;
             }
 
             if (InletPort != null && InletPort.State > LinePort.States.Prepared)
             {
-                Notice.Send("Process Exception",
-                    $"{InletPort.Name} is not ready to run.",
-                    Notice.Type.Tell);
+                subject = "Process Exception";
+                message = $"{InletPort.Name} is not ready to run.";
+
+                Announce(message, subject, NoticeType.Error);
                 return;
             }
 
             if (LNManifolds.Values.All(x => x.SupplyEmpty))
             {
                 double liters = LNManifolds.Values.Sum(x => x.Liters.Value);
-                if (Notice.Send(
-                        "System Alert!",
-                        $"There might not be enough LN! ({liters:0.0} L)\r\n" +
-                            "Press OK to proceed anyway, or Cancel to abort.",
-                        Notice.Type.Warn).Text != "Ok")
+
+                subject = "System Alert";
+                message = $"There might not be enough LN! ({liters:0.0} L)\r\n" +
+                          "Ok to proceed anyway, or Cancel to abort.";
+
+                if (!Ask(message, subject, NoticeType.Warning).Ok())
                     return;
             }
 
             if (!EnoughGRs())
             {
-                Notice.Send("Process Exception",
-                    "Unable to start process.\r\n" +
-                    "Not enough GRs are prepared!",
-                    Notice.Type.Tell);
+                subject = "Process Exception";
+                message = "Unable to start process.\r\n" +
+                          "Not enough GRs are prepared.";
+
+                Announce(message, subject, NoticeType.Error);
                 return;
             }
 
             if (!ProcessSequences.ContainsKey(Sample.Process))
             {
-                Notice.Send("Process Exception",
-                    $"No such Process Sequence: '{Sample.Process}' ({Sample.Name} at {InletPort.Name} needs it.)",
-                    Notice.Type.Tell);
+                subject = "Process Exception";
+                message = $"No such Process Sequence: '{Sample.Process}' ({Sample.Name} at {InletPort.Name} needs it.)";
+
+                Announce(message, subject, NoticeType.Error);
                 return;
             }
 
@@ -2700,7 +2911,9 @@ namespace AeonHacs.Components
             if (ProcessType == ProcessTypeCode.Sequence)
                 SampleLog.Record(message + "\r\n\t" + Sample.LabId);
 
-            Alert.Send("System Status", message);
+            var subject = "System Status";
+
+            Alert(message, subject);
 
             base.ProcessEnded(message);
         }
@@ -2773,9 +2986,14 @@ namespace AeonHacs.Components
             InletPort.Close();
 
             ProcessStep.Start("Release the sample");
-            Alert.Pause("Operator Needed",
-                $"Release the sealed sample '{Sample.LabId}' at {InletPort.Name}.\r\n" +
-                "Press Ok to continue");
+            
+            var subject = "Operator Needed";
+            var message = $"Release the sealed sample '{Sample.LabId}' at {InletPort.Name}.\r\n" +
+                          "Press Ok to continue";
+
+            Alert(message, subject);
+            Ask(message, subject, NoticeType.Information);
+
             ProcessStep.End();
             InletPort.State = LinePort.States.Prepared;
         }
@@ -2801,7 +3019,13 @@ namespace AeonHacs.Components
             gs.ShutOff(true);
 
             ProcessStep.End();
-            Alert.Pause("Operator Needed", $"Carbonate sample contains {pIM:0} Torr He");
+
+            var subject = "Operator Needed";
+            var message = $"Carbonate sample contains {pIM:0} Torr He.";
+
+            Alert(message, subject);
+            Announce(message, subject, NoticeType.Information);
+
             SampleLog.Record($"Carbonate vial pressure: {pIM:0}");
 
             OpenLine();
@@ -2847,17 +3071,26 @@ namespace AeonHacs.Components
             var port = d13CPort;
             if (port == null) return;
             if (port.State == LinePort.States.Prepared) return;
+
+            string subject, message;
+
             if (port.State != LinePort.States.Loaded)
             {
-                Alert.Warn("Sample Alert", 
-                    $"Port {port.Name} is not available.\r\n" +
-                    "It may contain a prior d13C sample.");
-                return;
+                subject = "Sample Alert";
+                message = $"Port {port.Name} is not available.\r\n" +
+                           "It may contain a prior d13C sample.\r\n" +
+                           "Ok to evacuate it or Cancel to abort evacuation.";
+
+                if (!Warn(message, subject).Ok())
+                    return;
             }
             var manifold = Manifold(port);
             if (manifold == null)
             {
-                Alert.Warn("Configuration Error", $"Can't find manifold Section for d13C port {port.Name}.");
+                subject = "Configuration Error";
+                message = $"Can't find manifold Section for d13C port {port.Name}.";
+
+                Warn(message, subject, NoticeType.Error);
                 return;
             }
             ProcessStep.Start($"Prepare d13C port {port.Name}");
@@ -2880,9 +3113,14 @@ namespace AeonHacs.Components
 
         protected virtual void IpFreezeToTrap(ISection trap)
         {
+            string subject, message;
+
             if (trap == null)
             {
-                Alert.Warn("Configuration Error", $"Can't find Section {trap.Name}");
+                subject = "Configuration Error";
+                message = $"Can't find Section {trap.Name}";
+
+                Warn(message, subject, NoticeType.Error);
                 return;
             }
 
@@ -2893,7 +3131,10 @@ namespace AeonHacs.Components
 
             if (im_trap == null)
             {
-                Alert.Warn("Configuration Error", $"Can't find Section linking {im.Name} and {trap.Name}");
+                subject = "Configuration Error";
+                message = $"Can't find Section linking {im.Name} and {trap.Name}";
+
+                Warn(message, subject, NoticeType.Error);
                 return;
             }
 
@@ -2945,10 +3186,14 @@ namespace AeonHacs.Components
             if (!WaitFor(() => Hacs.Stopping || vtc.Temperature >= targetTemp, 10 * 60000, 1000))
             {
                 ShutDownAllColdfingers();
-                while (Alert.Warn("Process Exception", $"{vtc.Name} is taking too long to reach {targetTemp:0} °C.\r\n" +
-                    $"All coldfingers have have been set to Standby.\r\n" +
-                    "Establish the desired Extraction conditions manually, then click Ok to continue.\r\n" +
-                    "Close and restart the application to abort the process.").Text != "Ok") ;
+
+                var subject = "Process Exception";
+                var message = $"{vtc.Name} is taking too long to reach {targetTemp:0} °C.\r\n" +
+                               "All coldfingers have have been set to Standby.\r\n" +
+                               "Establish the desired Extraction conditions manually, then Ok to continue.\r\n" +
+                               "Restart the application to abort the process.";
+
+                while (!Warn(message, subject, NoticeType.Error).Ok()) ;
             }
             ProcessSubStep.End();
 
@@ -3258,8 +3503,10 @@ namespace AeonHacs.Components
             IGraphiteReactor gr = NextGR(PriorGR, size);
             if (gr == null)
             {
-                Alert.Pause("Process Exception",
-                    $"Can't find a suitable graphite reactor for this {aliquot.MicrogramsCarbon:0.0} µgC ({aliquot.MicromolesCarbon:0.00} µmol) aliquot.");
+                var subject = "Process Exception";
+                var message = $"Can't find a suitable graphite reactor for this {aliquot.MicrogramsCarbon:0.0} µgC ({aliquot.MicromolesCarbon:0.00} µmol) aliquot.";
+
+                Ask(message, subject, NoticeType.Error);
                 return;
             }
 
@@ -3270,7 +3517,10 @@ namespace AeonHacs.Components
         {
             if (!(gs?.FlowManager?.Meter is IMeter meter))
             {
-                Alert.Warn("Process Exception", $"AdmitGasToPort: {gs?.Name}.FlowManager.Meter is invalid.");
+                var subject = "Process Exception";
+                var message = $"AdmitGasToPort: {gs?.Name}.FlowManager.Meter is invalid.";
+
+                Warn(message, subject);
                 return [double.NaN, double.NaN];
             }
 
@@ -3306,6 +3556,8 @@ namespace AeonHacs.Components
             // the small reactors don't seem to require the density adjustment.
             if (gr.Size == GraphiteReactor.Sizes.Standard)
                 targetFinalH2Pressure *= H2DensityAdjustment;
+
+            string subject, message;
 
             double nH2 = 0;
             double pH2ratio = 0;
@@ -3360,15 +3612,22 @@ namespace AeonHacs.Components
 
                 if (targetFinalH2Pressure > 1500)       // way more than reasonable
                 {
-                    Alert.Warn("System Error",
-                        $"Excessive H2 pressure required. The H2 is not going into {aliquot.GraphiteReactor}.\r\nProcess paused.");
+                    subject = "System Error";
+                    message = $"Excessive H2 pressure required.\r\n" +
+                              $"The H2 is not going into {aliquot.GraphiteReactor}.\r\n" +
+                              $"Process paused.";
+
+                    Warn(message, subject, NoticeType.Error);
                 }
             }
 
             if (pH2ratio < H2_CO2StoichiometricRatio * 1.05)
             {
-                Alert.Warn("Sample Alert",
-                    $"Not enough H2 in {aliquot.GraphiteReactor}\r\nProcess paused.");
+                subject = "Sample Alert";
+                message = $"Not enough H2 in {aliquot.GraphiteReactor}\r\n" +
+                          $"Process paused.";
+
+                Warn(message, subject);
             }
         }
 
@@ -3400,7 +3659,11 @@ namespace AeonHacs.Components
             if (gm == null)
             {
                 var grList = string.Join(", ", grs.Select(gr => gr.Name));
-                Notice.Send("Configuration Error", $"Can't find graphite manifold for {grList}.", Notice.Type.Tell);
+
+                var subject = "Configuration Error";
+                var message = $"Can't find graphite manifold for {grList}.";
+
+                Announce(message, subject, NoticeType.Error);
                 return;
             }
 
@@ -3448,7 +3711,12 @@ namespace AeonHacs.Components
                 FreezeAliquots();
                 GraphitizeAliquots();
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                var message = e.ToString();
+
+                Announce(message, type: NoticeType.Error);
+            }
         }
 
         #endregion Sample extraction and measurement
@@ -3495,11 +3763,14 @@ namespace AeonHacs.Components
                 toSection.Coldfinger.MaximumMinutesToFreeze * 60000, 1000))
             {
                 OnSlowToFreeze();
-                if (Alert.Warn("Process Exception",
-                    $"Coldfingers were shut down.\r\n" +
-                    "Restore their states manually and Ok to try again or\r\n" +
-                    "Cancel to continue in the present state.\r\n" +
-                    "Close and restart the application to abort the process.").Text == "Ok")
+
+                var subject = "Process Exception";
+                var message = $"Coldfingers were shut down.\r\n" +
+                              "Restore their states manually and Ok to try again or\r\n" +
+                              "Cancel to continue in the present state.\r\n" +
+                              "Restart the application to abort the process.";
+
+                if (Warn(message, subject, NoticeType.Error).Ok())
                     continue;
                 break;
             }
@@ -3516,8 +3787,12 @@ namespace AeonHacs.Components
 
             if (toSection.VTColdfinger == null && toSection.Coldfinger == null)
             {
-                Alert.Pause("Operator Needed", $"Raise {toSection.Name} LN one inch.\r\n" +
-                    "Press Ok to continue.");
+                var subject = "Operator Needed";
+                var message = $"Raise {toSection.Name} LN one inch.\r\n" +
+                              "Ok to continue.";
+
+                Alert(message, subject);
+                Ask(message, subject, NoticeType.Alert);
                 ProcessSubStep.Start("Wait for coldfinger to freeze.");
                 WaitSeconds(30);
                 ProcessSubStep.End();
@@ -3555,9 +3830,14 @@ namespace AeonHacs.Components
             var pathName = MC.Name + "_" + gm.Name;
             var mc_gm = Find<Section>(pathName);
 
+            string subject, message;
+
             if (mc_gm == null)
             {
-                Alert.Warn("Configuration Error", $"Can't find Section {pathName}");
+                subject = "Configuration Error";
+                message = $"Can't find Section {pathName}";
+
+                Warn(message, subject, NoticeType.Error);
                 return;
             }
 
@@ -3573,8 +3853,10 @@ namespace AeonHacs.Components
             var take_d13C = !skip_d13C && (Sample?.Take_d13C ?? false) && aliquotIndex == 0;
             if (take_d13C && gr.Aliquot != null && gr.Aliquot.MicrogramsCarbon < MinimumUgCThatPermits_d13CSplit)
             {
-                Alert.Warn("Process Exception",
-                    $"d13C was requested but the sample ({gr.Aliquot.MicromolesCarbon} µmol) is too small.");
+                subject = "Process Exception";
+                message = $"d13C was requested but the sample ({gr.Aliquot.MicrogramsCarbon} µmol) is too small.";
+
+                Warn(message, subject, NoticeType.Error);
                 take_d13C = false;
             }
 
@@ -3596,8 +3878,10 @@ namespace AeonHacs.Components
             {
                 if (d13CPort.ShouldBeClosed)
                 {
-                    Alert.Warn("Process Exception",
-                        $"Need to take d13C, but {d13CPort.Name} is not available.");
+                    subject = "Process Exception";
+                    message = $"Need to take d13C, but {d13CPort.Name} is not available.";
+
+                    Warn(message, subject, NoticeType.Error);
                 }
 
                 if (d13CPort.ShouldBeClosed)
@@ -3697,11 +3981,14 @@ namespace AeonHacs.Components
             while (!WaitFor(bothFrozen, maximumMinutesToFreeze * 60000, 1000))
             {
                 OnSlowToFreeze();
-                if (Alert.Warn("Process Exception", 
-                    $"Coldfingers were shut down. \r\n" +
-                    "Restore their states manually and Ok to try again or \r\n" +
-                    "Cancel to continue in the present state.\r\n" +
-                    "Close and restart the application to abort the process.").Text == "Ok")
+
+                subject = "Process Exception";
+                message = $"Coldfingers were shut down.\r\n" +
+                          "Restore their states manually and Ok to try again or\r\n" +
+                          "Cancel to continue in the present state.\r\n" +
+                          "Restart the application to abort the process.";
+
+                if (Warn(message, subject, NoticeType.Error).Ok())
                     continue;
                 break;
             }
@@ -3744,7 +4031,10 @@ namespace AeonHacs.Components
             var mc_gm = Find<Section>(pathName);
             if (mc_gm == null)
             {
-                Alert.Warn("Configuration Error", $"Can't find Section {pathName}");
+                var subject = "Configuration Error";
+                var message = $"Can't find Section {pathName}";
+
+                Warn(message, subject, NoticeType.Error);
                 return;
             }
 
@@ -3818,10 +4108,16 @@ namespace AeonHacs.Components
             im.VacuumSystem.WaitForPressure(0);
             ProcessStep.End();
 
+            string subject, message;
+
             ProcessStep.Start($"Transfer CO2 from MC to {InletPort.Name}");
-            Alert.Pause("Operator Needed", 
-                $"Almost ready for LN on {InletPort.Name}.\r\n" +
-                $"Press Ok to continue, then raise LN onto {InletPort.Name} coldfinger");
+
+            subject = "Operator Needed";
+            message = $"Almost ready for LN on {InletPort.Name}.\r\n" +
+                      $"Ok to continue, then raise LN onto {InletPort.Name} coldfinger.";
+
+            Alert(message, subject);
+            Ask(message, subject, NoticeType.Alert);
 
             im.VacuumSystem.Isolate();
             MC_Split.Open();
@@ -3830,9 +4126,12 @@ namespace AeonHacs.Components
             WaitMinutes((int)CO2TransferMinutes);
             ProcessSubStep.End();
 
-            Alert.Pause("Operator Needed", 
-                $"Raise {InletPort.Name} LN one inch.\r\n" +
-                "Press Ok to continue.");
+            subject = "Operator Needed";
+            message = $"Raise {InletPort.Name} LN one inch.\r\n" +
+                       "Ok to continue.";
+
+            Alert(message, subject);
+            Ask(message, subject, NoticeType.Alert);
 
             WaitSeconds(30);
             InletPort.Close();
@@ -3979,11 +4278,17 @@ namespace AeonHacs.Components
         // all of the listed grs must be on the same manifold
         protected virtual void CalibrateGRH2(List<IGraphiteReactor> grs)
         {
+            string subject, message;
+
             grs.ForEach(gr =>
             {
                 if (!gr.Prepared)
                 {
-                    Alert.Pause("Error", "CalibrateGRH2() requires all of the listed grs to be Prepared");
+                    subject = "Error";
+                    message = "CalibrateGRH2() requires all of the listed grs to be Prepared.";
+
+                    Alert(message, subject);
+                    Ask(message, subject, NoticeType.Error);
                     return;
                 }
             });
@@ -3992,17 +4297,8 @@ namespace AeonHacs.Components
             grs.ForEach(gr => gr.Coldfinger.Raise());
 
             int maximumMinutesToFreeze = grs.First().Coldfinger.MaximumMinutesToFreeze;
-            while (!WaitFor(() => grs.All(gr => gr.Coldfinger.Frozen), maximumMinutesToFreeze * 60000, 1000))
-            {
+            if (!WaitFor(() => grs.All(gr => gr.Coldfinger.Frozen), maximumMinutesToFreeze * 60000, 1000))
                 OnSlowToFreeze();
-                if (Alert.Warn("Process Exception",
-                    $"Coldfingers were shut down. \r\n" +
-                    "Restore their states manually and Ok to try again or \r\n" +
-                    "Cancel to continue in the present state.\r\n" +
-                    "Close and restart the application to abort the process.").Text == "Ok")
-                    continue;
-                break;
-            }
 
             ProcessStep.End();
 
@@ -4146,19 +4442,32 @@ namespace AeonHacs.Components
             double pvTarget = 850;  // degrees C
             double pvLimit = 1000;  // degrees C
 
+            string subject, message;
+
             if (!h.Config.ManualMode)
             {
-                Alert.Announce("Invalid heater mode.", $"{h.Name} is not a manual-mode heater.");
+                subject = "Invalid Heater Mode";
+                message = $"{h.Name} is not a manual-mode heater.";
+
+                Alert(message, subject);
+                Announce(message, subject, NoticeType.Warning);
                 return;
             }
 
             if (tc == null)
             {
-                Alert.Announce("Missing thermocouple.", "No calibration thermocouple provided.");
+                subject = "Missing Thermocouple";
+                message = "No calibration thermocouple provided.";
+
+                Alert(message, subject);
+                Announce(message, subject, NoticeType.Warning);
                 return;
             }
 
-            if (!Notice.Ok("Operator Needed", $"Move the calibration thermocouple to {h.Name}."))
+            subject = "Operator Needed";
+            message = $"Move the calibration thermocouple to {h.Name}.";
+
+            if (!Ask(message, subject, NoticeType.Alert).Ok())
                 return;
 
             if (tc.Temperature > pvTarget - 50)
@@ -4167,7 +4476,11 @@ namespace AeonHacs.Components
                 ProcessStep.Start($"Waiting for tCcal ({tc.Temperature:0} °C) to cool below {pvTarget - 50:0} °C");
                 if (!WaitFor(() => tc.Temperature < pvTarget - 50, oneMinute, oneSecond))
                 {
-                    Alert.Announce("Error", "Calibration thermocouple is too hot.");
+                    subject = "Error";
+                    message = "Calibration thermocouple is too hot.";
+
+                    Alert(message, subject);
+                    Announce(message, subject, NoticeType.Error);
                     ProcessStep.End();
                     return;
                 }
@@ -4186,7 +4499,13 @@ namespace AeonHacs.Components
             if (!WaitFor(() => tc.Temperature > pvIncreasing, 2 * oneMinute, oneSecond))
             {
                 h.TurnOff();
-                Alert.Pause($"{h.Name} calibration aborted", $"Temperature isn't rising fast enough. Is the calibration thermocouple in {h.Name}?");
+
+                subject = $"{h.Name} Calibration Aborted";
+                message = "Temperature isn't rising fast enough.\r\n" +
+                         $"Is the calibration thermocouple in {h.Name}?";
+
+                Alert(message, subject);
+                Ask(message, subject, NoticeType.Warning);
                 return;
             }
             ProcessSubStep.End();
@@ -4243,13 +4562,17 @@ namespace AeonHacs.Components
             }
             else
             {
-                Alert.Announce($"{h.Name} calibration unsuccessful", $"Check {TestLog.Name} for details.");
+                subject = $"{h.Name} Calibration Unsuccessful";
+                message = $"Check {TestLog.Name} for details.";
+
+                Alert(message, subject);
+                Announce(message, subject, NoticeType.Error);
             }
             ProcessStep.End();
 
             void RecordAlert(string caption, string message)
             {
-                Alert.Send(caption, message);
+                Alert(message, caption);
                 TestLog.Record(caption + ". " + message);
             }
         }
@@ -4326,9 +4649,12 @@ namespace AeonHacs.Components
             TransferCO2FromMCToIP();
             admitCarrier?.Invoke();
 
-            Alert.Pause("Operator Needed", 
-                $"Remove LN from {InletPort.Name} and thaw the coldfinger.\r\n" +
-                "Press Ok to continue");
+            var subject = "Operator Needed";
+            var message = $"Remove LN from {InletPort.Name} and thaw the coldfinger.\r\n" +
+                           "Ok to continue.";
+
+            Alert(message, subject);
+            Ask(message, subject, NoticeType.Alert);
 
             Collect();
             Extract();
@@ -4453,7 +4779,9 @@ namespace AeonHacs.Components
         {
             if (Sample == null)
             {
-                Notice.Send("A sample must be defined in order to test process efficiency.", Notice.Type.Tell);
+                var message = "A sample must be defined in order to test process efficiency.";
+
+                Announce(message, type: NoticeType.Alert);
                 return;
             }
 
@@ -4601,7 +4929,10 @@ namespace AeonHacs.Components
             gs?.Destination?.ClosePorts();
             gs?.Admit(pressure);
             WaitSeconds(10);
-            EventLog.Record($"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}");
+
+            var message = $"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}";
+
+            MajorEvent(message);
             gs?.Destination?.OpenAndEvacuate();
         }
 
@@ -4612,7 +4943,10 @@ namespace AeonHacs.Components
             gs?.Destination?.ClosePorts();
             gs?.Pressurize(pressure);
             WaitSeconds(60);
-            EventLog.Record($"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}");
+
+            var message = $"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}";
+
+            MajorEvent(message);
             gs?.Destination?.OpenAndEvacuate();
         }
 

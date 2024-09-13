@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -298,10 +299,13 @@ namespace AeonHacs.Components
                 if (Meter.Value < pressure)
                 {
                     ShutOff();
-                    if (Alert.Warn("Process Exception",
-                        $"It's taking too long for {Meter.Name} to reach {pressure:0} Torr.\r\n" +
-                        $"Ok to keep waiting or Cancel to move on.\r\n" +
-                        $"Close and restart the application to abort the process.").Text == "Ok")
+
+                    var subject = "Process Exception";
+                    var message = $"It's taking too long for {Meter.Name} to reach {pressure:0} Torr.\r\n" +
+                                  $"Ok to keep waiting or Cancel to move on.\r\n" +
+                                  $"Restart the application to abort the process.";
+
+                    if (Warn(message, subject, NoticeType.Error).Ok())
                     {
                         SourceValve.OpenWait();
                         continue;
@@ -344,6 +348,8 @@ namespace AeonHacs.Components
         /// </summary>
         public void Admit(double pressure, bool thenCloseFlow)
         {
+            string subject, message;
+
             MajorStep?.Start($"Admit {pressure:0} {Meter?.UnitSymbol} {gasName} into {Destination.Name}");
             if (Meter == null)
             {
@@ -353,27 +359,36 @@ namespace AeonHacs.Components
             }
             else
             {
-                if (pressure > Meter.MaxValue)
+                while (!Hacs.Stopping)
                 {
-                    Alert.Send("Process Warning",
-                        $"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.\r\n" +
-                        $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).");
-                    pressure = Meter.MaxValue;
-                }
+                    if (pressure > Meter.MaxValue)
+                    {
+                        subject = "Process Warning";
+                        message = $"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.\r\n" +
+                                      $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).";
 
-                for (int i = 0; i < 5; ++i)
-                {
-                    Admit();
-                    WaitForPressure(pressure);
-                    ShutOff(thenCloseFlow);
-                    WaitSeconds(3);
-                    if (Meter.Value >= pressure)
+                        Tell(message, subject, NoticeType.Warning);
+                        pressure = Meter.MaxValue;
+                    }
+                    for (int i = 0; i < 5; ++i)
+                    {
+                        Admit();
+                        WaitForPressure(pressure);
+                        ShutOff(thenCloseFlow);
+                        WaitSeconds(3);
+                        if (Meter.Value >= pressure)
+                            break;
+                    }
+
+                    subject = "Process Exception";
+                    message = $"Couldn't admit {pressure:0} {Meter.UnitSymbol} of {GasName} into {Destination.Name}.\r\n" +
+                                  $"Ok to try again.\r\n" +
+                                  $"Cancel to continue at {Meter.Value:0} {Meter.UnitSymbol}.\r\n" +
+                                  $"Restart the application to abort the process.";
+
+                    // If the pressure is still too low, tolerate 98% of the target, otherwise ask the user what to do.
+                    if (Meter.Value < 0.98 * pressure && !Warn(message, subject, NoticeType.Error).Ok())
                         break;
-                }
-
-                if (Meter.Value < 0.98 * pressure)       // tolerate 98% of target
-                {
-                    Alert.Send("Process Exception", $"Couldn't admit {pressure:0} {Meter.UnitSymbol} of {GasName} into {Destination.Name}");
                 }
             }
             MajorStep.End();
@@ -430,9 +445,11 @@ namespace AeonHacs.Components
         {
             if (pressureHigh > Meter.MaxValue)
             {
-                Alert.Send("Process Warning",
-                    $"Requested pressure ({pressureHigh:0} {Meter.UnitSymbol}) too high.\r\n" +
-                    $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).");
+                var subject = "Process Warning";
+                var message = $"Requested pressure ({pressureHigh:0} {Meter.UnitSymbol}) too high.\r\n" +
+                              $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).";
+
+                Tell(message, subject, NoticeType.Warning);
                 pressureHigh = Meter.MaxValue;
             }
 
@@ -465,11 +482,15 @@ namespace AeonHacs.Components
         /// <param name="pressure">desired final pressure</param>
         public void Pressurize(double pressure)
         {
+            string subject, message;
+
             if (pressure > Meter.MaxValue)
             {
-                Alert.Send("Process Warning", 
-                    $"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.\r\n" +
-                    $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).");
+                subject = "Process Warning";
+                message = $"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.\r\n" +
+                          $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).";
+
+                Tell(message, subject, NoticeType.Warning);
                 pressure = Meter.MaxValue;
             }
             bool normalized = false;
@@ -482,7 +503,13 @@ namespace AeonHacs.Components
             }
 
             if (!normalized)
-                Alert.Send("Configuration Warning", FlowValve.Name + " minimum flow is too high.");
+            {
+                message = FlowValve.Name + " minimum flow is too high.";
+                subject = "Configuration Warning";
+
+                MajorEvent(message, subject);
+                Announce(message, subject, NoticeType.Warning);
+            }
 
             FlowPressurize(pressure);
         }
@@ -518,10 +545,12 @@ namespace AeonHacs.Components
             {
                 SourceValve.CloseWait();
                 vacuumSystem.Isolate();
-                if (Alert.Warn("System Error",
-                    $"{vacuumSystem.Name} failed to enter roughing or isolated state.\r\n" +
-                    "Establish the desired VacuumSystem state manually, then click Ok to continue.\r\n" +
-                    "Close and restart the application to abort the process.").Text == "Ok")
+                var subject = "System Error";
+                var message = $"{vacuumSystem.Name} failed to enter roughing or isolated state.\r\n" +
+                              "Establish the desired VacuumSystem state manually, then Ok to continue.\r\n" +
+                              "Restart the application to abort the process.";
+
+                if (Error(message, subject).Ok())
                 {
                     SourceValve.OpenWait();
                     vacuumSystem.Rough();
@@ -596,19 +625,24 @@ namespace AeonHacs.Components
         /// <param name="targetValue">desired final pressure or other metric</param>
         public void FlowPressurize(double targetValue)
         {
+            string subject, message;
+
             if (!(FlowManager is IFlowManager))
             {
-                var subject = "Configuration Error";
-                var message = $"GasSupply {Name}: FlowPressurize() requires a FlowManager.";
-                Alert.Warn(subject, message);
+                subject = "Configuration Error";
+                message = $"GasSupply {Name}: FlowPressurize() requires a FlowManager.";
+
+                Warn(message, subject);
                 return;
             }
 
             if (targetValue > Meter.MaxValue)
             {
-                Alert.Send("Process Warning",
-                    $"Requested targetValue ({targetValue:0} {Meter.UnitSymbol}) too high.\r\n" +
-                    $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).");
+                subject = "Process Warning";
+                message = $"Requested targetValue ({targetValue:0} {Meter.UnitSymbol}) too high.\r\n" +
+                          $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).";
+
+                Tell(message, subject, NoticeType.Warning);
                 targetValue = Meter.MaxValue;
             }
 

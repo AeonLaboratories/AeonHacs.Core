@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -311,9 +312,11 @@ namespace AeonHacs.Components
             sw.Restart();
             while (!WaitFor(() => { if (!IsStable) sw.Restart(); return sw.Elapsed.TotalSeconds >= seconds; }, 15 * 60000, 50))
             {
-                Alert.Announce($"{Name}",
-                    $"{Name} is taking a long time to stabilize.\r\n" +
-                    $"Maybe its Filter is misconfigured?");
+                var subject = $"{Name}";
+                var message = $"{Name} is taking a long time to stabilize.\r\n" +
+                              $"Maybe its Filter is misconfigured?";
+
+                Announce(message, subject, NoticeType.Warning);
             }
         }
 

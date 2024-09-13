@@ -402,11 +402,11 @@ namespace AeonHacs.Components
             Heater.Setpoint = setpoint;
             while (!Utility.WaitFor(() => Heater.Setpoint == setpoint, 5 * 1000))
             {
-                if (Notice.Send(
-                        "System Alert!",
-                        $"Unable to set {Heater.Name}'s temperature to {setpoint}. \r\n" +
-                            "Press OK to retry, or Cancel to stop trying to regulate it.",
-                        Notice.Type.Warn).Text != "Ok")
+                string subject = "System Alert";
+                string message = $"Unable to set {Heater.Name}'s temperature to {setpoint}.\r\n" +
+                                 $"Ok to retry, or Cancel to abort regulating {Name}.";
+
+                if (!Notify.Warn(message, subject).Ok())
                     return;
             }
             ChangeState(TargetStates.Regulate);

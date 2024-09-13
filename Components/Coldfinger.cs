@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -608,11 +609,13 @@ namespace AeonHacs.Components
             while (!WaitFor(() => Hacs.Stopping || State == States.Frozen, MaximumMinutesToFreeze * 60000, 1000))
             {
                 SlowToFreeze?.Invoke();
-                if (Alert.Warn("Process Exception",
-                    $"Coldfingers were shut down. \r\n" +
-                    "Restore their states manually and Ok to try again or \r\n" +
-                    "Cancel to continue in the present state.\r\n" +
-                    "Close and restart the application to abort the process.").Text == "Ok")
+                var subject = "Process Exception";
+                var message = $"Coldfingers were shut down. \r\n" +
+                              "Restore their states manually and Ok to try again or \r\n" +
+                              "Cancel to continue in the present state.\r\n" +
+                              "Restart the application to abort the process.";
+
+                if (Warn(message, subject, NoticeType.Error).Ok())
                     continue;
                 break;
             }
@@ -637,11 +640,13 @@ namespace AeonHacs.Components
             	Temperature <= Target + RaiseTrigger, MaximumMinutesToFreeze * 60000, 1000))
             {
                 SlowToFreeze?.Invoke();
-                if (Alert.Warn("Process Exception",
-                    $"Coldfingers were shut down. \r\n" +
-                    "Restore their states manually and Ok to try again or \r\n" +
-                    "Cancel to continue in the present state.\r\n" +
-                    "Close and restart the application to abort the process.").Text == "Ok")
+                var subject = "Process Exception";
+                var message = $"Coldfingers were shut down. \r\n" +
+                              "Restore their states manually and Ok to try again or \r\n" +
+                              "Cancel to continue in the present state.\r\n" +
+                              "Restart the application to abort the process.";
+
+                if (Warn(message, subject, NoticeType.Error).Ok())
                     continue;
                 break;
             }

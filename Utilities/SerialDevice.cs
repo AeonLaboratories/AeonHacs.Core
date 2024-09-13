@@ -6,6 +6,7 @@ using System.IO.Ports;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading;
+using static AeonHacs.Notify;
 
 namespace AeonHacs.Utilities
 {
@@ -539,7 +540,12 @@ namespace AeonHacs.Utilities
                     }
                 }
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                string message = e.ToString();
+
+                Announce(message, type: NoticeType.Error);
+            }
             Log?.Record($"SerialDevice ending Transmit thread.");
         }
 
@@ -648,7 +654,13 @@ namespace AeonHacs.Utilities
                     prxThreadSignal.WaitOne();
                 }
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                string message = $"{e}\r\n" +
+                                 $"Unable to process messages from {PortSettings.PortName}.";
+
+                Announce(message, type: NoticeType.Error);
+            }
             Log?.Record($"SerialDevice ending ProcessRx thread.");
         }
 
@@ -697,7 +709,13 @@ namespace AeonHacs.Utilities
                     }
                 }
             }
-            catch (Exception e) { Notice.Send(e.ToString()); }
+            catch (Exception e)
+            {
+                string message = $"{e}\r\n" +
+                                 $"Unable to process messages from {PortSettings.PortName}.";
+
+                Announce(message, type: NoticeType.Error);
+            }
             Log?.Record($"SerialDevice ending ProcessRx2 thread.");
         }
 

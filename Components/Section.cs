@@ -1,9 +1,12 @@
 ﻿using AeonHacs.Utilities;
+using MimeKit;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -557,7 +560,13 @@ namespace AeonHacs.Components
                     Coldfinger.Freeze();
             }
             else
-                Alert.DefaultAlertManager.Pause("Operator Needed", $"Put LN on {Name}.");
+            {
+                string subject = "Operator Needed";
+                string message = $"Put LN on {Name}.";
+
+                Alert(message, subject);
+                Ask(message, subject, NoticeType.Alert);
+            }
         }
 
         public virtual bool Thawed =>
@@ -576,7 +585,13 @@ namespace AeonHacs.Components
             else if (Coldfinger != null)
                 Coldfinger.Thaw();
             else
-                Alert.DefaultAlertManager.Pause("Operator Needed", $"Remove LN from {Name}.");
+            {
+                var subject = "Operator Needed";
+                var message = $"Remove LN from {Name}.";
+
+                Alert(message, subject);
+                Ask(message, subject, NoticeType.Alert);
+            }
         }
 
         /// <summary>
