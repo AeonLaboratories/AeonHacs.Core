@@ -1397,6 +1397,7 @@ namespace AeonHacs.Components
                 $"Start gas flow through {trap.Name}";
             ProcessStep.Start(status);
 
+            trap.Evacuate();
             if (freezeTrap)
                 trap.WaitForFrozen(false);
             collectionPath.FlowValve?.CloseWait();
