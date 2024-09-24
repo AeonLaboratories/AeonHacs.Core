@@ -54,21 +54,14 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Close the valve. If v is a VacuumSystem HV or LV, VacuumSystem.Isolate() instead.
+        /// Close the valve v. If v is a VacuumSystem HV or LV, VacuumSystem.Isolate() instead.
         /// </summary>
-        /// <param name="v">the valve</param>
-        /// <param name="wait">optionally, wait for valve motion to finish</param>
-        public static void Close<T>(this IEnumerable<T> valves, IValve v, bool wait = false) where T : IValve
+        public static void Close<T>(this IEnumerable<T> valves, IValve v) where T : IValve
         {
             if (vacuumSystem(v) is VacuumSystem vs)
-            {
-                vs.Isolate();      // don't directly control v_HV or v_LV
-                while (vs.State != VacuumSystem.StateCode.Isolated)
-                    Thread.Sleep(35);
-            }
+                vs.Isolate(true);      // don't directly control v_HV or v_LV
             else
-                v?.Close();
-            if (wait) v?.WaitForIdle();
+                v?.CloseWait();
         }
 
         /// <summary>
@@ -81,7 +74,7 @@ namespace AeonHacs.Components
         /// Close the last valve on the list.
         /// </summary>
         public static void CloseLast<T>(this IEnumerable<T> valves) where T : IValve =>
-            valves.Close(valves.Last(), true);
+            valves.Close(valves.Last());
 
         /// <summary>
         /// Open all the valves on the list.
