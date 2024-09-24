@@ -348,8 +348,8 @@ namespace AeonHacs.Components
                 SetServiceValues($"n{ChannelNumber} m{powerLevel:0.00} h", 1);
             else if (!modeConfigured && h.Config.Mode == HC6Heater.Modes.Manual)
                 SetServiceValues($"n{ChannelNumber} m h", 1);
-            else if (!h.Config.ManualMode && h.Device.Setpoint != h.Config.Setpoint)
-                SetServiceValues($"n{ChannelNumber} s{h.Config.Setpoint} h", 1);
+            else if (!h.Config.ManualMode && Math.Round(h.Device.Setpoint) != Math.Round(h.Config.Setpoint))
+                SetServiceValues($"n{ChannelNumber} s{Math.Round(h.Config.Setpoint)} h", 1);         // only ints are allowed
             else if (!modeConfigured && h.Config.Mode == HC6Heater.Modes.Auto)
                 SetServiceValues($"n{ChannelNumber} a h", 1);
         }
