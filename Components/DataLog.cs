@@ -65,7 +65,7 @@ namespace AeonHacs.Components
             /// </summary>
             public Func<double> CompileSourceExpression(string expression)
             {
-                if (expression.IndexOf('.') == -1)
+                if (!expression.Contains('.'))
                     expression += ".Value";
 
                 var tokens = expression.Split('.');
