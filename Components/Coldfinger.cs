@@ -204,6 +204,17 @@ namespace AeonHacs.Components
         int maximumMinutesToFreeze = 4;
 
         /// <summary>
+        /// Maximum time allowed when waiting for the Coldfinger to Thaw.
+        /// </summary>
+        [JsonProperty, DefaultValue(10)]
+        public int MaximumMinutesToThaw
+        {
+            get => maximumMinutesToThaw;
+            set => Ensure(ref maximumMinutesToThaw, value);
+        }
+        int maximumMinutesToThaw = 10;
+
+        /// <summary>
         /// How many seconds to wait for temperature equilibrium after the Raise state
         /// is reached.
         /// </summary>
@@ -284,53 +295,12 @@ namespace AeonHacs.Components
             Raised
         }
 
-        /// <summary>
-        /// The FTC is currently warming the coldfinger with forced air.
-        /// </summary>
-        public bool Thawing => State == States.Thawing;
-
-        /// <summary>
-        /// The FTC is at least as cold as FrozenTemperature and
-        /// the TargetState is such as to maintain that condition.
-        /// </summary>
-        public bool Frozen =>
-            Temperature <= (FrozenTemperature + FreezeTrigger) &&
-            State != States.Standby &&
-            State != States.Thawing &&
-            State != States.Freezing;
-
-        /// <summary>
-        /// The FTC is currently maintaining a maximum level of liquid
-        /// nitrogen, with a trickling overflow if possible.
-        /// </summary>
-        public bool Raised => State == States.Raised;
-
-        /// <summary>
-        /// The coldfinger temperature is within a specified range of air temperature.
-        /// </summary>
-        public bool IsNearAirTemperature =>
-            Math.Abs(Temperature - AirTemperature) <= Math.Abs(NearAirTemperature);
-
-        /// <summary>
-        /// The FTC is actively working to cool the coldfinger.
-        /// </summary>
-        public bool IsActivelyCooling =>
-            TargetState == TargetStates.Freeze ||
-            TargetState == TargetStates.Raise;
-
-        /// <summary>
-        /// Whether the coldfinger temperature is warmer than a specified amount (NearAirTemperature)
-        /// below air temperature.
-        /// </summary>
-        public bool Thawed =>
-            Temperature > AirTemperature - NearAirTemperature;
+        protected Chamber ambient;
 
         /// <summary>
         /// The temperature (°C) reported by the level sensor.
         /// </summary>
         public double Temperature => LevelSensor.Temperature;
-
-        protected Chamber ambient;
 
         /// <summary>
         /// The temperature (°C) of the air around the FTC.
@@ -345,9 +315,58 @@ namespace AeonHacs.Components
                     return th.Temperature;
                 if (AirThermometer is Meter m)
                     return m;
-                return ambient?.Temperature ?? 22; // room temperature
+                return ambient?.Temperature ?? 22; // room temperature TODO make property outside this class?
             }
         }
+
+        /// <summary>
+        /// The FTC is actively working to cool the coldfinger.
+        /// </summary>
+        public bool IsActivelyCooling =>
+            TargetState == TargetStates.Freeze ||
+            TargetState == TargetStates.Raise;
+
+        /// <summary>
+        /// The FTC is currently warming the coldfinger with forced air.
+        /// </summary>
+        public bool Thawing => State == States.Thawing;
+
+        /// <summary>
+        /// Whether the coldfinger temperature is warmer than a specified amount (NearAirTemperature)
+        /// below air temperature.
+        /// </summary>
+        public bool Thawed =>
+            Temperature > AirTemperature - NearAirTemperature;
+
+        /// <summary>
+        /// The FTC is at least as cold as FrozenTemperature and
+        /// the TargetState is such as to maintain that condition.
+        /// </summary>
+        public bool Frozen => State switch
+        {
+            States.Frozen or States.Raising or States.Raised => true,
+            _ => false
+        };
+
+        /// <summary>
+        /// The FTC is currently maintaining a maximum level of liquid
+        /// nitrogen, with a trickling overflow if possible.
+        /// </summary>
+        public bool Raised => State == States.Raised;
+
+        /// <summary>
+        /// The FTC is standing by.
+        /// </summary>
+        public bool Idle => State == States.Standby;
+
+
+
+
+
+
+
+
+
 
         /// <summary>
         /// Whether the LN valve has a Trickle operation;
@@ -561,8 +580,7 @@ namespace AeonHacs.Components
             AirValve?.CloseWait();
         }
 
-
-
+        Stopwatch freezeThawTimer = new();
         void ManageState()
         {
             if (!Connected || Hacs.Stopping) return;
@@ -590,66 +608,75 @@ namespace AeonHacs.Components
                     break;
             }
 
-            if ((State == States.Freezing || State == States.Raising) && StateTimer.Elapsed.TotalMinutes > MaximumMinutesToFreeze)
+
+            if (TargetState == TargetStates.Freeze || TargetState == TargetStates.Raise)
             {
-                SlowToFreeze?.Invoke();
-                StateTimer.Restart();
+                if (Frozen)
+                    freezeThawTimer.Reset();
+                else if (!freezeThawTimer.IsRunning)
+                    freezeThawTimer.Restart();
+                else if (freezeThawTimer.Elapsed.TotalMinutes > MaximumMinutesToFreeze)
+                    SlowToFreeze?.Invoke();
             }
+            else if (TargetState == TargetStates.Thaw)
+            {
+                if (!freezeThawTimer.IsRunning)
+                    freezeThawTimer.Restart();
+                else if (freezeThawTimer.Elapsed.TotalMinutes > MaximumMinutesToThaw)
+                {
+                    var subject = "System Warning";
+                    var message = $"{Name} is taking too long to thaw.\r\n" +
+                                   "Compressed air problem?";
+
+                    Tell(message, subject, NoticeType.Warning);
+
+                    freezeThawTimer.Reset();
+                }
+            }
+            else
+                freezeThawTimer.Reset();
         }
-        Stopwatch StateTimer = new Stopwatch();
+
         public Action SlowToFreeze { get; set; }
 
-        /// <summary>
-        /// Sets the coldfinger to Freeze and waits for it to reach the Frozen state.
-        /// </summary>
-        public void FreezeWait()
+        public virtual void ThawWait()
         {
-            Freeze();
-            StepTracker.Default?.Start($"Wait for {Name} < {FrozenTemperature + FreezeTrigger} °C");
-            while (!WaitFor(() => Hacs.Stopping || State == States.Frozen, MaximumMinutesToFreeze * 60000, 1000))
-            {
-                SlowToFreeze?.Invoke();
-                var subject = "Process Exception";
-                var message = $"Coldfingers were shut down. \r\n" +
-                              "Restore their states manually and Ok to try again or \r\n" +
-                              "Cancel to continue in the present state.\r\n" +
-                              "Restart the application to abort the process.";
-
-                if (Warn(message, subject, NoticeType.Error).Ok())
-                    continue;
-                break;
-            }
+            if (TargetState != TargetStates.Thaw)
+                Thaw();
+            StepTracker.Default?.Start($"Wait for {Name} > {AirTemperature - NearAirTemperature} °C");
+            WaitFor(() => Thawed || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
             StepTracker.Default?.End();
         }
 
 
         /// <summary>
+        /// Sets the coldfinger to Freeze and waits for it to reach the Frozen state.
+        /// </summary>
+        public virtual void FreezeWait()
+        {
+            if (TargetState != TargetStates.Raise)
+                Freeze();
+            StepTracker.Default?.Start($"Wait for {Name} < {FrozenTemperature + FreezeTrigger} °C");
+            WaitFor(() => Frozen || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
+            StepTracker.Default?.End();
+        }
+
+        /// <summary>
         /// Raises the LN level, and once it has reached its peak, waits a few seconds for equilibrium.
         /// </summary>
-        public void RaiseLN()
+        public virtual void RaiseLN()
         {
             var step = StepTracker.Default;
             Raise();
 
             step?.Start($"Wait for {Name} LN flowing");
-            WaitFor(() => !LNValve.IsClosed);
+            WaitFor(() => !LNValve.IsClosed || Hacs.Stopping);
+            if (Hacs.Stopping) return;
             step?.End();
 
-            step?.Start($"Wait for {Name} LN Raised temperature");
-            while (!WaitFor(() =>  Hacs.Stopping || 
-            	Temperature <= Target + RaiseTrigger, MaximumMinutesToFreeze * 60000, 1000))
-            {
-                SlowToFreeze?.Invoke();
-                var subject = "Process Exception";
-                var message = $"Coldfingers were shut down. \r\n" +
-                              "Restore their states manually and Ok to try again or \r\n" +
-                              "Cancel to continue in the present state.\r\n" +
-                              "Restart the application to abort the process.";
-
-                if (Warn(message, subject, NoticeType.Error).Ok())
-                    continue;
-                break;
-            }
+            step?.Start($"Wait for {Name} LN Raised");
+            WaitFor(() => Raised || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
+            if (Hacs.Stopping) return;
             step?.End();
 
             // Shortcut if the FTC supports overflow-trickle, in which case,
@@ -657,7 +684,8 @@ namespace AeonHacs.Components
             if (trickling) return;
 
             step?.Start($"Wait for {Name} LN level to peak");
-            WaitFor(() => LNValve.IsClosed);
+            WaitFor(() => LNValve.IsClosed || Hacs.Stopping);
+            if (Hacs.Stopping) return;
             step?.End();
 
             step?.Start($"Wait {SecondsToWaitAfterRaised} seconds with LN raised");

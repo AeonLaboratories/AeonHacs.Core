@@ -11,17 +11,6 @@ namespace AeonHacs.Components
         {
             base.Connect();
             Valve = Find<IValve>(valveName);
-
-            // TODO: is this "helper" a bad idea?
-            if (Thermometer == null)
-            {
-                if (VTColdfinger != null)
-                    Thermometer = VTColdfinger.Heater;
-                else if (Heater != null)
-                    Thermometer = Heater;
-                else if (Coldfinger != null)
-                    Thermometer = Coldfinger.LevelSensor;
-            }
         }
 
         #endregion HacsComponent

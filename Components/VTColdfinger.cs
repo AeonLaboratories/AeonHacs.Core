@@ -3,6 +3,8 @@ using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Text;
+using static AeonHacs.Notify;
+using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {
@@ -17,7 +19,6 @@ namespace AeonHacs.Components
             Heater = Find<IHeater>(heaterName);
             HeaterPid = Find<PidSetup>(heaterPidName);
             WarmHeaterPid = Find<PidSetup>(warmHeaterPidName);
-            Coldfinger = Find<IColdfinger>(coldfingerName);
             WireThermometer = Find<IThermometer>(wireThermometerName);
             TopThermometer = Find<IThermometer>(topThermometerName);
             AmbientThermometer = Find<IChamber>("Ambient").Thermometer;
@@ -60,18 +61,11 @@ namespace AeonHacs.Components
         }
         IHeater heater;
 
-        [JsonProperty("Coldfinger")]
-        string ColdfingerName { get => Coldfinger?.Name; set => coldfingerName = value; }
-        string coldfingerName;
         /// <summary>
-        /// The FTColdfinger that manages the liquid nitrogen level in the device.
+        /// The Coldfinger that manages the liquid nitrogen level in the device.
         /// </summary>
-        public IColdfinger Coldfinger
-        {
-            get => coldfinger;
-            set => Ensure(ref coldfinger, value, OnPropertyChanged);
-        }
-        IColdfinger coldfinger;
+        [JsonProperty("Coldfinger")]
+        public Coldfinger Coldfinger { get; set; }
 
         [JsonProperty("TopThermometer")]
         string TopThermometerName { get => TopThermometer?.Name; set => topThermometerName = value; }
@@ -181,6 +175,29 @@ namespace AeonHacs.Components
         int coldTemperature = -170;
 
         /// <summary>
+        /// Maximum time allowed when waiting for the <see cref="VTColdfinger" /> to reach <see cref="ColdTemperature" />.
+        /// </summary>
+        [JsonProperty, DefaultValue(8)]
+        public int MaximumMinutesToFreeze
+        {
+            get => maximumMinutesToFreeze;
+            set => Ensure(ref maximumMinutesToFreeze, value);
+        }
+        int maximumMinutesToFreeze = 8;
+
+        /// <summary>
+        /// Maximum time allowed when waiting for the VTColdfinger to Thaw.
+        /// </summary>
+        [JsonProperty, DefaultValue(10)]
+        public int MaximumMinutesToThaw
+        {
+            get => maximumMinutesToThaw;
+            set => Ensure(ref maximumMinutesToThaw, value);
+        }
+        int maximumMinutesToThaw = 10;
+
+
+        /// <summary>
         /// Temperature to use for cleaning (drying) the VTT.
         /// </summary>
         [JsonProperty, DefaultValue(50)]
@@ -266,23 +283,27 @@ namespace AeonHacs.Components
             Regulating
         }
 
+        public bool IsActivelyCooling => Coldfinger.IsActivelyCooling;
+
+        public bool Thawing => Coldfinger.Thawing;
+
+        public bool Thawed => Coldfinger.Thawed && Temperature > 2.0;
 
         /// <summary>
-        /// Whether this device has reached and is currently maintaining its maximum level of liquid nitrogen.
+        /// Whether this device has reached and is currently maintaining its maximum 
+        /// level of liquid nitrogen, and the temperature is below the ColdTemperature.
         /// </summary>
         public bool Frozen => State == States.Frozen;
+
+        public bool Raised => Frozen;
+
+        public bool Idle => State == States.Standby;
 
         /// <summary>
         /// The process temperature, measured at the bottom of the coldfinger. This is the temperature
         /// regulated by the device to the programmed Setpoint.
         /// </summary>
         public double Temperature => Heater.Temperature;
-
-        /// <summary>
-        /// The temperature of the Coldfinger's liquid nitrogen level sensor. Indicates
-        /// the level of liquid nitrogen in the device's reservoir.
-        /// </summary>
-        public double ColdfingerTemperature => Coldfinger.Temperature;
 
 
         IThermometer AmbientThermometer;
@@ -304,7 +325,7 @@ namespace AeonHacs.Components
                     return States.Regulating;
 
                 //else TargetState is Freeze
-                if (Coldfinger.State == Components.Coldfinger.States.Raised && Temperature < ColdTemperature)
+                if (Coldfinger.Raised && Temperature < ColdTemperature)
                     return States.Frozen;
                 else
                     return States.Freezing;
@@ -380,7 +401,33 @@ namespace AeonHacs.Components
         /// Reach and maintain the maximum level of liquid nitrogen in the
         /// reservoir, with a trickling overflow if possible.
         /// </summary>
-        public void Freeze() => ChangeState(TargetStates.Freeze);
+        public void Freeze()
+        {
+            if (TargetState != TargetStates.Freeze)
+                ChangeState(TargetStates.Freeze);
+        }
+
+        public void Raise() => Freeze();
+
+        public virtual void ThawWait()
+        {
+            if (TargetState != TargetStates.Thaw)
+                Thaw();
+            StepTracker.Default?.Start($"Wait for {Name} > 2 °C");
+            WaitFor(() => Thawed || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
+            StepTracker.Default?.End();
+        }
+
+        public void FreezeWait()
+        {
+            Freeze();
+            StepTracker.Default?.Start($"Wait for {Name} < {ColdTemperature} °C");
+            WaitFor(() => Hacs.Stopping || Frozen, interval: 1000); // timeout handled in ManageState
+            StepTracker.Default?.End();
+        }
+
+        public void RaiseLN() => FreezeWait();
+
 
         /// <summary>
         /// Use the Heater to control the Temperature to the pre-programmed Setpoint.
@@ -516,6 +563,7 @@ namespace AeonHacs.Components
             Coldfinger.Trickle = heaterOn ? HeaterOnTrickle : HeaterOffTrickle;
         }
 
+        Stopwatch freezeThawTimer = new();
         void ManageState()
         {
             if (!Connected || Hacs.Stopping) return;
@@ -546,8 +594,35 @@ namespace AeonHacs.Components
                 default:
                     break;
             }
-        }
 
+            if (TargetState == TargetStates.Freeze)
+            {
+                if (Frozen)
+                    freezeThawTimer.Reset();
+                else if (!freezeThawTimer.IsRunning)
+                    freezeThawTimer.Restart();
+                else if (freezeThawTimer.Elapsed.TotalMinutes > MaximumMinutesToFreeze)
+                    SlowToFreeze?.Invoke();
+            }
+            else if (TargetState == TargetStates.Thaw)
+            {
+                if (!freezeThawTimer.IsRunning)
+                    freezeThawTimer.Restart();
+                else if (freezeThawTimer.Elapsed.TotalMinutes > MaximumMinutesToThaw)
+                {
+                    var subject = "System Warning";
+                    var message = $"{Name} is taking too long to thaw.\r\n" +
+                                   "Compressed air problem?";
+
+                    Tell(message, subject, NoticeType.Warning);
+
+                    freezeThawTimer.Reset();
+                }
+            }
+
+        }
+        Stopwatch StateTimer = new Stopwatch();
+        public Action SlowToFreeze { get; set; }
 
         protected virtual void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -563,10 +638,7 @@ namespace AeonHacs.Components
             }
             else if (sender == Coldfinger)
             {
-                if (propertyName == nameof(IColdfinger.Temperature))
-                    NotifyPropertyChanged(nameof(IVTColdfinger.ColdfingerTemperature));
-                else
-                    NotifyPropertyChanged(nameof(Coldfinger));
+                NotifyPropertyChanged(nameof(Coldfinger));
             }
             else
                 NotifyPropertyChanged(sender, e);

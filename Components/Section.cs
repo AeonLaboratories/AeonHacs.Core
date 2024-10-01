@@ -202,6 +202,9 @@ namespace AeonHacs.Components
         }
         List<IValve> pathToVacuumIsolation;
 
+
+
+
         /// <summary>
         /// The measured volume of the joined chambers, or the
         /// CurrentVolume() if no measurement has been stored.
@@ -262,6 +265,11 @@ namespace AeonHacs.Components
         IThermometer thermometer;
         public double Temperature => Thermometer?.Temperature ?? 0;
 
+
+
+
+
+
         /// <summary>
         /// The flow valve controlled by FlowManager.
         /// </summary>
@@ -306,16 +314,6 @@ namespace AeonHacs.Components
             set => Ensure(ref coldfinger, value);
         }
         IColdfinger coldfinger;
-
-        /// <summary>
-        /// The Variable-Temperature Coldfinger of the first Chamber that has one.
-        /// </summary>
-        public IVTColdfinger VTColdfinger
-        {
-            get => vtColdfinger ?? (Chambers.Find(x => x.VTColdfinger != null) is IChamber c ? c.VTColdfinger : null);
-            set => Ensure(ref vtColdfinger, value);
-        }
-        IVTColdfinger vtColdfinger;
 
         /// <summary>
         /// Close the valves that form the Section boundary.
@@ -552,27 +550,68 @@ namespace AeonHacs.Components
         /// </summary>
         public virtual void Freeze()
         {
-            if (VTColdfinger != null)
-                VTColdfinger.Freeze();
-            else if (Coldfinger != null)
-            {
-                if (!Coldfinger.IsActivelyCooling)
-                    Coldfinger.Freeze();
-            }
+            if (Coldfinger != null)
+                Coldfinger.Freeze();
             else
             {
                 string subject = "Operator Needed";
-                string message = $"Put LN on {Name}.";
+                string message = $"Put LN on {Name}.\r\n" +
+                                 $"Ok to continue.";
 
                 Alert(message, subject);
                 Ask(message, subject, NoticeType.Alert);
             }
         }
 
-        public virtual bool Thawed =>
-            VTColdfinger?.Coldfinger?.Thawed ??
-            Coldfinger?.Thawed ??
-            true;
+        public virtual void ThawWait()
+        {
+            if (Coldfinger != null)
+                Coldfinger.ThawWait();
+            else
+                Thaw();
+        }
+
+        public virtual void FreezeWait()
+        {
+            if (Coldfinger != null)
+                Coldfinger.FreezeWait();
+            else
+            {
+                Freeze();
+
+                StepTracker.Start("Wait for coldfinger to freeze.");
+                WaitSeconds(30);
+                StepTracker.End();
+            }
+        }
+
+        public virtual void Raise()
+        {
+            if (Coldfinger != null)
+                Coldfinger.Raise();
+            else
+            {
+                string subject = "Operator Needed";
+                string message = $"Raise LN on {Name} one inch.\r\n" +
+                                 $"Ok to continue.";
+
+                Alert(message, subject);
+                Ask(message, subject, NoticeType.Alert);
+            }
+        }
+
+        public virtual void RaiseLN()
+        {
+            if (Coldfinger != null)
+                Coldfinger.RaiseLN();
+            else
+            {
+                Raise();
+                StepTracker.Start("Wait for coldfinger to freeze.");
+                WaitSeconds(30);
+                StepTracker.End();
+            }
+        }
 
         /// <summary>
         /// Thaw the coldfinger (i.e., the first one found).
@@ -580,14 +619,12 @@ namespace AeonHacs.Components
         /// </summary>
         public virtual void Thaw()
         {
-            if (VTColdfinger != null)
-                VTColdfinger.Thaw();
-            else if (Coldfinger != null)
+            if (Coldfinger != null)
                 Coldfinger.Thaw();
             else
             {
                 var subject = "Operator Needed";
-                var message = $"Remove LN from {Name}.";
+                var message = $"Remove LN from {Name} and warm coldfinger to ambient.";
 
                 Alert(message, subject);
                 Ask(message, subject, NoticeType.Alert);
@@ -601,9 +638,8 @@ namespace AeonHacs.Components
         /// </summary>
         public virtual void EmptyAndFreeze(double pressure)
         {
-            var coldfinger = VTColdfinger?.Coldfinger ?? Coldfinger;
-            if (coldfinger?.IsActivelyCooling ?? false)
-                WaitForFrozen(true);
+            if (IsActivelyCooling)
+                FreezeWait();
             OpenAndEvacuate();
             StepTracker?.Start($"Wait for {pressure} Torr");
             VacuumSystem.WaitForStablePressure(pressure);
@@ -612,23 +648,21 @@ namespace AeonHacs.Components
             Freeze();
         }
 
-        public virtual bool Frozen =>
-            VTColdfinger?.Frozen ??
-            Coldfinger?.Frozen ??
+        public virtual bool IsActivelyCooling =>
+            Coldfinger?.IsActivelyCooling ??
             false;
 
-        /// <summary>
-        /// Ensure the coldfinger is fully Frozen.
-        /// </summary>
-        public virtual void WaitForFrozen(bool raiseLN = true)
-        {
-            StepTracker?.Start($"Wait for {Name} to freeze");
-            Freeze();
-            WaitFor(() => Frozen);
-            StepTracker?.End();
-            if (raiseLN)
-                Coldfinger?.RaiseLN();
-        }
+        public virtual bool Frozen =>
+            Coldfinger?.Frozen ??
+            true;
+
+        public virtual bool Raised =>
+            Coldfinger?.Raised ??
+            true;
+
+        public virtual bool Thawed =>
+            Coldfinger?.Thawed ??
+            true;
 
         /// <summary>
         /// Wait until the temperature is greater than the specified value.

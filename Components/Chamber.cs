@@ -16,7 +16,6 @@ namespace AeonHacs.Components
             Thermometer = Find<IThermometer>(thermometerName);
             Heater = Find<IHeater>(heaterName);
             Coldfinger = Find<IColdfinger>(coldfingerName);
-            VTColdfinger = Find<IVTColdfinger>(vtColdfingerName);
         }
 
         #endregion HacsComponent
@@ -75,19 +74,6 @@ namespace AeonHacs.Components
             set => Ensure(ref coldfinger, value, OnPropertyChanged);
         }
         IColdfinger coldfinger;
-
-
-        [JsonProperty("VTColdfinger")]
-        string VtColdfingerName { get => VTColdfinger?.Name; set => vtColdfingerName = value; }
-        string vtColdfingerName;
-        // TODO: derive from a new Coldfinger class?
-        public virtual IVTColdfinger VTColdfinger
-        {
-            get => vtColdfinger;
-            set => Ensure(ref vtColdfinger, value, OnPropertyChanged);
-        }
-        IVTColdfinger vtColdfinger;
-
 
         //[JsonProperty]
         public virtual Action Clean { get; set; }

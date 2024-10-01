@@ -227,7 +227,6 @@ namespace AeonHacs.Components
 
         [JsonProperty] public Dictionary<string, ILNManifold> LNManifolds { get; set; }
         [JsonProperty] public Dictionary<string, IColdfinger> Coldfingers { get; set; }
-        [JsonProperty] public Dictionary<string, IVTColdfinger> VTColdfingers { get; set; }
 
         [JsonProperty] public Dictionary<string, IVacuumSystem> VacuumSystems { get; set; }
         [JsonProperty] public Dictionary<string, IChamber> Chambers { get; set; }
@@ -1083,10 +1082,12 @@ namespace AeonHacs.Components
 
             var subject = "Process Exception";
             var message = $"A coldfinger is taking too long to freeze.\r\n" +
-                          $"Active coldfingers: {list}.\r\n" +
-                          $"The process is paused for operator.";
+                          $"Active coldfingers set to Standby: {list}.\r\n" +
+                          $"The process is paused for operator.\r\n" +
+                          $"Restore their states manually and Ok to try again or \r\n" +
+                          $"Restart the application to abort the process.";
 
-            Warn(message, subject);
+            while (!Warn(message, subject).Ok());
         }
 
         protected virtual void ShutDownAllColdfingers()
@@ -1511,7 +1512,7 @@ namespace AeonHacs.Components
 
             trap.Evacuate();
             if (freezeTrap)
-                trap.WaitForFrozen(false);
+                trap.FreezeWait();
             collectionPath.FlowValve?.CloseWait();
             InletPort.Open();
             Sample.CoilTrap = trap.Name;
@@ -1969,13 +1970,15 @@ namespace AeonHacs.Components
         protected virtual void ExerciseLNValves()
         {
             ProcessStep.Start("Exercise all LN Manifold valves");
-            foreach (var ftc in Coldfingers?.Values) ftc.LNValve.Exercise();
+            foreach (var ftc in FindAll<Coldfinger>())
+                ftc.LNValve.Exercise();
             ProcessStep.End();
         }
 
         protected virtual void CloseLNValves()
         {
-            foreach (var ftc in Coldfingers?.Values) ftc.LNValve.Close();
+            foreach (var ftc in FindAll<Coldfinger>())
+                ftc.LNValve.Close();
         }
 
         protected virtual void CalibrateRS232Valves()
@@ -3145,7 +3148,7 @@ namespace AeonHacs.Components
 
             ProcessStep.Start($"Evacuate and Freeze {trap.Name}");
             trap.EmptyAndFreeze(CleanPressure);
-            trap.WaitForFrozen();
+            trap.FreezeWait();
             ProcessStep.End();
 
             ProcessStep.Start($"Freeze the CO2 from {InletPort.Name} into the {trap.Name}");
@@ -3176,7 +3179,7 @@ namespace AeonHacs.Components
             VTT_MC.Isolate();
             VTT_MC.Close();
 
-            var vtc = VTT.VTColdfinger;
+            var vtc = VTT.Coldfinger as VTColdfinger;
             var ftcMC = MC.Coldfinger;
             vtc.Regulate(targetTemp);
             ftcMC.FreezeWait();
@@ -3316,18 +3319,16 @@ namespace AeonHacs.Components
 
         protected virtual void Measure()
         {
-            var ftcMC = MC.Coldfinger;
-
             ProcessStep.Start("Prepare to measure MC contents");
             MC.Isolate();
 
-            if (ftcMC.IsActivelyCooling)
+            if (MC.IsActivelyCooling)
             {
                 #region release incondensables
                 ProcessStep.Start("Release incondensables");
 
                 MC.OpenPorts();
-                ftcMC.RaiseLN();
+                MC.Raise();
                 MC.JoinToVacuum();
                 MC.VacuumSystem.Evacuate(CleanPressure);
 
@@ -3344,11 +3345,11 @@ namespace AeonHacs.Components
                 MC.Isolate();
             }
 
-            if (!ftcMC.Thawed)
+            if (!MC.Thawed)
             {
                 ProcessSubStep.Start("Bring MC to uniform temperature");
-                ftcMC.Thaw();
-                WaitFor(() => ftcMC.Thawed);    // TODO: add timeout?
+                MC.Thaw();
+                WaitFor(() => MC.Thawed);    // TODO: add timeout?
                 ProcessSubStep.End();
             }
 
@@ -3757,23 +3758,10 @@ namespace AeonHacs.Components
             fromSection.Thaw();
 
             ProcessStep.Start("Wait for transfer start conditions.");
-            while (!WaitFor(() => 
-                toSection.Frozen && 
-                fromSection.Temperature > CO2TransferStartTemperature, 
-                toSection.Coldfinger.MaximumMinutesToFreeze * 60000, 1000))
-            {
-                OnSlowToFreeze();
-
-                var subject = "Process Exception";
-                var message = $"Coldfingers were shut down.\r\n" +
-                              "Restore their states manually and Ok to try again or\r\n" +
-                              "Cancel to continue in the present state.\r\n" +
-                              "Restart the application to abort the process.";
-
-                if (Warn(message, subject, NoticeType.Error).Ok())
-                    continue;
-                break;
-            }
+            WaitFor(() =>
+                toSection.Frozen &&
+                fromSection.Temperature > CO2TransferStartTemperature,
+                interval: 1000); // timeout checked by coldfinger
             ProcessStep.End();
 
             ProcessSubStep.Start($"Join {toSection.Name} to {fromSection.Name}");
@@ -3785,20 +3773,7 @@ namespace AeonHacs.Components
             WaitMinutes((int)CO2TransferMinutes);
             ProcessSubStep.End();
 
-            if (toSection.VTColdfinger == null && toSection.Coldfinger == null)
-            {
-                var subject = "Operator Needed";
-                var message = $"Raise {toSection.Name} LN one inch.\r\n" +
-                              "Ok to continue.";
-
-                Alert(message, subject);
-                Ask(message, subject, NoticeType.Alert);
-                ProcessSubStep.Start("Wait for coldfinger to freeze.");
-                WaitSeconds(30);
-                ProcessSubStep.End();
-            }
-            else
-                toSection.Coldfinger?.RaiseLN();    // no need to wait for VTC
+            toSection.Raise();
 
             ProcessSubStep.Start($"Isolate {toSection.Name}");
             toSection.Isolate();
@@ -3971,27 +3946,13 @@ namespace AeonHacs.Components
             var grDone = false;
             var d13CDone = d13CPort == null;
             ProcessSubStep.Start($"Wait for coldfinger{(d13CPort == null ? "" : "s")} to freeze");
-            var maximumMinutesToFreeze = Math.Max(grCF.MaximumMinutesToFreeze, d13CPort?.Coldfinger?.MaximumMinutesToFreeze ?? 0);
             bool bothFrozen()
             {
                 if (!grDone) grDone = grCF.Frozen;
                 if (!d13CDone) d13CDone = d13CPort.Coldfinger.Frozen;
                 return grDone && d13CDone;
             }
-            while (!WaitFor(bothFrozen, maximumMinutesToFreeze * 60000, 1000))
-            {
-                OnSlowToFreeze();
-
-                subject = "Process Exception";
-                message = $"Coldfingers were shut down.\r\n" +
-                          "Restore their states manually and Ok to try again or\r\n" +
-                          "Cancel to continue in the present state.\r\n" +
-                          "Restart the application to abort the process.";
-
-                if (Warn(message, subject, NoticeType.Error).Ok())
-                    continue;
-                break;
-            }
+            WaitFor(bothFrozen, interval: 1000);
             ProcessSubStep.End();
 
             WaitMinutes((int)CO2TransferMinutes);
@@ -4071,7 +4032,7 @@ namespace AeonHacs.Components
                 ProcessSubStep.End();
             }
 
-            if (grCF.Temperature < grCF.NearAirTemperature) grCF.Thaw();
+            grCF.Thaw();
             var mcCF = MC.Coldfinger;
             mcCF.FreezeWait();
 
@@ -4296,9 +4257,7 @@ namespace AeonHacs.Components
             ProcessStep.Start("Freeze graphite reactors");
             grs.ForEach(gr => gr.Coldfinger.Raise());
 
-            int maximumMinutesToFreeze = grs.First().Coldfinger.MaximumMinutesToFreeze;
-            if (!WaitFor(() => grs.All(gr => gr.Coldfinger.Frozen), maximumMinutesToFreeze * 60000, 1000))
-                OnSlowToFreeze();
+            WaitFor(() => grs.All(gr => gr.Coldfinger.Frozen), interval: 1000);
 
             ProcessStep.End();
 
@@ -4811,7 +4770,7 @@ namespace AeonHacs.Components
             var mcCF = MC.Coldfinger;
             mcCF.Thaw();
             ProcessSubStep.Start("Wait for MC coldfinger to thaw enough.");
-            WaitFor(() => mcCF.Temperature > VTT.VTColdfinger.Setpoint + 10);
+            WaitFor(() => mcCF.Temperature > (VTT.Coldfinger as VTColdfinger).Setpoint + 10);
             ProcessSubStep.End();
             mcCF.Standby();    // stop thawing to save time
 

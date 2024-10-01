@@ -137,69 +137,34 @@ namespace AeonHacs.Components
         void ChangeState(TargetStates targetState, Predicate<StateManager<TargetStates, States>> predicate);
     }
 
-    public interface IColdfinger : IStateManager<Coldfinger.TargetStates, Coldfinger.States>, IStopAction
+    public interface IColdfinger : IHacsComponent, ITemperature, IStopAction
     {
-        IValve LNValve { get; set; }
-        IValve AirValve { get; set; }
-        ILNManifold LNManifold { get; set; }
-        IThermometer LevelSensor { get; set; }
-        IHacsComponent AirThermometer { get; set; }
-
-        int FrozenTemperature { get; set; }
-        string Trickle { get; set; }
-        int FreezeTrigger { get; set; }
-        int RaiseTrigger { get; set; }
-        int MaximumSecondsLNFlowing { get; set; }
-        int MaximumMinutesToFreeze { get; set; }
-        int SecondsToWaitAfterRaised { get; set; }
-        double NearAirTemperature { get; set; }
         bool Thawing { get; }
+        bool Thawed { get; }
         bool Frozen { get; }
         bool Raised { get; }
-        bool IsNearAirTemperature { get; }
+        bool Idle { get; }
+
         bool IsActivelyCooling { get; }
-        bool Thawed { get; }
-        double Temperature { get; }
-        double AirTemperature { get; }
-        double Target { get; }
+
         void Standby();
+        void Thaw();
         void Freeze();
         void Raise();
-        void Thaw();
-        void EnsureState(Coldfinger.TargetStates state);
+
+        void ThawWait();
         void FreezeWait();
         void RaiseLN();
+
         Action SlowToFreeze { get; set; }
     }
 
-    public interface IVTColdfinger : IStateManager<VTColdfinger.TargetStates, VTColdfinger.States>,
-        IIsOn, ISwitchable, IStopAction
+    public interface IVTColdfinger : IColdfinger, IIsOn, ISwitchable, IStopAction
     {
-        IHeater Heater { get; set; }
-        IColdfinger Coldfinger { get; set; }
-        IThermometer TopThermometer { get; set; }
-        IThermometer WireThermometer { get; set; }
-        int WireTemperatureLimit { get; set; }
         double Setpoint { get; set; }
-        double MaximumHeaterPower { get; set; }
-        IPidSetup HeaterPid { get; set; }
-        double MaximumWarmHeaterPower { get; set; }
-        IPidSetup WarmHeaterPid { get; set; }
-        int ColdTemperature { get; set; }
-        int CleanupTemperature { get; set; }
-        string HeaterOnTrickle { get; set; }
-        string HeaterOffTrickle { get; set; }
-        bool Frozen { get; }
-        double Temperature { get; }
-        double ColdfingerTemperature { get; }
 
-        void Standby();
-        void Thaw();
-        void Freeze();
         void Regulate();
         void Regulate(double setpoint);
-        void EnsureState(VTColdfinger.TargetStates state);
-
     }
 
     // TODO: make this a DeviceManager
@@ -1514,7 +1479,6 @@ namespace AeonHacs.Components
         IThermometer Thermometer { get; set; }
         IHeater Heater { get; set; }
         IColdfinger Coldfinger { get; set; }
-        IVTColdfinger VTColdfinger { get; set; }
     }
 
     public interface IFlowChamber : IChamber
@@ -1803,13 +1767,22 @@ namespace AeonHacs.Components
         /// If there isn't one, alert the operator to put LN.
         /// </summary>
         void Freeze();
-        bool Frozen { get; }
 
+        /// <summary>
+        /// Raise the coldfinger (i.e., the first one found).
+        /// If there isn't one, alert the operator to raise LN.
+        /// </summary>
+
+        void Raise();
         /// <summary>
         /// Thaw the coldfinger (i.e., the first one found).
         /// If there isn't one, alert the operator to remove LN.
         /// </summary>
         void Thaw();
+
+        bool IsActivelyCooling { get; }
+        bool Frozen { get; }
+        bool Raised { get; }
         bool Thawed { get; }
 
         /// <summary>
@@ -1820,10 +1793,19 @@ namespace AeonHacs.Components
         void EmptyAndFreeze(double pressure);
 
         /// <summary>
+        /// Thaw the coldfinger.
+        /// </summary>
+        void ThawWait();
+
+        /// <summary>
         /// Ensure the coldfinger is fully Frozen.
         /// </summary>
-        void WaitForFrozen(bool WaitForLNPeak = true);
+        void FreezeWait();
 
+        /// <summary>
+        /// Wait until LN reaches its maximum level.
+        /// </summary>
+        void RaiseLN();
 
         /// <summary>
         /// Wait until the temperature is greater than the specified value.
@@ -2239,7 +2221,6 @@ namespace AeonHacs.Components
 
         public Dictionary<string, ILNManifold> LNManifolds { get; set; }
         public Dictionary<string, IColdfinger> Coldfingers { get; set; }
-        public Dictionary<string, IVTColdfinger> VTColdfingers { get; set; }
 
         public Dictionary<string, IVacuumSystem> VacuumSystems { get; set; }
         public Dictionary<string, IChamber> Chambers { get; set; }
