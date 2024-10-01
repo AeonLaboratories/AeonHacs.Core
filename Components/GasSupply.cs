@@ -606,6 +606,7 @@ namespace AeonHacs.Components
             SourceValve.OpenWait();
             vacuumSystem.Evacuate();
 
+            // TODO timeout
             WaitFor(() => vacuumSystem.HighVacuumValve.IsOpened || vacuumSystem.LowVacuumValve.IsOpened);
             WaitSeconds(2);
             MajorStep?.End();
