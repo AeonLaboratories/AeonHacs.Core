@@ -384,12 +384,6 @@ namespace AeonHacs.Components
         /// </summary>
         protected virtual void SendCommandMessages()
         {
-            if (!SerialDevice.Ready)
-            {
-                Log?.Record($"{Name}: Resetting disconnected SerialDevice {SerialDevice.PortSettings.PortName}.");
-                SerialDevice?.Reset();
-            }
-
             if (!StateSignalReceived && priorAwaitingResponses > 0 && AwaitingResponses >= priorAwaitingResponses)
             {
                 lock (responseTimeoutsLocker) ResponseTimeouts++;
@@ -403,6 +397,7 @@ namespace AeonHacs.Components
                         AwaitingResponses = 0;
                     else
                     {
+                        Log?.Record($"{Name}: Resetting disconnected SerialDevice {SerialDevice.PortSettings.PortName}.");
                         SerialDevice.Reset();
                         lock (responseTimeoutsLocker) ResponseTimeouts = 0;
                     }
@@ -438,15 +433,18 @@ namespace AeonHacs.Components
                 if (AwaitingResponses > 0)
                     StateSignal.Reset();
 
-                if (TokenizeCommands)
+                if (SerialDevice.Ready)
                 {
-                    CommandMessages = ServiceCommand.Split(null as char[], StringSplitOptions.RemoveEmptyEntries);
+                    if (TokenizeCommands)
+                    {
+                        CommandMessages = ServiceCommand.Split(null as char[], StringSplitOptions.RemoveEmptyEntries);
 
-                    foreach (var c in CommandMessages)
-                        Send(CommandMessage = c);
+                        foreach (var c in CommandMessages)
+                            Send(CommandMessage = c);
+                    }
+                    else
+                        Send(CommandMessage = ServiceCommand);
                 }
-                else
-                    Send(CommandMessage = ServiceCommand);
 
                 priorAwaitingResponses = AwaitingResponses;
             }

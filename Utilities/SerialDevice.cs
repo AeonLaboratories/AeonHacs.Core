@@ -348,11 +348,11 @@ namespace AeonHacs.Utilities
         Stopwatch rxSw = new Stopwatch();
 
 
-        public void Connect()
+        public bool Connect()
         {
             try
             {
-                if (connected) return;
+                if (connected) return true;
                 Log?.Record("SerialDevice connecting...");
 
                 SerialPortMonitor.PortArrived -= OnPortConnected;   // avoid duplicates
@@ -417,9 +417,13 @@ namespace AeonHacs.Utilities
                     connected = true;
                     Log?.Record("...SerialDevice connected.");
                     Connected?.Invoke(this, null);
+                    return true;
                 }
+                else
+                    Log?.Record($"Failed to connect to {port.PortName}.");
             }
             catch { Disconnect(); }
+            return false;
         }
 
         // Disposing the USBSerialPort makes sure it is registered by Windows
