@@ -271,6 +271,32 @@ namespace AeonHacs
         }
     }
 
+    public static class TaskExtensions
+    {
+        static Task<Notice> noResponse = Task.FromResult(Notice.NoResponse);
+
+        public static async Task<Task<Notice>> WhenAny(this IEnumerable<Task<Notice>> tasks, Predicate<Notice> condition)
+        {
+            if (tasks is null)
+                return noResponse;
+
+            var tasklist = tasks.ToList();
+            while (tasklist.Count > 0)
+            {
+                var task = await Task.WhenAny(tasklist);
+                var result = task.Result;
+                if (!result.Equals(Notice.NoResponse) && condition(task.Result))
+                    return task;
+                tasklist.Remove(task);
+            }
+
+            return noResponse;
+        }
+
+        public static async Task<Task<Notice>> WhenAny(this IEnumerable<Task<Notice>> tasks) =>
+            await tasks.WhenAny(_ => true);
+    }
+
     public static partial class DictionaryExtensions
     {
         public static Dictionary<string, string> KeysNames<T>(this Dictionary<string, T> source) where T : INamedObject =>

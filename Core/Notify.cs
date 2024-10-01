@@ -7,7 +7,7 @@ namespace AeonHacs;
 
 public delegate void NoticeHandler(Notice notice);
 
-public delegate Task<Notice?> PromptHandler(Notice notice);
+public delegate Notice PromptHandler(Notice notice);
 
 #nullable enable
 
@@ -30,14 +30,14 @@ public static class Notify
         Task.Run(() => Parallel.Invoke(handler?.GetInvocationList().Cast<NoticeHandler>().Select<NoticeHandler, Action>(h => () => h(notice)).ToArray() ?? []));
     }
 
-    private static async Task<Notice?> Prompt(PromptHandler? handler, Notice notice)
+    private static async Task<Notice> Prompt(PromptHandler? handler, Notice notice)
     {
         var cts = CancellationTokenSource.CreateLinkedTokenSource(Hacs.CancellationToken, notice.CancellationToken);
         notice.CancellationToken = cts.Token;
 
-        var response = await Task.WhenAny(
-            handler?.GetInvocationList().Cast<PromptHandler>().Select(h => Task.Run(() => h(notice))) ?? [NoResponse()]
-            ).Result;
+        var tasks = handler?.GetInvocationList().Cast<PromptHandler>().Select(h => Task.Run(() => h(notice)));
+
+        var response = await tasks.WhenAny().Result;
 
         cts.Cancel();
 
@@ -67,39 +67,27 @@ public static class Notify
     public static void MajorEvent(string message, string? subject = null, NoticeType type = NoticeType.MajorEvent, CancellationToken cancellationToken = default) =>
         Notice(OnMajorEvent, new Notice(message, subject, type, cancellationToken));
 
-    public static Notice? Ask(string message, string? subject = null, NoticeType type = NoticeType.Question, CancellationToken cancellationToken = default) =>
+    public static Notice Ask(string message, string? subject = null, NoticeType type = NoticeType.Question, CancellationToken cancellationToken = default) =>
         Prompt(OnQuestion, new Notice(message, subject, type, cancellationToken)).Result;
 
-    public static void PlaySound(string message = "", string? subject = null, NoticeType type = NoticeType.Sound, CancellationToken cancellationToken = default) =>
+    public static void PlaySound(string message = "chord", string? subject = null, NoticeType type = NoticeType.Sound, CancellationToken cancellationToken = default) =>
         Notice(OnSound, new Notice(message, subject, type, cancellationToken));
 
-    public static Notice? Warn(string message, string? subject = null, NoticeType type = NoticeType.Warning, CancellationToken cancellationToken = default) =>
+    public static Notice Warn(string message, string? subject = null, NoticeType type = NoticeType.Warning, CancellationToken cancellationToken = default) =>
         Prompt(OnWarning, new Notice(message, subject, type, cancellationToken)).Result;
 
-    public static Notice? Error(string message, string? subject = null, NoticeType type = NoticeType.Error, CancellationToken cancellationToken = default) =>
+    public static Notice Error(string message, string? subject = null, NoticeType type = NoticeType.Error, CancellationToken cancellationToken = default) =>
         Prompt(OnError, new Notice(message, subject, type, cancellationToken)).Result;
-
-    /// <summary>
-    /// Returns a value that indicates this method will not respond.
-    /// </summary>
-    /// <returns>A <see cref="Task"/>&lt;<see cref="AeonHacs.Notice"/>?&gt; that was awaited but did nothing and was cancelled.</returns>
-    public static async Task<Notice?> NoResponse()
-    {
-        var tcs = new TaskCompletionSource<Notice?>();
-        var result = await tcs.Task;
-        tcs.SetCanceled();
-        return result;
-    }
 
     #region Extension Methods
 
-    public static bool Ok(this Notice? notice) =>
-        notice?.Message == "Ok";
+    public static bool Ok(this Notice notice) =>
+        notice.Message == "Ok";
 
     /// <param name="notice"></param>
     /// <returns>True if the notice is null or its Message is "Cancel"</returns>
-    public static bool Cancelled(this Notice? notice) =>
-        notice?.Message.Equals("Cancel") ?? true;
+    public static bool Cancelled(this Notice notice) =>
+        notice.Equals(AeonHacs.Notice.NoResponse) || notice.Message.Equals("Cancel");
 
     #endregion Extension Methods
 }

@@ -24,8 +24,8 @@ public class AlertManager : HacsComponent, IAlertManager
         HandlerTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Hacs.CancellationToken);
         HandlerTask = Task.Run(() => AlertHandler(HandlerTokenSource.Token), HandlerTokenSource.Token);
 
-        OnAlert += EnqueueAlert;
-        OnWarning += EnqueueAlertAsync;
+        OnAlert += EnqueueNotice;
+        OnWarning += EnqueuePrompt;
     }
 
     [HacsStop]
@@ -34,8 +34,8 @@ public class AlertManager : HacsComponent, IAlertManager
         MessageQueue.Clear();
         AlertTimer.Reset();
 
-        OnAlert -= EnqueueAlert;
-        OnWarning -= EnqueueAlertAsync;
+        OnAlert -= EnqueueNotice;
+        OnWarning -= EnqueuePrompt;
 
         HandlerTokenSource?.Cancel();
         HandlerTask?.Wait();
@@ -153,16 +153,16 @@ public class AlertManager : HacsComponent, IAlertManager
         return match;
     }
 
-    protected virtual void EnqueueAlert(Notice notice)
+    protected virtual void EnqueueNotice(Notice notice)
     {
         if (notice.CancellationToken.IsCancellationRequested || !AlertsEnabled || Repeated(notice))
             return;
         MessageQueue.Enqueue(notice);
     }
 
-    protected virtual Task<Notice?> EnqueueAlertAsync(Notice notice)
+    protected virtual Notice EnqueuePrompt(Notice notice)
     {
-        EnqueueAlert(notice);
-        return NoResponse();
+        EnqueueNotice(notice);
+        return Notice.NoResponse;
     }
 }

@@ -49,10 +49,10 @@ namespace AeonHacs
         {
             Notify.OnActionTaken += notice => SystemLog.Record(notice.Message);
             Notify.OnMajorEvent += notice => EventLog.Record(notice.Message);
-            Notify.OnError += async notice =>
+            Notify.OnError += notice =>
             {
                 EventLog.Record(notice.Message);
-                return await Notify.NoResponse();
+                return Notice.NoResponse;
             };
         }
 
