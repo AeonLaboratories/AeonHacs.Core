@@ -47,7 +47,11 @@ namespace AeonHacs.Components
         [HacsConnect]
         protected virtual void Connect()
         {
-            InletPort = Find<InletPort>(inletPortName);
+            Sample = Find<Sample>(sampleName);
+            if (inletPort == null)
+                inletPort = FirstOrDefault<IInletPort>();
+            if (inletPort == null)
+                Warn("No InletPorts exist; a CEGS must have at least one.", "Configuration Error");
 
             Power = Find<Power>(powerName);
             Ambient = Find<Chamber>(ambientName);
@@ -484,7 +488,7 @@ namespace AeonHacs.Components
         /// The sample gas collection path.
         /// </summary>
         protected virtual ISection IM_FirstTrap
-        { 
+        {
             get
             {
                 if (im_FirstTrap != null) return im_FirstTrap;
@@ -597,34 +601,46 @@ namespace AeonHacs.Components
         public virtual List<IGraphiteReactor> GraphiteReactors { get; set; }
         public virtual List<Id13CPort> d13CPorts { get; set; }
 
+        [JsonProperty("Sample")]
+        string SampleName { get => Sample?.Name; set => sampleName = value; }
+        string sampleName;
+        public virtual ISample Sample
+        {
+            get => sample;
+            set
+            {
+                void samplePropertyChanged(object sender, PropertyChangedEventArgs e)
+                {
+                    if (e.PropertyName == nameof(ISample.InletPort) && sample?.InletPort != inletPort)
+                        InletPort = sample?.InletPort; // Sync the InletPort if Sample.InletPort changes
+                }
 
-        [JsonProperty("InletPort")]
-        string InletPortName { get => InletPort?.Name; set => inletPortName = value; }
-        string inletPortName;
+                if (sample != null)
+                    sample.PropertyChanged -= samplePropertyChanged;
+
+                if (Ensure(ref sample, value))
+                {
+                    sample.PropertyChanged += samplePropertyChanged;    // Sync InletPort to this sample, now.
+                    if (sample.InletPort != null)
+                    {
+                        if (sample.InletPort is IInletPort p && p != inletPort)
+                            InletPort = p;
+                    }
+                }
+            }
+        }
+        ISample sample;
+
         public virtual IInletPort InletPort
         {
             get => inletPort;
             set
             {
-                Ensure(ref inletPort, value, OnPropertyChanged);
-                if (InletPort?.Sample is ISample sample)
-                    Sample = sample;
+                if (value != null)
+                    Ensure(ref inletPort, value);
             }
         }
         IInletPort inletPort;
-
-        protected void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (sender == InletPort && InletPort.Sample is ISample sample)
-                Sample = sample;
-        }
-
-        public virtual ISample Sample
-        {
-            get => sample;
-            set => Ensure(ref sample, value);
-        }
-        ISample sample;
 
         protected virtual Id13CPort d13CPort
         {
@@ -1042,7 +1058,7 @@ namespace AeonHacs.Components
 
             ShutDownAllColdfingers();
             FindAll<IHeater>().ForEach(h => h.TurnOff());
-            FindAll<IVacuumSystem>().ForEach(vs => 
+            FindAll<IVacuumSystem>().ForEach(vs =>
             {
                 vs.Isolate();
                 vs.IsolateManifold();
@@ -1173,21 +1189,58 @@ namespace AeonHacs.Components
         /// </summary>
         protected virtual void ZeroPressureGauges() => ZeroPressureGauges([MC, CT, VTT, IM, GM, .. GraphiteReactors]);
 
-        protected virtual void DeleteCompletedSamples()
+        /// <summary>
+        /// Clear references to the sample and remove it from the NamedObject Dictionary.
+        /// </summary>
+        public virtual void DeleteSample(Sample s)
         {
-            Samples.Values.ToList().ForEach(s =>
+            if (s == null) return;
+            if (s.InletPort?.Sample == s)       // if it's still in its inlet port,
+                s.InletPort.Sample = null;      //     remove it from there
+            if (s.d13CPort?.Sample == s)        // if it's still in its d13C port,
+                s.d13CPort.Sample = null;       //     remove it from there
+
+            // Delete aliquots
+            s.Aliquots.ForEach(a => 
             {
-                if (s.AliquotsCount < 1 &&
-                    s.d13CPort?.Sample != s &&
-                    s.InletPort?.Sample is ISample ipSample &&
-                    (ipSample != s || s.InletPort.State == LinePort.States.Complete))
+                if (!a.GraphiteReactor.IsBlank() && 
+                    Find<GraphiteReactor>(a.GraphiteReactor) is GraphiteReactor gr && 
+                    gr.Aliquot == a)
                 {
-                    if (s.InletPort?.Sample == s)
-                        s.InletPort.Sample = null;
-                    s.Name = null;      // remove the sample from the NamedObject Dictionary.
+                    gr.Aliquot = null;          // also sets gr.Sample to null
                 }
             });
+            s.Aliquots.Clear();
+
+            if (s == Sample)                    // if it's the currently selected sample,
+                Sample = null;                  //     clear the the currently selected sample
+            s.Name = null;                      // remove it from the NamedObject Dictionary.
         }
+
+        public virtual bool OkToDeleteSample(Sample s)
+        {
+            if (s == null)
+                return false;       // nothing to delete
+            if (s.Name.IsBlank())
+                return false;       // it's not in the NamedObject Dictionary
+            if (s.Aliquots.Any(a => Find<GraphiteReactor>(a.GraphiteReactor)?.Aliquot == a))
+                return false;       // it still has aliquots in graphite reactors
+            if (s.d13CPort?.Sample == s) 
+                return false;       // it still has a split in a d13CPort
+            if (s.InletPort?.Sample == s && s.InletPort.State != LinePort.States.Complete)
+                return false;       // it still incomplete in its inlet port...
+            return true;
+        }
+
+        public virtual bool TryDeleteSample(Sample s)
+        {
+            if (!OkToDeleteSample(s)) return false;
+            DeleteSample(s);
+            return true;
+        }
+
+        protected virtual void DeleteCompletedSamples() =>
+            FindAll<Sample>(TryDeleteSample);
 
         #endregion Periodic system activities & maintenance
 
