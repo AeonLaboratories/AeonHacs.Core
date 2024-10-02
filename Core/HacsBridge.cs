@@ -80,10 +80,10 @@ public class HacsBridge
             backupSettingsFilename(1)
         ];
 
-        for (int i = 2; i < backupsToKeep; i++)
+        for (int i = 2; i <= backupsToKeep; i++)
             files.Add(backupSettingsFilename(i));
 
-        var works = files.First(LoadSettings);
+        var works = files.FirstOrDefault(LoadSettings);
 
         string subject, message;
 
