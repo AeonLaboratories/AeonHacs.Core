@@ -70,12 +70,7 @@ namespace AeonHacs.Components
         }
 
         public virtual string Contents => Aliquot?.Name ?? "";
-        protected virtual void ClearContents()
-        {
-            Aliquot = null;
-            if (state != States.Empty)
-                State = States.Empty;
-        }
+        public virtual void ClearContents() => Aliquot = null;
 
         protected override void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
