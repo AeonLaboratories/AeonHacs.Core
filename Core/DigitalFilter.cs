@@ -96,6 +96,9 @@ namespace AeonHacs
             else
                 return Filter(value);
         }
+
+        public override string ToString() =>
+            $"{(Name.IsBlank() ? GetType().Name : Name)}: {Value}";
     }
 
     public class AveragingFilter : DigitalFilter

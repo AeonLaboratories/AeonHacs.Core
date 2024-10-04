@@ -163,5 +163,8 @@ namespace AeonHacs
             if (sender == RoC)
                 NotifyPropertyChanged(sender, PropertyChangedEventArgs(nameof(RoC)));
         }
+
+        public override string ToString() =>
+            $"{(Name.IsBlank() ? GetType().Name : Name)}: {Value} / s";
     }
 }
