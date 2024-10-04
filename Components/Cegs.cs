@@ -610,23 +610,12 @@ namespace AeonHacs.Components
             set
             {
                 void samplePropertyChanged(object sender, PropertyChangedEventArgs e)
-                {
-                    if (e.PropertyName == nameof(ISample.InletPort) && sample?.InletPort != inletPort)
-                        InletPort = sample?.InletPort; // Sync the InletPort if Sample.InletPort changes
+                {                    
+                    InletPort = sample?.InletPort;
+                    NotifyPropertyChanged(nameof(Sample));
                 }
 
-                if (sample != null)
-                    sample.PropertyChanged -= samplePropertyChanged;
-
-                if (Ensure(ref sample, value))
-                {
-                    sample.PropertyChanged += samplePropertyChanged;    // Sync InletPort to this sample, now.
-                    if (sample.InletPort != null)
-                    {
-                        if (sample.InletPort is IInletPort p && p != inletPort)
-                            InletPort = p;
-                    }
-                }
+                Ensure(ref sample, value, samplePropertyChanged);
             }
         }
         ISample sample;
@@ -854,15 +843,15 @@ namespace AeonHacs.Components
             if (Busy || !AutoFeedEnabled) return;
             try
             {
-                if (GetSampleToRun() is Sample runSample)
+                if (GetSampleToRun() is Sample sample)
                 {
-                    var ip = runSample.InletPort;
+                    var ip = sample.InletPort;
                     if (ip == null) ip = InletPorts.FirstOrDefault();
                     if (ip != null)
                     {
-                        ip.Sample = runSample;
+                        ip.Sample = sample;
                         ip.State = LinePort.States.Prepared;    // assume this was done by the sample provider
-                        Task.Run(() => RunSampleAt(ip));
+                        Task.Run(() => RunSample(sample));
                     }
                 }
             }
@@ -1229,6 +1218,8 @@ namespace AeonHacs.Components
                 return false;       // it still has a split in a d13CPort
             if (s.InletPort?.Sample == s && s.InletPort.State != LinePort.States.Complete)
                 return false;       // it still incomplete in its inlet port...
+            if (!s.RunCompleted)
+                return false;       // it's hasn't completed a run
             return true;
         }
 
@@ -1269,15 +1260,8 @@ namespace AeonHacs.Components
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public double GetParameter(string name)
-        {
-            if (ProcessSequenceIsRunning)
-                return Sample?.Parameter(name) ?? CegsPreferences.Parameter(name);
-            else if (Sample != null && !double.IsNaN(Sample.Parameter(name)))
-                return Sample.Parameter(name);
-            else
-                return CegsPreferences.Parameter(name);
-        }
+        public double GetParameter(string name) =>
+            Sample?.Parameter(name) ?? CegsPreferences.Parameter(name);
 
         /// <summary>
         /// Sets the parameter to double.NaN.
@@ -2825,8 +2809,6 @@ namespace AeonHacs.Components
                 RunSamples();
             else if (processToRun == "Run selected sample")
                 RunSample();
-            //else if (processToRun == "Run all samples")
-            //    RunAllSamples();
             else
                 base.RunProcess(processToRun);
         }
@@ -2912,35 +2894,44 @@ namespace AeonHacs.Components
             WaitFor(() => !base.Busy, -1, 1000);
         }
 
+        /// <summary>
+        /// Present the sample selector with all samples initially unselected.
+        /// </summary>
+        protected virtual void RunSamples() =>
+            RunSamples(false);
+
+        /// <summary>
+        /// Present the sample selector with all samples initially selected.
+        /// </summary>
+        protected virtual void RunAllSamples() =>
+            RunSamples(true);
+
+        /// <summary>
+        /// Get a list of samples to run from the sample selector and run them.
+        /// </summary>
+        /// <param name="all"></param>
         protected virtual void RunSamples(bool all)
         {
             if (!(SelectSamples?.Invoke(all) is List<ISample> samples))
                 samples = new List<ISample>();
-            RunSamples(samples.Select(s => s.InletPort).ToList());
+            RunSamples(samples);
         }
 
-        protected virtual void RunSamples() =>
-            RunSamples(false);
+        /// <summary>
+        /// Run the listed samples.
+        /// </summary>
+        /// <param name="samples"></param>
+        protected virtual void RunSamples(List<ISample> samples) =>
+            samples.ForEach(RunSample);
 
-        protected virtual void RunAllSamples() =>
-            RunSamples(true);
 
-        protected virtual void RunSamples(List<IInletPort> ips)
+        /// <summary>
+        /// Run a sample.
+        /// </summary>
+        /// <param name="sample"></param>
+        protected virtual void RunSample(ISample sample)
         {
-            if (ips.Count < 1)
-            {
-                //Notice.Send("Process Exception",
-                //    "No InletPorts selected, or contain Samples that are ready to run.",
-                //    Notice.Type.Tell);
-                return;
-            }
-
-            ips.ForEach(RunSampleAt);
-        }
-
-        protected virtual void RunSampleAt(IInletPort ip)
-        {
-            InletPort = ip;
+            Sample = sample;
             RunSample();
         }
 
@@ -2965,7 +2956,10 @@ namespace AeonHacs.Components
             }
 
             if (ProcessType == ProcessTypeCode.Sequence)
+            {
+                Sample.RunCompleted = ProcessToRun == Sample.Process && RunCompleted;
                 SampleLog.Record(message + "\r\n\t" + Sample.LabId);
+            }
 
             var subject = "System Status";
 

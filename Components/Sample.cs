@@ -86,6 +86,15 @@ namespace AeonHacs.Components
         string process;
 
         [JsonProperty]
+        [DefaultValue(false)]
+        public bool RunCompleted
+        {
+            get => processEnded;
+            set => Ensure(ref processEnded, value);
+        }
+        bool processEnded = false;
+
+        [JsonProperty]
         public List<Parameter> Parameters
         {
             get => parameters;
@@ -93,14 +102,20 @@ namespace AeonHacs.Components
         }
         List<Parameter> parameters = [];
 
+        private List<Parameter> CegsParameters => FirstOrDefault<Cegs>().CegsPreferences.DefaultParameters;
+
+        private Parameter CegsParameter(string name) =>
+            CegsParameters.Find(x => x.ParameterName == name);
+
         public virtual double Parameter(string name) =>
-            Parameters?.Find(x => x.ParameterName == name) is Parameter p && p.ParameterName == name ?
-                p.Value : double.NaN;
+            Parameters?.Find(x => x.ParameterName == name)?.Value ??
+                CegsParameter(name)?.Value ?? double.NaN;
 
         public void SetParameter(Parameter parameter)
         {
             RemoveParameter(parameter.ParameterName);
-            Parameters.Add(parameter);
+            if (CegsParameter(parameter.ParameterName) is not Parameter cegsParameter || parameter.Value != cegsParameter.Value)
+                Parameters.Add(parameter);
         }
 
         public void RemoveParameter(string name) =>

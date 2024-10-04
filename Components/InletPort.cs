@@ -1,10 +1,8 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
@@ -31,6 +29,7 @@ namespace AeonHacs.Components
         List<InletPortType> supportedPortTypes;
 
         [JsonProperty]
+        [StandardValuesSource(nameof(SupportedPortTypes))]
         public virtual InletPortType PortType
         {
             get => portType;

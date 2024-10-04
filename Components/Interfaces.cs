@@ -1391,6 +1391,7 @@ namespace AeonHacs.Components
         string CoilTrap { get; set; }
         Id13CPort d13CPort { get; set; }
         string Process { get; set; }
+        bool RunCompleted { get; set; }
         List<Parameter> Parameters { get; set; }
         double Parameter(string name);
         void SetParameter(Parameter parameter);
@@ -1501,6 +1502,7 @@ namespace AeonHacs.Components
         ISample Sample { get; set; }
         IAliquot Aliquot { get; set; }
         string Contents { get; }
+        void ClearContents();
     }
 
     public interface IInletPort: ILinePort
