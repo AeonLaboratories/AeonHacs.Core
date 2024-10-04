@@ -27,5 +27,15 @@ public class Parameter : BindableObject
     }
     string description;
 
+    public Parameter Clone()
+    {
+        return new Parameter()
+        {
+            ParameterName = ParameterName,
+            Value = Value,
+            Description = Description
+        };
+    }
+
     public override string ToString() => $"{ParameterName} = {Value}";
 }
