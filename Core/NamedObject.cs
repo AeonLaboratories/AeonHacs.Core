@@ -213,6 +213,15 @@ namespace AeonHacs
         }
         string name;
 
+        [JsonProperty(Order = -98)]
+        [Description("A description of this item.")]
+        public virtual string Description
+        {
+            get => description;
+            set => Ensure(ref description, value);
+        }
+        string description;
+
         ~NamedObject() => remove(this);
 
         public override string ToString() => Name;
