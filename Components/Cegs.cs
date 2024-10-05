@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using static AeonHacs.Components.CegsPreferences;
@@ -1951,7 +1950,6 @@ namespace AeonHacs.Components
         /// <param name="temperature"></param>
         /// <param name="minutes"></param>
         /// <param name="admitO2"></param>
-        /// <param name="openLine"></param>
         /// <param name="waitForSetpoint"></param>
         protected override void Combust(int temperature, int minutes, bool admitO2, bool waitForSetpoint)
         {
@@ -2779,7 +2777,7 @@ namespace AeonHacs.Components
 
         protected virtual void OpenLine(IVacuumSystem vacuumSystem)
         {
-            ProcessStep.Start($"Make sure all {vacuumSystem.Name}'s sections are all well above freezing.");
+            ProcessStep.Start($"Ensure all {vacuumSystem.Name}'s sections are all well above freezing.");
             var coldSections = Sections.Values.Where(s => 
                 s.VacuumSystem == vacuumSystem && 
                 s.Thermometer != null && 
