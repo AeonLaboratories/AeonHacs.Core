@@ -395,7 +395,7 @@ namespace AeonHacs.Components
 
                     if (Warn(message, subject, NoticeType.Error).Ok())
                         AwaitingResponses = 0;
-                    else
+                    else if (!Stopping)
                     {
                         Log?.Record($"{Name}: Resetting disconnected SerialDevice {SerialDevice.PortSettings.PortName}.");
                         SerialDevice.Reset();
