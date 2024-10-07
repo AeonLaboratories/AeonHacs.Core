@@ -128,7 +128,7 @@ namespace AeonHacs.Components
         /// Searching for pressures or temperatures outside these ranges will produce
         /// unreliable values.
         /// </summary>
-        public static LookupTable CO2EqTable { get; private set; } = new LookupTable(@"CO2 eq.dat");
+        public static LookupTable CO2EqTable { get; private set; }
 
 
         /// <summary>
@@ -188,8 +188,19 @@ namespace AeonHacs.Components
         [JsonProperty, DefaultValue(2.0)] public static double H2_CO2StoichiometricRatio { get => h2_CO2StoichiometricRatio; set => Default.Ensure(ref h2_CO2StoichiometricRatio, value); }
         static double h2_CO2StoichiometricRatio = 2.0;
 
-         #endregion Constants
+        #endregion Constants
 
+        static CegsPreferences()
+        {
+            try
+            {
+                CO2EqTable = new LookupTable(@"CO2 eq.dat");
+            }
+            catch
+            {
+                Notify.Warn("CO2 phase equilibrium table ('CO2 eq.dat') missing.", "File Not Found");
+            }
+        }
 
         /// <summary>
         /// Default process control parameters
