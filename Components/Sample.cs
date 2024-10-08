@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using static AeonHacs.Components.CegsPreferences;
 
 namespace AeonHacs.Components
@@ -314,6 +315,31 @@ namespace AeonHacs.Components
         public Sample()
         {
             Name = GenerateSampleName;
+        }
+
+        public Sample Clone()
+        {
+            return new Sample()
+            {
+                LabId = LabId,
+                DateTime = DateTime,
+                InletPort = InletPort,
+                CoilTrap = CoilTrap,
+                d13CPort = d13CPort,
+                Process = Process,
+                RunCompleted = RunCompleted,
+                Parameters = Parameters.Select(p => p.Clone()).ToList(),
+                SulfurSuspected = SulfurSuspected,
+                Take_d13C = Take_d13C,
+                Grams = Grams,
+                MicrogramsDilutionCarbon = MicrogramsDilutionCarbon,
+                TotalMicrogramsCarbon = TotalMicrogramsCarbon,
+                Discards = Discards,
+                SelectedMicrogramsCarbon = SelectedMicrogramsCarbon,
+                Micrograms_d13C = Micrograms_d13C,
+                d13CPartsPerMillion = d13CPartsPerMillion,
+                Aliquots = Aliquots.Select(a => (new Aliquot(a as Aliquot) as IAliquot)).ToList()
+            };
         }
 
         public int AliquotIndex(IAliquot aliquot)

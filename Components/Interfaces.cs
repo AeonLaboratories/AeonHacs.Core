@@ -482,9 +482,9 @@ namespace AeonHacs.Components
         double Transmission { get; set; }
         Pyrometer.TimeCode ResponseTime { get; set; }
         double MillimetersMeasuringDistance { get; set; }
-        double TemperatureRangeMinimum { get;  }
-        double TemperatureRangeMaximum { get;  }
-        double MillimetersFocalLength { get;  }
+        double TemperatureRangeMinimum { get; }
+        double TemperatureRangeMaximum { get; }
+        double MillimetersFocalLength { get; }
         double MillimetersFieldDiameterMinimum { get; set; }
         double MillimetersAperture { get; set; }
         int StatusByte { get; }
@@ -1451,6 +1451,8 @@ namespace AeonHacs.Components
         List<string> AliquotIds { get; set; }
         int AliquotsCount { get; set; }
         int AliquotIndex(IAliquot aliquot);
+
+        Sample Clone();
     }
 
     public interface IAliquot : INamedObject, INotifyPropertyChanged
@@ -1505,7 +1507,7 @@ namespace AeonHacs.Components
         void ClearContents();
     }
 
-    public interface IInletPort: ILinePort
+    public interface IInletPort : ILinePort
     {
         List<InletPortType> SupportedPortTypes { get; set; }
         InletPortType PortType { get; set; }
@@ -1748,7 +1750,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// All of the valves that connect this Section directly to the given Section.
         /// </summary>
-        List < IValve> Connections(ISection s);
+        List<IValve> Connections(ISection s);
 
         /// <summary>
         /// Joins this Section to the given Section by opening
@@ -2139,7 +2141,7 @@ namespace AeonHacs.Components
         ProcessManager.ProcessStateCode ProcessState { get; }
         TimeSpan ProcessTime { get; }
         StepTracker ProcessStep { get; }
-        StepTracker ProcessSubStep { get;  }
+        StepTracker ProcessSubStep { get; }
         string ProcessToRun { get; set; }
         ProcessManager.ProcessTypeCode ProcessType { get; }
         ProcessSequence CurrentProcessSequence { get; }

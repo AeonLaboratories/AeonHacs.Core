@@ -609,7 +609,7 @@ namespace AeonHacs.Components
             set
             {
                 void samplePropertyChanged(object sender, PropertyChangedEventArgs e)
-                {                    
+                {
                     InletPort = sample?.InletPort;
                     NotifyPropertyChanged(nameof(Sample));
                 }
@@ -1091,7 +1091,7 @@ namespace AeonHacs.Components
                           $"Restore their states manually and Ok to try again or \r\n" +
                           $"Restart the application to abort the process.";
 
-            while (!Warn(message, subject).Ok());
+            while (!Warn(message, subject).Ok()) ;
         }
 
         protected virtual void ShutDownAllColdfingers()
@@ -1189,10 +1189,10 @@ namespace AeonHacs.Components
                 s.d13CPort.Sample = null;       //     remove it from there
 
             // Delete aliquots
-            s.Aliquots.ForEach(a => 
+            s.Aliquots.ForEach(a =>
             {
-                if (!a.GraphiteReactor.IsBlank() && 
-                    Find<GraphiteReactor>(a.GraphiteReactor) is GraphiteReactor gr && 
+                if (!a.GraphiteReactor.IsBlank() &&
+                    Find<GraphiteReactor>(a.GraphiteReactor) is GraphiteReactor gr &&
                     gr.Aliquot == a)
                 {
                     gr.Aliquot = null;          // also sets gr.Sample to null
@@ -1213,7 +1213,7 @@ namespace AeonHacs.Components
                 return false;       // it's not in the NamedObject Dictionary
             if (s.Aliquots.Any(a => Find<GraphiteReactor>(a.GraphiteReactor)?.Aliquot == a))
                 return false;       // it still has aliquots in graphite reactors
-            if (s.d13CPort?.Sample == s) 
+            if (s.d13CPort?.Sample == s)
                 return false;       // it still has a split in a d13CPort
             if (s.InletPort?.Sample == s && s.InletPort.State != LinePort.States.Complete)
                 return false;       // it still incomplete in its inlet port...
@@ -1387,8 +1387,8 @@ namespace AeonHacs.Components
         public bool KeepFeUnderH2
         {
             get
-            { 
-                var d = GetParameter("KeepFeUnderH2");  
+            {
+                var d = GetParameter("KeepFeUnderH2");
                 return !(double.IsNaN(d) || d == 0);
             }
         }
@@ -1416,7 +1416,7 @@ namespace AeonHacs.Components
         /// Wait for WaitTimerMinutes minutes.
         /// </summary>
         protected virtual void WaitForTimer() => WaitMinutes((int)WaitTimerMinutes);
-        
+
         /// <summary>
         /// Wait for IpMinutes minutes.
         /// </summary>
@@ -1456,7 +1456,7 @@ namespace AeonHacs.Components
             while (!WaitFor(() => Stopping || InletPort.Temperature < IpSetpoint, (int)MaximumMinutesIpToReachTemperature * 60000, 1000))
             {
                 InletPort.SampleFurnace.TurnOff();
-                
+
                 var subject = "Process Exception";
                 var message = $"{InletPort.SampleFurnace.Name} is taking too long to reach {IpSetpoint:0} °C.\r\n" +
                               $"Ok to keep waiting or Cancel to move on.\r\n" +
@@ -1651,7 +1651,7 @@ namespace AeonHacs.Components
                 stoppedBecause = "";
                 return false;
             }
-            
+
             WaitFor(shouldStop, -1, 1000);          // TODO: add a timeout
             SampleLog.Record($"{Sample.LabId}\tStopped collecting:\t{stoppedBecause}");
 
@@ -1986,7 +1986,7 @@ namespace AeonHacs.Components
                 {
                     ProcessSubStep.Start($"Exercising {v.Name}");
                     v.Exercise();
-                    if (secondsBetween > 0 )
+                    if (secondsBetween > 0)
                         WaitSeconds(secondsBetween);
                     ProcessSubStep.End();
                 }
@@ -2595,7 +2595,7 @@ namespace AeonHacs.Components
 
 
                 if (KeepFeUnderH2 || IronPreconditionH2Pressure <= 0)
-                    grs.ForEach(gr => gr.TurnOff() );
+                    grs.ForEach(gr => gr.TurnOff());
                 else
                 {
                     ProcessStep.Start("Evacuate GRs");
@@ -2778,12 +2778,12 @@ namespace AeonHacs.Components
         protected virtual void OpenLine(IVacuumSystem vacuumSystem)
         {
             ProcessStep.Start($"Ensure all {vacuumSystem.Name}'s sections are all well above freezing.");
-            var coldSections = Sections.Values.Where(s => 
-                s.VacuumSystem == vacuumSystem && 
-                s.Thermometer != null && 
+            var coldSections = Sections.Values.Where(s =>
+                s.VacuumSystem == vacuumSystem &&
+                s.Thermometer != null &&
                 s.Temperature < 5).ToList();
             coldSections.ForEach(s => s.Thaw());
-            if (!WaitFor(() => coldSections.All(s => s.Temperature > 5), 120*1000, 1000))
+            if (!WaitFor(() => coldSections.All(s => s.Temperature > 5), 120 * 1000, 1000))
             {
                 var subject = "Process Exception";
                 var message = "At least one coldfinger is taking too long to thaw.\r\n" +
@@ -3034,7 +3034,7 @@ namespace AeonHacs.Components
             InletPort.Close();
 
             ProcessStep.Start("Release the sample");
-            
+
             var subject = "Operator Needed";
             var message = $"Release the sealed sample '{Sample.LabId}' at {InletPort.Name}.\r\n" +
                           "Press Ok to continue";
@@ -3145,7 +3145,7 @@ namespace AeonHacs.Components
             manifold.ClosePorts();
             port.Open();
             manifold.OpenAndEvacuate(OkPressure);
-                Flush(manifold, 3, port);
+            Flush(manifold, 3, port);
             manifold.Evacuate(OkPressure);
             port.State = LinePort.States.Prepared;
             ProcessStep.End();
@@ -3354,7 +3354,7 @@ namespace AeonHacs.Components
                 Sample.TotalMicrogramsCarbon = ugC;
             }
 
-            SampleLog.Record( "Sample measurement:\r\n" +
+            SampleLog.Record("Sample measurement:\r\n" +
                 $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
                 $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
             );
@@ -3419,7 +3419,7 @@ namespace AeonHacs.Components
                 Split.IsolateFromVacuum();
                 MC_Split.Open();
 
-                var seconds = (int)Sample.Parameter("SplitEquilibrationSeconds");
+                var seconds = (int)GetParameter("SplitEquilibrationSeconds");
                 ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
                 WaitSeconds(seconds);
                 ProcessSubStep.End();
@@ -3755,12 +3755,13 @@ namespace AeonHacs.Components
                 Dilute();
                 DivideAliquots();
                 FreezeAliquots();
-                GraphitizeAliquots();
+                var holdSampleAtPorts = GetParameter("HoldSampleAtPorts");
+                if (holdSampleAtPorts.IsANumber() || holdSampleAtPorts == 0)
+                    GraphitizeAliquots();
             }
             catch (Exception e)
             {
                 var message = e.ToString();
-
                 Announce(message, type: NoticeType.Error);
             }
         }
@@ -3851,6 +3852,9 @@ namespace AeonHacs.Components
             var mc_gm = Find<Section>(pathName);
 
             string subject, message;
+
+            var nHoldSampleAtPorts = GetParameter("HoldSampleAtPorts");
+            var holdSampleAtPorts = nHoldSampleAtPorts.IsANumber() && nHoldSampleAtPorts != 0;
 
             if (mc_gm == null)
             {
@@ -3964,7 +3968,7 @@ namespace AeonHacs.Components
             {
                 ProcessStep.Start("Take d13C split");
 
-                var seconds = (int)Sample.Parameter("SplitEquilibrationSeconds");
+                var seconds = (int)GetParameter("SplitEquilibrationSeconds");
                 ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
                 WaitSeconds(seconds);
                 ProcessSubStep.End();
@@ -4014,13 +4018,17 @@ namespace AeonHacs.Components
                 if (d13CPort == null) return;
                 d13CPort.Coldfinger.RaiseLN();
                 Close_d13CPort(d13CPort);
-                AddCarrierTo_d13C();
+                if (holdSampleAtPorts)
+                    AddCarrierTo_d13C();
                 d13CPort.Coldfinger.Standby();
                 d13CPort.State = LinePort.States.Complete;
             }
             var tgr = Task.Run(jgr);
             var td13 = Task.Run(jd13);
             WaitFor(() => tgr.IsCompleted && td13.IsCompleted);
+
+            if (holdSampleAtPorts)
+                grCF.Standby();
 
             ProcessStep.End();
         }
@@ -4096,7 +4104,7 @@ namespace AeonHacs.Components
         /// <summary>
         /// Transfer CO2 from the MC to the IP.
         /// </summary>
-        protected virtual void TransferCO2FromMCToIP() {}
+        protected virtual void TransferCO2FromMCToIP() { }
 
 
         /// <summary>
@@ -4270,14 +4278,14 @@ namespace AeonHacs.Components
 
             //gms.ForEach(gm =>
             //{
-                var grs = new List<IGraphiteReactor>();
-                GraphiteReactors.ForEach(gr =>
-                {
-                    if (Manifold(gr) == gm && gr.Prepared)
-                        grs.Add(gr);
-                });
-                if (grs.Count > 0)
-                    CalibrateGRH2(grs);
+            var grs = new List<IGraphiteReactor>();
+            GraphiteReactors.ForEach(gr =>
+            {
+                if (Manifold(gr) == gm && gr.Prepared)
+                    grs.Add(gr);
+            });
+            if (grs.Count > 0)
+                CalibrateGRH2(grs);
             //});
         }
 
@@ -4689,12 +4697,12 @@ namespace AeonHacs.Components
 
             //for (int i = 0; i < amountOfCarrier; ++i)
             //{
-                gs.Admit();       // dunno, 1000-1500 Torr?
-                WaitSeconds(1);
-                gs.ShutOff();
-                im.VacuumSystem.Isolate();
-                im.JoinToVacuum();      // one cycle might keep ~10% in the IM
-                WaitSeconds(3);
+            gs.Admit();       // dunno, 1000-1500 Torr?
+            WaitSeconds(1);
+            gs.ShutOff();
+            im.VacuumSystem.Isolate();
+            im.JoinToVacuum();      // one cycle might keep ~10% in the IM
+            WaitSeconds(3);
             //im.Isolate();
             //}
 
