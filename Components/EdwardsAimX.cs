@@ -1,9 +1,7 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
-using System;
 using System.ComponentModel;
 using System.Text;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
@@ -73,7 +71,7 @@ namespace AeonHacs.Components
 
         #endregion AnalogInput
 
-        [JsonProperty, DefaultValue(2.0)]
+        [JsonProperty("ErrorSignalVoltage"), DefaultValue(2.0)]
         double errorSignalVoltage = 2.0;
 
         public virtual int Error
