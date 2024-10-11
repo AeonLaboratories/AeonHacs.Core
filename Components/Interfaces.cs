@@ -149,10 +149,12 @@ namespace AeonHacs.Components
 
         void Standby();
         void Thaw();
+        void Thaw(double temperature);
         void Freeze();
         void Raise();
 
         void ThawWait();
+        void ThawWait(double temperature);
         void FreezeWait();
         void RaiseLN();
 
@@ -1783,6 +1785,7 @@ namespace AeonHacs.Components
         /// If there isn't one, alert the operator to remove LN.
         /// </summary>
         void Thaw();
+        void Thaw(double temperature);
 
         bool IsActivelyCooling { get; }
         bool Frozen { get; }
@@ -1800,6 +1803,7 @@ namespace AeonHacs.Components
         /// Thaw the coldfinger.
         /// </summary>
         void ThawWait();
+        void ThawWait(double temperature);
 
         /// <summary>
         /// Ensure the coldfinger is fully Frozen.

@@ -392,10 +392,28 @@ namespace AeonHacs.Components
             Coldfinger.Standby();
         }
 
+
         /// <summary>
         /// Warm the coldfinger with forced air.
         /// </summary>
-        public void Thaw() => ChangeState(TargetStates.Thaw);
+        public void Thaw(double temperature)
+        {
+            thawTemperature = temperature;
+            ChangeState(TargetStates.Thaw);
+        }
+
+        /// <summary>
+        /// This is the temperature we want the VTC's
+        /// primary thermocouple to reach.
+        /// </summary>
+        double thawTemperature = 15;
+
+        // Generally, the coldfinger needs to be warmed to a
+        // temperature above than the desired VTC temperature,
+        // so set the desired VTC temperature a little lower
+        // than what can be achieved by ambient air flowing
+        // into the Coldfinger.
+        public void Thaw() => Thaw(Coldfinger.AirTemperature - Coldfinger.NearAirTemperature);
 
         /// <summary>
         /// Reach and maintain the maximum level of liquid nitrogen in the
@@ -409,10 +427,13 @@ namespace AeonHacs.Components
 
         public void Raise() => Freeze();
 
-        public virtual void ThawWait()
+        public virtual void ThawWait() => ThawWait(Coldfinger.AirTemperature - Coldfinger.NearAirTemperature);
+        public virtual void ThawWait(double temperature)
         {
             if (TargetState != TargetStates.Thaw)
-                Thaw();
+                Thaw(temperature);
+            else
+                thawTemperature = temperature;
             StepTracker.Default?.Start($"Wait for {Name} > 2 °C");
             WaitFor(() => Thawed || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
             StepTracker.Default?.End();
@@ -580,10 +601,17 @@ namespace AeonHacs.Components
                     break;
                 case TargetStates.Thaw:
                     HeaterOff();
-                    if (Coldfinger.Thawed)
+
+                    if (Temperature >= thawTemperature)
                         Standby();
-                    else if (Coldfinger.State != Components.Coldfinger.States.Thawing)
-                        Coldfinger.Thaw();
+                    else
+                    {
+                        // The Coldfinger thaw temperature is perhaps impossible,
+                        // but that's ok. We want the air to keep flowing until the
+                        // VTC temperature reaches the target.
+                        if (Coldfinger.State != Components.Coldfinger.States.Thawing)
+                            Coldfinger.Thaw(thawTemperature + 10);
+                    }
                     break;
                 case TargetStates.Standby:
                     if (Heater.IsOn)

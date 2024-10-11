@@ -453,7 +453,19 @@ namespace AeonHacs.Components
         /// <summary>
         /// Warm the coldfinger with forced air.
         /// </summary>
-        public void Thaw() => ChangeState(TargetStates.Thaw);
+        public void Thaw() => 
+            Thaw(AirTemperature - NearAirTemperature);
+
+
+        /// <summary>
+        /// Warm the coldfinger with forced air to the specified temperature.
+        /// </summary>
+        /// <param name="temperature"></param>
+        public void Thaw(double temperature)
+        {
+            Target = temperature;
+            ChangeState(TargetStates.Thaw);
+        }
 
         /// <summary>
         /// Ensures the desired TargetState is in effect.
@@ -594,7 +606,6 @@ namespace AeonHacs.Components
                     //AirOff();
                     break;
                 case TargetStates.Thaw:
-                    Target = AirTemperature - NearAirTemperature;
                     LNOff();
                     AirOn();
                     if (AirValve == null || !AirValve.IsOpened) Standby();
@@ -639,10 +650,15 @@ namespace AeonHacs.Components
 
         public Action SlowToFreeze { get; set; }
 
-        public virtual void ThawWait()
+        public void ThawWait() =>
+            ThawWait(AirTemperature - NearAirTemperature);
+
+        public virtual void ThawWait(double temperature)
         {
             if (TargetState != TargetStates.Thaw)
-                Thaw();
+                Thaw(temperature);
+            else
+                Target = temperature;
             StepTracker.Default?.Start($"Wait for {Name} > {AirTemperature - NearAirTemperature} °C");
             WaitFor(() => Thawed || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
             StepTracker.Default?.End();

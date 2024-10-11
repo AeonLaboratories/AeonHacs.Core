@@ -2008,15 +2008,15 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void ExerciseLNValves()
     {
         ProcessStep.Start("Exercise all LN Manifold valves");
-        foreach (var ftc in FindAll<Coldfinger>())
-            ftc.LNValve.Exercise();
+        foreach (var valve in FindAll<IColdfinger>().Select(x => (x is VTColdfinger v ? v.Coldfinger : x as Coldfinger).LNValve))
+            valve?.Exercise();
         ProcessStep.End();
     }
 
     protected virtual void CloseLNValves()
     {
-        foreach (var ftc in FindAll<Coldfinger>())
-            ftc.LNValve.Close();
+        foreach (var valve in FindAll<IColdfinger>().Select(x => (x is VTColdfinger v ? v.Coldfinger : x as Coldfinger).LNValve))
+            valve?.Close();
     }
 
     protected virtual void CalibrateRS232Valves()
@@ -2777,9 +2777,9 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.Start($"Ensure all {vacuumSystem.Name}'s sections are all well above freezing.");
         var coldSections = Sections.Values.Where(s =>
             s.VacuumSystem == vacuumSystem &&
-            s.Thermometer != null &&
-            s.Temperature < 5).ToList();
-        coldSections.ForEach(s => s.Thaw());
+            s.Coldfinger is IColdfinger c &&
+            c.Temperature < 5).ToList();
+        coldSections.ForEach(s => s.Thaw(10));
         if (!WaitFor(() => coldSections.All(s => s.Temperature > 5), 120 * 1000, 1000))
         {
             Subject = "Process Exception";
@@ -3201,10 +3201,7 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.End();
     }
 
-    protected virtual void TransferCO2FromCTToVTT()
-    {
-        TransferCO2(FirstTrap, VTT);
-    }
+    protected virtual void TransferCO2FromCTToVTT() => TransferCO2(FirstTrap, VTT, -30);
 
     #endregion Collect
 
@@ -3218,9 +3215,8 @@ public class Cegs : ProcessManager, ICegs
         VTT_MC.Close();
 
         var vtc = VTT.Coldfinger as VTColdfinger;
-        var ftcMC = MC.Coldfinger;
         vtc.Regulate(targetTemp);
-        ftcMC.FreezeWait();
+        MC.FreezeWait();
 
         targetTemp -= 1;            // continue at 1 deg under
         ProcessSubStep.Start($"Wait for {VTT.Name} to reach {targetTemp:0} °C");
@@ -3240,7 +3236,7 @@ public class Cegs : ProcessManager, ICegs
 
         VTT_MC.Open();
         WaitMinutes((int)ExtractionMinutes);
-        ftcMC.RaiseLN();
+        MC.RaiseLN();
 
         MC.Manometer.WaitForStable(5);
         MC.Isolate();
@@ -3366,7 +3362,7 @@ public class Cegs : ProcessManager, ICegs
             ProcessStep.Start("Release incondensables");
 
             MC.OpenPorts();
-            MC.Raise();
+            MC.RaiseLN();
             MC.JoinToVacuum();
             MC.VacuumSystem.Evacuate(CleanPressure);
 
@@ -3387,7 +3383,7 @@ public class Cegs : ProcessManager, ICegs
         {
             ProcessSubStep.Start("Bring MC to uniform temperature");
             MC.Thaw();
-            WaitFor(() => MC.Thawed);    // TODO: add timeout?
+            WaitFor(() => MC.Thawed); // (timeout is handled by Coldfinger)
             ProcessSubStep.End();
         }
 
@@ -3463,20 +3459,19 @@ public class Cegs : ProcessManager, ICegs
             MC.Ports.Count > 2 &&
             MC.Ports[1].IsOpened) // MC.Ports[0].Opened can be presumed, since AliquotsCount == 2
         {
-            var ftcMC = MC.Coldfinger;
-            ftcMC.FreezeWait();
+            MC.FreezeWait();
 
             ProcessSubStep.Start($"Wait for the sample to freeze in {MC.Name}");
             // CO2TransferMinutes is certainly excessive here, but how much is right?
             WaitFor(() => ProcessSubStep.Elapsed.TotalMinutes >= CO2TransferMinutes / 2);
-            ftcMC.RaiseLN();
+            MC.RaiseLN();
             ProcessSubStep.End();
 
             MC.Ports[1].Close();
 
             ProcessSubStep.Start($"Thaw and expand sample into {MC.Name}..{MC.Ports[0].Name}");
-            ftcMC.Thaw();
-            WaitFor(() => ftcMC.Thawed);    // TODO: add timeout?
+            MC.Thaw();
+            WaitFor(() => MC.Thawed);    // TODO: add timeout?
             ProcessSubStep.End();
         }
 
@@ -3766,7 +3761,7 @@ public class Cegs : ProcessManager, ICegs
     // If fromSection doesn't have a Coldfinger or VTColdfinger, this method
     // assumes fromSection is thawed (i.e., if there is an LN dewar on
     // fromSection, it must be removed before calling this method).
-    protected virtual void TransferCO2(ISection fromSection, ISection toSection)
+    protected virtual void TransferCO2(ISection fromSection, ISection toSection, double thawTemperature = double.NaN)
     {
         var c1f = fromSection.Chambers.First().Name;
         var c1l = fromSection.Chambers.Last().Name;
@@ -3792,7 +3787,10 @@ public class Cegs : ProcessManager, ICegs
             toSection.EmptyAndFreeze(CleanPressure);
 
         // start thawing
-        fromSection.Thaw();
+        if (thawTemperature.IsANumber())
+            fromSection.Thaw(thawTemperature);
+        else
+            fromSection.Thaw();
 
         ProcessStep.Start("Wait for transfer start conditions.");
         WaitFor(() =>

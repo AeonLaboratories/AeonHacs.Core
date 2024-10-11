@@ -1,10 +1,8 @@
 ﻿using AeonHacs.Utilities;
-using MimeKit;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
@@ -567,6 +565,13 @@ namespace AeonHacs.Components
             else
                 Thaw();
         }
+        public virtual void ThawWait(double temperature)
+        {
+            if (Coldfinger != null)
+                Coldfinger.ThawWait(temperature);
+            else
+                Thaw(temperature);
+        }
 
         public virtual void FreezeWait()
         {
@@ -622,6 +627,20 @@ namespace AeonHacs.Components
             {
                 var subject = "Operator Needed";
                 var message = $"Remove LN from {Name} and warm coldfinger to ambient.";
+
+                Alert(message, subject);
+                Ask(message, subject, NoticeType.Alert);
+            }
+        }
+
+        public virtual void Thaw(double temperature)
+        {
+            if (Coldfinger != null)
+                Coldfinger.Thaw(temperature);
+            else
+            {
+                var subject = "Operator Needed";
+                var message = $"Remove LN from {Name} and warm coldfinger to {temperature:0} °C.";
 
                 Alert(message, subject);
                 Ask(message, subject, NoticeType.Alert);

@@ -89,7 +89,7 @@ namespace AeonHacs
         /// <summary>
         /// Whether x is a number (not NaN and not Infinity).
         /// </summary>
-        public static bool IsANumber(this double x) => !(double.IsNaN(x) || double.IsInfinity(x));
+        public static bool IsANumber(this double x) => double.IsFinite(x);
 
         /// <summary>
         /// Whether x is NaN.
