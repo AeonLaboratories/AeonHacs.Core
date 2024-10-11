@@ -70,11 +70,26 @@ namespace AeonHacs.Components
 
                 var tokens = expression.Split('.');
                 Source = Find<NamedObject>(tokens[0]);
+
+                if (Source == null)
+                {
+                    Notify.Announce($"{Name}: Source object '{tokens[0]}' not found.", "Configuration Error", NoticeType.Error);
+                    return () => double.NaN;
+                }
+
                 Expression expr = System.Linq.Expressions.Expression.Constant(Source);
 
                 foreach (var token in tokens.Skip(1))
                 {
-                    expr = System.Linq.Expressions.Expression.PropertyOrField(expr, token);
+                    try
+                    {
+                        expr = System.Linq.Expressions.Expression.PropertyOrField(expr, token);
+                    }
+                    catch
+                    {
+                        Notify.Announce($"{Name}: '{expression}' failed at '{token}'.", "Configuration Error", NoticeType.Error);
+                        return () => double.NaN;
+                    }
                 }
 
                 return System.Linq.Expressions.Expression.Lambda<Func<double>>(expr).Compile();

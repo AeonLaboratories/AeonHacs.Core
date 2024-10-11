@@ -107,8 +107,10 @@ namespace AeonHacs.Components
             set
             {
                 Ensure(ref chambers, value, NotifyPropertyChanged);
-                Manometer = chambers?.Find(x => x != null && x.Manometer != null) is Chamber mc ? mc.Manometer : default;
-                Thermometer = chambers?.Find(x => x != null && x.Thermometer != null) is Chamber tc ? tc.Thermometer : default;
+                Manometer = chambers?.Find(x => x?.Manometer != null)?.Manometer;
+                Thermometer = chambers?.Find(x => x?.Thermometer != null)?.Thermometer;
+                Heater = chambers?.Find(x => x?.Heater != null)?.Heater;
+                Coldfinger = chambers?.Find(x => x?.Coldfinger != null)?.Coldfinger;
             }
         }
         List<IChamber> chambers;
@@ -236,7 +238,7 @@ namespace AeonHacs.Components
         public double CurrentVolume(bool includePorts)
         {
             double ml = 0;
-            Chambers.ForEach(c => ml += c.MilliLiters);
+            Chambers?.ForEach(c => ml += c.MilliLiters);
             InternalValves?.ForEach(v => { if (v.IsOpened) ml += v.OpenedVolumeDelta; });
             if (includePorts)
                 Ports?.ForEach(p => { if (p.IsOpened) ml += p.MilliLiters + p.Valve.OpenedVolumeDelta; });
@@ -248,7 +250,7 @@ namespace AeonHacs.Components
         /// </summary>
         public IManometer Manometer
         {
-            get => manometer ?? (Chambers.Find(x => x.Manometer != null) is IChamber c ? c.Manometer : null);
+            get => manometer ?? (Manometer = Chambers?.Find(x => x?.Manometer != null)?.Manometer);
             set => Ensure(ref manometer, value, NotifyPropertyChanged);
         }
         IManometer manometer;
@@ -259,16 +261,11 @@ namespace AeonHacs.Components
         /// </summary>
         public IThermometer Thermometer
         {
-            get => thermometer ?? (Chambers.Find(x => x.Thermometer != null) is IChamber c ? c.Thermometer : null);
+            get => thermometer ?? (Thermometer = Chambers?.Find(x => x?.Thermometer != null)?.Thermometer);
             set => Ensure(ref thermometer, value, NotifyPropertyChanged);
         }
         IThermometer thermometer;
         public double Temperature => Thermometer?.Temperature ?? 0;
-
-
-
-
-
 
         /// <summary>
         /// The flow valve controlled by FlowManager.
@@ -300,7 +297,7 @@ namespace AeonHacs.Components
         /// </summary>
         public IHeater Heater
         {
-            get => heater ?? (Chambers.Find(x => x.Heater != null) is IChamber c ? c.Heater : null);
+            get => heater ?? (Heater = Chambers?.Find(x => x?.Heater != null)?.Heater);
             set => Ensure(ref heater, value);
         }
         IHeater heater;
@@ -310,7 +307,7 @@ namespace AeonHacs.Components
         /// </summary>
         public IColdfinger Coldfinger
         {
-            get => coldfinger ?? (Chambers.Find(x => x.Coldfinger != null) is IChamber c ? c.Coldfinger : null);
+            get => coldfinger ?? (Coldfinger = Chambers?.Find(x => x?.Coldfinger != null)?.Coldfinger);
             set => Ensure(ref coldfinger, value);
         }
         IColdfinger coldfinger;
