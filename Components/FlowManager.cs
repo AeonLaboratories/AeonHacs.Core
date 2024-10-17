@@ -27,7 +27,7 @@ namespace AeonHacs.Components
         string FlowValveName { get => FlowValve?.Name; set => flowValveName = value; }
         string flowValveName;
         /// <summary>
-        /// The valve that adjusts the flow which changes the DynamicQuantity Value.
+        /// The valve that alters the flow which changes Meter.Value.
         /// </summary>
         public IRS232Valve FlowValve
         {
@@ -40,7 +40,7 @@ namespace AeonHacs.Components
         string MeterName { get => Meter?.Name; set => meterName = value; }
         string meterName;
         /// <summary>
-        /// The Meter that provides the Value that varies as the flow valve is adjusted.
+        /// A Meter whose Value varies as the flow valve is adjusted.
         /// </summary>
         public IMeter Meter
         {
@@ -73,8 +73,8 @@ namespace AeonHacs.Components
         double secondsCycle = 0.75;
 
         /// <summary>
-        /// An initial valve movement, to make before entering the flow
-        /// management control loop. Sometimes used to "crack open" the flow valve.
+        /// An initial valve movement, to be completed before entering 
+        /// the flow management control loop.
         /// </summary>
         [JsonProperty, DefaultValue(0)]
         public int StartingMovement
@@ -85,7 +85,8 @@ namespace AeonHacs.Components
         int startingMovement = -0;       // usually negative
 
         /// <summary>
-        /// Maximum valve movement for any single adjustment, in valve Position units
+        /// Maximum valve movement for any single adjustment, in valve Position units.
+        /// Aeon actuators have a resolution of 96 positions for 360 degrees.
         /// </summary>
         [JsonProperty, DefaultValue(24)]
         public int MaximumMovement
@@ -121,27 +122,27 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// A tolerable difference between Value and TargetValue, within which
-        /// no valve adjustment need be made.
+        /// no valve adjustment is made.
         /// </summary>
-        [JsonProperty, DefaultValue(0.02)]
+        [JsonProperty, DefaultValue(0.1)]
         public double Deadband
         {
             get => deadband;
             set => Ensure(ref deadband, Math.Abs(value));
         }
-        double deadband = 0.02;
+        double deadband = 0.1;
 
         /// <summary>
         /// If false, Deadband is a fixed constant in units of TargetValue;
         /// if true, the dead band is the product of Deadband and TargetValue.
         /// </summary>
-        [JsonProperty, DefaultValue(true)]
+        [JsonProperty, DefaultValue(false)]
         public bool DeadbandIsFractionOfTarget
         {
             get => deadbandIsFractionOfTarget;
             set => Ensure(ref deadbandIsFractionOfTarget, value);
         }
-        bool deadbandIsFractionOfTarget = true;
+        bool deadbandIsFractionOfTarget = false;
 
         /// <summary>
         /// Estimated Positions to move the flow valve to correct an error of one unit.
@@ -240,6 +241,9 @@ namespace AeonHacs.Components
         /// </summary>
         public void Start() => Start(TargetValue);
 
+        /// <summary>
+        /// Whether the control loop is active.
+        /// </summary>
         public bool Looping
         {
             get => looping;
@@ -248,7 +252,7 @@ namespace AeonHacs.Components
         bool looping;
 
         /// <summary>
-        /// Start managing the flow with this new TargetValue
+        /// Start managing the flow with the given targetValue
         /// </summary>
         public void Start(double targetValue)
         {
@@ -375,7 +379,7 @@ namespace AeonHacs.Components
                         ProcessStep.Start($"{Name}: e={error:0.000} r={roc:0.000}/{targetRate:0.000} g={g:0.0} m={movement:0.0}");
 
                     int amountToMove = Math.Min(Math.Abs(MaximumMovement), Math.Abs(movement)).ToInt();
-                    if (amountToMove == 0 && (manageRate || outOfDeadband) &&  anticipatedTimeToTarget > Math.Max(2 * Lag, 10 * secondsCycle))
+                    if (amountToMove == 0 && (manageRate || outOfDeadband) && anticipatedTimeToTarget > Math.Max(2 * Lag, 10 * secondsCycle))
                         amountToMove = g > 0 ? 1 : -1;
 
                     if (amountToMove > 0)
