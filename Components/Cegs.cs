@@ -1552,7 +1552,9 @@ public class Cegs : ProcessManager, ICegs
         trap.Evacuate();
         if (freezeTrap)
             trap.FreezeWait();
+        collectionPath.Isolate();
         collectionPath.FlowValve?.CloseWait();
+        collectionPath.Open();
         InletPort.Open();
         Sample.CoilTrap = trap.Name;
         InletPort.State = LinePort.States.InProcess;
@@ -2772,6 +2774,10 @@ public class Cegs : ProcessManager, ICegs
         OpenLine(VacuumSystem);
     }
 
+    /// <summary>
+    /// Opens all sections serviced by the vacuumSystem, first thawing, if needed, to ensure they are above freezing.
+    /// </summary>
+    /// <param name="vacuumSystem"></param>
     protected virtual void OpenLine(IVacuumSystem vacuumSystem)
     {
         ProcessStep.Start($"Ensure all {vacuumSystem.Name}'s sections are all well above freezing.");
@@ -2790,6 +2796,7 @@ public class Cegs : ProcessManager, ICegs
             Announce(Message, Subject, NoticeType.Error);
         }
         ProcessStep.End();
+
         vacuumSystem.OpenLine();
     }
 
@@ -4490,13 +4497,17 @@ public class Cegs : ProcessManager, ICegs
 
         ProcessStep.Start($"Leak checking {port.Name}.");
 
-        ProcessSubStep.Start($"Evacuate {manifold.Name}+{port.Name} to below {OkPressure} Torr");
+        var basePressure = GetParameter("LeakTestBasePressure");
+        if (!basePressure.IsANumber())
+            basePressure = OkPressure;
+
+        ProcessSubStep.Start($"Evacuate {manifold.Name}+{port.Name} to below {basePressure:0} Torr");
         manifold.Isolate();
         manifold.ClosePortsExcept(port);
         manifold.Open();
         port.Open();
         // OkPressure is a convenient but high starting pressure; ideally, ror tests start at ultimate pressure.
-        manifold.Evacuate(OkPressure);
+        manifold.Evacuate(basePressure);
         ProcessSubStep.End();
 
         ProcessStep.End();
