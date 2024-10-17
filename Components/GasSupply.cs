@@ -380,14 +380,18 @@ namespace AeonHacs.Components
                             break;
                     }
 
+                    // accept 98% of the target
+                    if (Meter.Value >= 0.98 * pressure)
+                        break;
+
+                    // If the pressure is lower than 98% of the target, ask the user what to do.
                     subject = "Process Exception";
                     message = $"Couldn't admit {pressure:0} {Meter.UnitSymbol} of {GasName} into {Destination.Name}.\r\n" +
                                   $"Ok to try again.\r\n" +
                                   $"Cancel to continue at {Meter.Value:0} {Meter.UnitSymbol}.\r\n" +
                                   $"Restart the application to abort the process.";
 
-                    // If the pressure is still too low, tolerate 98% of the target, otherwise ask the user what to do.
-                    if (Meter.Value < 0.98 * pressure && !Warn(message, subject, NoticeType.Error).Ok())
+                    if (!Warn(message, subject, NoticeType.Error).Ok())
                         break;
                 }
             }
