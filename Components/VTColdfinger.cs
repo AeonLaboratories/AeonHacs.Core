@@ -61,6 +61,8 @@ namespace AeonHacs.Components
         }
         IHeater heater;
 
+        public ILNManifold LNManifold => Coldfinger.LNManifold;
+
         /// <summary>
         /// The Coldfinger that manages the liquid nitrogen level in the device.
         /// </summary>

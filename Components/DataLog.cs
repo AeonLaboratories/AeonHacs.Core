@@ -91,7 +91,7 @@ namespace AeonHacs.Components
                         return () => double.NaN;
                     }
                 }
-
+                expr = System.Linq.Expressions.Expression.Convert(expr, typeof(double));
                 return System.Linq.Expressions.Expression.Lambda<Func<double>>(expr).Compile();
             }
 

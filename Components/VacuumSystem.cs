@@ -471,8 +471,7 @@ namespace AeonHacs.Components
         {
             if (MySection == null) return;
             ProcessStep?.Start($"Open {Name} line");
-            if (!MySection.IsOpened || !MySection.PathToVacuum.IsOpened())
-                MySection.OpenAndEvacuate();
+            MySection.OpenAndEvacuate();
             ProcessStep.End();
         }
 

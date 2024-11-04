@@ -139,6 +139,7 @@ namespace AeonHacs.Components
 
     public interface IColdfinger : IHacsComponent, ITemperature, IStopAction
     {
+        ILNManifold LNManifold { get; }
         bool Thawing { get; }
         bool Thawed { get; }
         bool Frozen { get; }
@@ -164,7 +165,7 @@ namespace AeonHacs.Components
     public interface IVTColdfinger : IColdfinger, IIsOn, ISwitchable, IStopAction
     {
         double Setpoint { get; set; }
-
+        IHeater Heater { get; }
         void Regulate();
         void Regulate(double setpoint);
     }
@@ -1343,6 +1344,8 @@ namespace AeonHacs.Components
         int ControlOutput { get; }
         long RS232UpdatesReceived { get; }
 
+        void MoveTo(int position);
+
         /// <summary>
         /// Automatically determine the valve's closed position.
         /// </summary>
@@ -1748,6 +1751,11 @@ namespace AeonHacs.Components
         /// Close all of the Ports except the given one.
         /// </summary>
         void ClosePortsExcept(IPort port);
+
+        /// <summary>
+        /// Close all of the Ports except the given ones.
+        /// </summary>
+        void ClosePortsExcept(IEnumerable<IPort> ports);
 
         /// <summary>
         /// All of the valves that connect this Section directly to the given Section.

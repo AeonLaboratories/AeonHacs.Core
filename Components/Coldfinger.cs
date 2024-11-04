@@ -13,14 +13,14 @@ namespace AeonHacs.Components
     public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.States>, IColdfinger
     {
         #region static
-        static List<Coldfinger> List { get; set; }
+        static List<IColdfinger> List { get; set; }
 
         /// <summary>
         /// One or more of the FTCs supplied by the given LNManifold currently need it.
         /// </summary>
         public static bool AnyNeed(LNManifold lnManifold)
         {
-            if (List == null) List = CachedList<Coldfinger>();
+            if (List == null) List = CachedList<IColdfinger>();
             return List.FirstOrDefault(ftc =>
                 ftc.LNManifold == lnManifold &&
                 ftc.IsActivelyCooling) != null;
@@ -717,7 +717,8 @@ namespace AeonHacs.Components
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder($"{Name}: {State}, {Temperature:0.###} °C");
+            var name = Name.IsBlank() ? nameof(Coldfinger) : Name;
+            StringBuilder sb = new StringBuilder($"{name}: {State}, {Temperature:0.###} °C");
             if (State != States.Standby)
                 sb.Append($", Target = {Target:0.###} °C");
             StringBuilder sb2 = new StringBuilder();

@@ -1,10 +1,8 @@
-﻿using AeonHacs;
-using AeonHacs.Utilities;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Text;
-using System.Threading;
 using static AeonHacs.Notify;
 
 namespace AeonHacs.Components
@@ -41,7 +39,15 @@ namespace AeonHacs.Components
         /// from Position 0.
         /// </summary>
         [JsonProperty]
-        public override int Position { get => RxValve.Position; protected set => RxValve.Device.Position = value; }
+        public override int Position
+        {
+            get => RxValve.Position;
+            protected set
+            {
+                RxValve.Device.Position = value;
+                NotifyPropertyChanged(nameof(Position));
+            }
+        }
 
         /// <summary>
         /// The minimum Position. Except during calibration, the
@@ -215,6 +221,24 @@ namespace AeonHacs.Components
             }
 
             base.DoOperation(operationName);
+        }
+
+        public virtual void MoveTo(int position)
+        {
+            var operationName = "_MoveTo";   // temporary
+            var operation = FindOperation(operationName) as ActuatorOperation;
+            if (operation != null) ActuatorOperations.Remove(operation);
+            var closeOp = FindOperation("Close");
+            operation = new ActuatorOperation()
+            {
+                Name = operationName,
+                Incremental = false,
+                Value = position,
+                Configuration = closeOp.Configuration
+            };
+            ActuatorOperations.Add(operation);
+            DoWait(operation);
+            ActuatorOperations.Remove(operation);
         }
 
         protected override void UpdateValveState()

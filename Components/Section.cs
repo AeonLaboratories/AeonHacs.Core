@@ -502,6 +502,23 @@ namespace AeonHacs.Components
             Ports?.ForEach(p => { if (p != port) p.Close(); });
 
         /// <summary>
+        /// Close all of the Ports except the given ones.
+        /// </summary>
+        public void ClosePortsExcept(IEnumerable<IPort> ports)
+        {
+            var others = Ports.Except(ports);
+            foreach(var p in others)
+                p.Close();
+        }
+
+        // TODO: what needs this?
+        //protected virtual void ZeroPressureGauges(IEnumerable<IChamber> chambers)
+        //{
+        //    foreach (var chamber in chambers)
+        //        TryToZeroManometer(chamber);
+        //}
+
+        /// <summary>
         /// A list of all valves that directly connect this Section to the given Section.
         /// </summary>
         /// <returns>null if no connecting valves are found</returns>

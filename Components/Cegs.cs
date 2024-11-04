@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using static AeonHacs.Components.CegsPreferences;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
@@ -1081,11 +1082,8 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void OnSlowToFreeze()
     {
-        var coldfingers = FindAll<Coldfinger>();
-        var on = coldfingers.FindAll(cf => cf.TargetState >= Coldfinger.TargetStates.Freeze);
-        coldfingers.ForEach(cf => cf.Standby());
-        FindAll<VTColdfinger>().ForEach(vtc => vtc.Standby());
-        var list = string.Join(", ", on.Select(cf => cf.Name));
+        var coldfingers = FindAll<IColdfinger>(cf => cf.IsActivelyCooling);
+        var list = string.Join(", ", coldfingers.Select(cf => cf.Name));
 
         Subject = "Process Exception";
         Message = $"A coldfinger is taking too long to freeze.\r\n" +
@@ -1554,9 +1552,11 @@ public class Cegs : ProcessManager, ICegs
             trap.FreezeWait();
         collectionPath.Isolate();
         collectionPath.FlowValve?.CloseWait();
-        collectionPath.Open();
+        if (collectionPath.FlowManager != null)
+            collectionPath.OpenAndEvacuate();
         InletPort.Open();
-        Sample.CoilTrap = trap.Name;
+        Sample.CoilTrap = trap.Name;    // TODO: rename Sample.CoilTrap to Sample.FirstTrap?
+                                        // or maybe Sample.Traps, and append trap.Name for each?
         InletPort.State = LinePort.States.InProcess;
         CollectStopwatch.Restart();
         collectionPath.FlowManager?.Start(FirstTrapBleedPressure);
@@ -1658,7 +1658,7 @@ public class Cegs : ProcessManager, ICegs
         }
 
         WaitFor(shouldStop, -1, 1000);          // TODO: add a timeout
-        SampleLog.Record($"{Sample.LabId}\tStopped collecting:\t{stoppedBecause}");
+        SampleLog.Record($"{Sample.LabId}\tCollection stop condition met:\t{stoppedBecause}");
 
         ProcessStep.End();
     }
@@ -1699,8 +1699,19 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void FinishCollecting()
     {
         var p = FirstTrap?.Manometer;
+        var im = Manifold(InletPort);
+        var flowValveIsOpened = IM_FirstTrap.FlowValve?.IsOpened ?? true;
         ProcessStep.Start($"Wait for {FirstTrap.Name} pressure to stop falling");
-        WaitFor(() => !(p?.IsFalling ?? true)); // don't wait if there's no manometer
+        if ( p != null) // don't wait if there's no manometer
+            WaitFor(() => 
+            {
+                if (!flowValveIsOpened && im.Pressure <= FirstTrapEndPressure)
+                {
+                    IM_FirstTrap.FlowValve.OpenWait();
+                    flowValveIsOpened = true;
+                }
+                return !p.IsFalling; 
+            });
         ProcessStep.End();
     }
 
@@ -2051,7 +2062,7 @@ public class Cegs : ProcessManager, ICegs
         if (InletPort.State == LinePort.States.Loaded ||
             InletPort.State == LinePort.States.Prepared)
             InletPort.State = LinePort.States.InProcess;
-        if (openLine) OpenLine();
+        if (openLine) Manifold(InletPort).VacuumSystem.OpenLine();
         WaitRemaining((int)QuartzFurnaceWarmupMinutes);
 
         if (InletPort.NotifySampleFurnaceNeeded)
@@ -2589,7 +2600,7 @@ public class Cegs : ProcessManager, ICegs
             if (IronPreconditionH2Pressure > 0)
             {
                 gm.OpenAndEvacuate(OkPressure);
-                OpenLine();
+                gm.VacuumSystem.OpenLine();
             }
             WaitRemaining((int)IronPreconditioningMinutes);
             ProcessStep.End();
@@ -2614,7 +2625,7 @@ public class Cegs : ProcessManager, ICegs
 
         grs.ForEach(gr => gr.PreparationComplete());
 
-        OpenLine();
+        gm.VacuumSystem.OpenLine();
 
         Subject = "Operator Needed";
         Message = "Graphite reactor preparation complete.";
@@ -2628,19 +2639,33 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void PrepareIPsForCollection(List<IInletPort> ips = null)
     {
+        bool targeted(IInletPort ip) =>
+            ip.State == LinePort.States.Loaded &&
+            ip.PortType != InletPortType.GasSupply;
+
         if (ips == null)
-            ips = InletPorts.FindAll(ip => ip.State == LinePort.States.Loaded);
+            ips = InletPorts.FindAll(targeted);
         else
-            ips = ips.FindAll(ip => ip.State == LinePort.States.Loaded);
+            ips = ips.FindAll(targeted);
 
         if (ips.Count < 1) return;
+        var portNames = string.Join(", ", ips.Select(cf => cf.Name));
 
         // close ips that aren't awaiting prep
         foreach (var ip in InletPorts.Except(ips))
             ip.Close();
 
-        ProcessStep.Start("Evacuate & Flush IPs with inert gas");
         var im = Manifold(ips);
+        if (im == null)
+        {
+            Subject = "Process Exception";
+            Message = $"No manifold includes all of these ports:\r\n" +
+                $"\t{portNames}.";
+            Announce(Message, Subject);
+            return;
+        }
+
+        ProcessStep.Start("Evacuate & Flush IPs with inert gas");
         im.Isolate();
         ips.ForEach(ip => ip.Open());
         im.Evacuate(OkPressure);
@@ -2659,8 +2684,9 @@ public class Cegs : ProcessManager, ICegs
         ips.ForEach(ip => msg += $"\r\n\t{ip?.Sample?.LabId} at {ip.Name}");
 
         Subject = "Operator Needed";
-        Message = "Release the prepared samples.\r\n" +
-                      "Ok to continue.";
+        Message = "Release the samples at ports:\r\n" +
+            $"\t{portNames}.\r\n" +
+            "Ok to continue.";
 
         Alert(Message, Subject);
         Ask(Message, Subject, NoticeType.Information);
@@ -2668,7 +2694,7 @@ public class Cegs : ProcessManager, ICegs
 
         ips.ForEach(ip => ip.State = LinePort.States.Prepared);
 
-        //OpenLine();
+        //im.VacuumSystem.OpenLine();
     }
 
     protected virtual void Prepare_d13CPorts() { }
@@ -2724,7 +2750,7 @@ public class Cegs : ProcessManager, ICegs
 
         grs.ForEach(gr => gr.PreparationComplete());
 
-        OpenLine();
+        gm.VacuumSystem.OpenLine();
     }
 
     #endregion GR service
@@ -3079,7 +3105,7 @@ public class Cegs : ProcessManager, ICegs
 
         SampleLog.Record($"Carbonate vial pressure: {pIM:0}");
 
-        OpenLine();
+        im.VacuumSystem.OpenLine();
     }
 
     protected virtual void LoadCarbonateSample()
@@ -3117,7 +3143,113 @@ public class Cegs : ProcessManager, ICegs
         gs.ShutOff();
     }
 
-    protected virtual void Evacuate_d13CPort()
+    /// <summary>
+    /// Prompt the operator to remove and replace the vials at Completed d13C ports, 
+    /// and then prepare the new vials along with any other ports that are Loaded.
+    /// If no ports are Completed, then already Loaded ports may be prepared.
+    /// </summary>
+    protected virtual void Reload_d13CPorts()
+    {
+        var ports = FindAll<d13CPort>(p => p.State == LinePort.States.Complete);
+        var count = ports.Count;
+
+        if (count == 0)
+        {
+            if (FirstOrDefault<d13CPort>(p => p.State == LinePort.States.Loaded) == null)
+            {
+                Subject = "Process Alert";
+                Message = $"Nothing to do! No vial ports are Completed or Loaded.";
+                Announce(Message, Subject);
+                return;
+            }
+            else
+            {
+                Subject = "Process Alert";
+                Message = $"No vial ports are Completed.\r\n" +
+                    $"Ok to prepare previously Loaded vials, or\r\n" +
+                    $"Cancel the procedure";
+                if (!Ask(Message, Subject).Ok())
+                    return;
+            }
+        }
+        else
+        {
+            var list = string.Join(", ", ports.Select(p => p.Name));
+
+            // TODO: should this procedure do the loading under positive inertGas pressure?
+            Subject = "Operator needed";
+            Message = $"Remove and replace the vials at Completed d13C {"port".Plurality(count)}\r\n" +
+                $"{list}.\r\n" +
+                $"Ok when ready to evacuate the new vials, or" +
+                $"Cancel the procedure.";
+            if (!Ask(Message, Subject).Ok())
+                return;
+                ports.ForEach(p => p.State = LinePort.States.Loaded);
+        }
+
+        // also prepare any other ports that are loaded
+        ports = FindAll<d13CPort>(p => p.State == LinePort.States.Loaded);
+        Prepare_d13CPorts(ports);
+    }
+
+    /// <summary>
+    /// Evacuate and flush the given d13C ports, then update their states to Prepared.<br/>
+    /// <em><b>Warning</b>: The present state of the ports is ignored!</em>
+    /// </summary>
+    /// <param name="ports"></param>
+    protected virtual void Prepare_d13CPorts(IEnumerable<Id13CPort> ports)
+    {
+        if (ports == null || ports.Count() == 0) return;
+        var manifold = Manifold(ports);
+        if (manifold == null)
+        {
+            var list = string.Join(", ", ports.Select(p => p.Name));
+            Subject = "Configuration Error";
+            Message = $"Can't find d13C port manifold for {list}";
+            Warn(Message, Subject, NoticeType.Error);
+            return;
+        }
+
+        ProcessStep.Start($"Prepare d13C ports");
+        manifold.ClosePortsExcept(ports);
+        manifold.Isolate();
+        foreach (var p in ports) p.Open();
+
+        ProcessSubStep.Start($"Evacuate {manifold.Name} to {OkPressure:0} Torr");
+        manifold.OpenAndEvacuate(OkPressure);
+        ProcessSubStep.End();
+
+        Flush(manifold, 3);
+
+        ProcessSubStep.Start($"Evacuate {manifold.Name} to {OkPressure:0} Torr");
+        manifold.OpenAndEvacuate(OkPressure);
+        ProcessSubStep.End();
+
+        // TODO: insert a leak check here?
+        foreach (var p in ports) p.State = LinePort.States.Prepared;
+        ProcessStep.End();
+    }
+
+    /// <summary>
+    /// Evacuate and flush all Loaded d13C ports.
+    /// </summary>
+    protected virtual void PrepareLoaded_d13CPorts()
+    {
+        var ports = FindAll<d13CPort>(p => p.State == LinePort.States.Loaded);
+        if (ports.Count == 0) 
+        {
+            Subject = "Process Alert";
+            Message = $"Nothing to do! No vial ports are Loaded.";
+            Announce(Message, Subject);
+            return;
+        }
+        Prepare_d13CPorts(ports);
+    }
+
+    /// <summary>
+    /// Evacuates and flushes the currently selected d13C port.
+    /// </summary>
+    protected virtual void Prepare_d13CPort()
     {
         var port = d13CPort;
         if (port == null) return;
@@ -3128,28 +3260,14 @@ public class Cegs : ProcessManager, ICegs
             Subject = "Sample Alert";
             Message = $"Port {port.Name} is not available.\r\n" +
                        "It may contain a prior d13C sample.\r\n" +
-                       "Ok to evacuate it or Cancel to abort evacuation.";
+                       "Ok to evacuate it anyway, or \r\n" +
+                       "Cancel the procedure.";
 
             if (!Warn(Message, Subject).Ok())
                 return;
         }
-        var manifold = Manifold(port);
-        if (manifold == null)
-        {
-            Subject = "Configuration Error";
-            Message = $"Can't find manifold Section for d13C port {port.Name}.";
 
-            Warn(Message, Subject, NoticeType.Error);
-            return;
-        }
-        ProcessStep.Start($"Prepare d13C port {port.Name}");
-        manifold.ClosePorts();
-        port.Open();
-        manifold.OpenAndEvacuate(OkPressure);
-        Flush(manifold, 3, port);
-        manifold.Evacuate(OkPressure);
-        port.State = LinePort.States.Prepared;
-        ProcessStep.End();
+        Prepare_d13CPorts([port]);
     }
 
     #endregion Sample loading and preparation
@@ -3749,7 +3867,7 @@ public class Cegs : ProcessManager, ICegs
             DivideAliquots();
             FreezeAliquots();
             var holdSampleAtPorts = GetParameter("HoldSampleAtPorts");
-            if (holdSampleAtPorts.IsANumber() || holdSampleAtPorts == 0)
+            if (!holdSampleAtPorts.IsANumber() || holdSampleAtPorts == 0)
                 GraphitizeAliquots();
         }
         catch (Exception e)
@@ -3858,7 +3976,6 @@ public class Cegs : ProcessManager, ICegs
             Warn(Message, Subject, NoticeType.Error);
             return;
         }
-
         PriorGR = gr.Name;
 
         IAliquot aliquot = gr.Aliquot;
@@ -3872,7 +3989,7 @@ public class Cegs : ProcessManager, ICegs
         if (take_d13C && gr.Aliquot != null && gr.Aliquot.MicrogramsCarbon < MinimumUgCThatPermits_d13CSplit)
         {
             Subject = "Process Exception";
-            Message = $"d13C was requested but the sample ({gr.Aliquot.MicrogramsCarbon} µmol) is too small.";
+            Message = $"d13C was requested but the sample ({gr.Aliquot.MicrogramsCarbon:0.0} µmol) is too small.";
 
             Warn(Message, Subject, NoticeType.Error);
             take_d13C = false;
@@ -3929,9 +4046,12 @@ public class Cegs : ProcessManager, ICegs
                 Sample.d13CPort = d13CPort;
             }
         }
+        mc_gm.IsolateExcept(toBeOpened);
         gm.VacuumSystem.IsolateExcept(toBeOpened);
         toBeOpened.Open();
+        ProcessSubStep.Start($"Waiting for {gm.VacuumSystem.Manometer.Name} < {CleanPressure:0.00} Torr");
         gm.VacuumSystem.Evacuate(CleanPressure);
+        ProcessSubStep.End();
         gr.Manometer.ZeroNow(true); // wait to finish
         ProcessStep.End();
 
@@ -4012,7 +4132,7 @@ public class Cegs : ProcessManager, ICegs
             if (d13CPort == null) return;
             d13CPort.Coldfinger.RaiseLN();
             Close_d13CPort(d13CPort);
-            if (holdSampleAtPorts)
+            if (!holdSampleAtPorts)
                 AddCarrierTo_d13C();
             d13CPort.Coldfinger.Standby();
             d13CPort.State = LinePort.States.Complete;
@@ -4020,6 +4140,7 @@ public class Cegs : ProcessManager, ICegs
         var tgr = Task.Run(jgr);
         var td13 = Task.Run(jd13);
         WaitFor(() => tgr.IsCompleted && td13.IsCompleted);
+        ProcessSubStep.End();
 
         if (holdSampleAtPorts)
             grCF.Standby();
@@ -4150,13 +4271,36 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.End();
     }
 
+    protected virtual void TransferCO2FromMCToIP() => TransferCO2FromMCToIPViaVM();
 
-    /// This functionality is implementation-dependent.
     /// <summary>
-    /// Transfer CO2 from the MC to the IP.
+    /// Transfer CO2 from the MC to the IP via a 
+    /// transfer vessel at the graphite reactor.
     /// </summary>
-    protected virtual void TransferCO2FromMCToIP() { }
+    protected virtual void TransferCO2FromMCToIPviaGR()
+    {
+        var grName = Sample.Aliquots[0].GraphiteReactor;
+        var gr = Find<GraphiteReactor>(grName);
+        if (gr == null)
+        {
+            TransferCO2FromMCToGR();
+            grName = Sample.Aliquots[0].GraphiteReactor;
+        }
+        else
+            TransferCO2FromMCToGR(gr);
 
+        Subject = "Operator Needed";
+        Message = $"Close the transfer vessel,\r\n" +
+            $"then move it from {grName} to {Sample.InletPort.Name}." +
+            $"Keep it closed.\r\n" +
+            $"Ok to continue.";
+        Alert(Message, Subject);
+        Ask(Message, Subject, NoticeType.Information);
+        gr.Coldfinger.Standby();
+
+        InletPort.State = LinePort.States.Loaded;
+        InletPort.Sample = Sample;
+    }
 
     /// <summary>
     /// Transfer CO2 from the MC to the IP via the VM.
@@ -4305,7 +4449,7 @@ public class Cegs : ProcessManager, ICegs
         var vOD = MC.MilliLiters * t2 - vH;
         TestLog.Record($"{volumeCalibrationPortValve.Name} OpenedVolumeDelta (mL) = {vOD}");
 
-        OpenLine();
+        MC.VacuumSystem.OpenLine();
     }
 
     #endregion Chamber volume calibration routines
@@ -4417,7 +4561,7 @@ public class Cegs : ProcessManager, ICegs
             ProcessStep.End();
         }
         grs.ForEach(gr => gr.Coldfinger.Standby());
-        OpenLine();
+        gm.VacuumSystem.OpenLine();
     }
 
     protected virtual void CalibrateVPHeP0()      // need to test
@@ -4444,7 +4588,7 @@ public class Cegs : ProcessManager, ICegs
         var vacuumSystem = manifold.VacuumSystem;
         var totalMilliLiters = manifold.MilliLiters + port.MilliLiters;
 
-        OpenLine();
+        vacuumSystem.OpenLine();
         ftc.RaiseLN();
 
         bool adjusted = false;
@@ -4478,7 +4622,7 @@ public class Cegs : ProcessManager, ICegs
         } while (adjusted);
 
         ftc.Thaw();
-        OpenLine();
+        vacuumSystem.OpenLine();
     }
 
     #endregion Other calibrations
@@ -4769,12 +4913,25 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void CO2LoopMC_IP_MC()
     {
         TransferCO2FromMCToIP();
-        admitCarrier?.Invoke();
+
+        if (admitCarrier != null)
+        {
+            PrepareIPsForCollection([InletPort]);
+
+            // if a transfer vessel is used... 
+            Subject = "Operator Needed";
+            Message = $"Put LN on the {InletPort.Name} coldfinger\r\n." +
+                $"Wait for it to freeze, then raise it a bit.\r\n" +
+                 "Ok to continue.";
+            Alert(Message, Subject);
+            Ask(Message, Subject, NoticeType.Information);
+
+            admitCarrier.Invoke();
+        }
 
         Subject = "Operator Needed";
         Message = $"Remove LN from {InletPort.Name} and thaw the coldfinger.\r\n" +
-                       "Ok to continue.";
-
+                   "Ok to continue.";
         Alert(Message, Subject);
         Ask(Message, Subject, NoticeType.Alert);
 
@@ -4797,27 +4954,28 @@ public class Cegs : ProcessManager, ICegs
     /// <summary>
     /// Admit maximum carrier gas to the IM+VM and join to the IP.
     /// </summary>
-    protected virtual void AdmitIPMax()
+    protected virtual void AdmitIPCarrier()
     {
         IpIm(out ISection im);
         im.Evacuate(OkPressure);
         im.ClosePorts();
 
         var gs = GasSupply("O2", im) ?? InertGasSupply(im);
+        var vm = im.VacuumSystem.VacuumManifold;
 
-        //for (int i = 0; i < amountOfCarrier; ++i)
-        //{
         gs.Admit();       // dunno, 1000-1500 Torr?
         WaitSeconds(1);
         gs.ShutOff();
-        im.VacuumSystem.Isolate();
-        im.JoinToVacuum();      // one cycle might keep ~10% in the IM
+        im.Isolate();
+        vm.Evacuate();
+
+        vm.Isolate();      // one cycle might keep ~10% in the IM
+        im.JoinToVacuum();
         WaitSeconds(3);
-        //im.Isolate();
-        //}
+        im.Isolate();
+        vm.Evacuate();
 
         InletPort.Open();
-        WaitSeconds(3);
         InletPort.Close();
         im.Evacuate();
     }
@@ -4862,11 +5020,11 @@ public class Cegs : ProcessManager, ICegs
     {
         TestLog.WriteLine("\r\n");
         TestLog.Record("IP collection efficiency test");
-        if (FirstTrap.FlowManager == null)
+        if (IM_FirstTrap.FlowManager == null)
             admitCarrier = null;
         else
         {
-            admitCarrier = AdmitIPMax;
+            admitCarrier = AdmitIPCarrier;
             //amountOfCarrier = 3;    // puffs
         }
         MeasureProcessEfficiency(CO2LoopMC_IP_MC);
@@ -4885,9 +5043,6 @@ public class Cegs : ProcessManager, ICegs
         admitCarrier = AdmitIPO2;
         MeasureProcessEfficiency(CO2LoopMC_IP_MC);
     }
-
-
-
 
     /// <summary>
     /// Set the Sample LabId to the desired number of loops
@@ -4908,9 +5063,9 @@ public class Cegs : ProcessManager, ICegs
         }
 
         ProcessStep.Start("Measure transfer efficiency");
-        if (ugCinMC < Sample.Micrograms * 0.8)
+        if (ugCinMC < Sample.SelectedMicrogramsCarbon * 0.8)
         {
-            OpenLine();
+            MC.VacuumSystem.OpenLine();
             MC.VacuumSystem.WaitForPressure(CleanPressure);
             AdmitDeadCO2();
         }
@@ -4918,7 +5073,7 @@ public class Cegs : ProcessManager, ICegs
         int n; try { n = int.Parse(Sample.LabId); } catch { n = 1; }
         for (int repeats = 0; repeats < n; repeats++)
         {
-            Sample.Micrograms = Sample.TotalMicrogramsCarbon;
+            Sample.Micrograms = Sample.SelectedMicrogramsCarbon;
             transferLoop?.Invoke();
         }
         ProcessStep.End();

@@ -1,4 +1,5 @@
-﻿using static AeonHacs.Components.CegsPreferences;
+﻿using Newtonsoft.Json;
+using static AeonHacs.Components.CegsPreferences;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
@@ -18,9 +19,26 @@ namespace AeonHacs.Components
         public double CO2Percent
         {
             get => co2Percent;
-            set => Ensure(ref co2Percent, value);
+            set
+            {
+                if (Filter != null) value = Filter.Update(value);
+                Ensure(ref co2Percent, value);
+            }
         }
         double co2Percent;
+
+        /// <summary>
+        /// A digital filter, designed to smooth irrelevant variations
+        /// in Value over time.
+        /// </summary>
+        [JsonProperty]
+        public virtual DigitalFilter Filter
+        {
+            get => filter;
+            set => Ensure(ref filter, value);
+        }
+        DigitalFilter filter;
+
 
         /// <summary>
         /// Carbon dioxide content in parts per million
