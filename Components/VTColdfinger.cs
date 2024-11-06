@@ -69,6 +69,8 @@ namespace AeonHacs.Components
         [JsonProperty("Coldfinger")]
         public Coldfinger Coldfinger { get; set; }
 
+        IColdfinger IVTColdfinger.Coldfinger => Coldfinger;
+
         [JsonProperty("TopThermometer")]
         string TopThermometerName { get => TopThermometer?.Name; set => topThermometerName = value; }
         string topThermometerName;

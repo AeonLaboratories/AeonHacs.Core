@@ -165,6 +165,7 @@ namespace AeonHacs.Components
     public interface IVTColdfinger : IColdfinger, IIsOn, ISwitchable, IStopAction
     {
         double Setpoint { get; set; }
+        IColdfinger Coldfinger { get; }
         IHeater Heater { get; }
         void Regulate();
         void Regulate(double setpoint);
