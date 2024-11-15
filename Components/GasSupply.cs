@@ -641,6 +641,12 @@ namespace AeonHacs.Components
                 return;
             }
 
+            bool gasIsCO2 = Name.Contains("CO2");
+            if (gasIsCO2)
+                MajorStep?.Start($"Admit {targetValue:0} {Meter.UnitSymbol} into the {Destination.Name}");
+            else
+                MajorStep?.Start($"Pressurize {Destination.Name} to {targetValue:0} {Meter.UnitSymbol} with {GasName}");
+
             if (targetValue > Meter.MaxValue)
             {
                 subject = "Process Warning";
@@ -650,12 +656,6 @@ namespace AeonHacs.Components
                 Tell(message, subject, NoticeType.Warning);
                 targetValue = Meter.MaxValue;
             }
-
-            bool gasIsCO2 = Name.Contains("CO2");
-            if (gasIsCO2)
-                MajorStep?.Start($"Admit {targetValue:0} {Meter.UnitSymbol} into the {Destination.Name}");
-            else
-                MajorStep?.Start($"Pressurize {Destination.Name} to {targetValue:0} {Meter.UnitSymbol} with {GasName}");
 
             IsolateAndJoin();
             SourceValve.OpenWait();
