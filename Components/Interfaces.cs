@@ -134,7 +134,7 @@ namespace AeonHacs.Components
         long MillisecondsInState { get; }
         double MinutesInState { get; }
         void ChangeState(TargetStates targetState);
-        void ChangeState(TargetStates targetState, Predicate<StateManager<TargetStates, States>> predicate);
+        bool ChangeState(TargetStates targetState, Predicate<StateManager<TargetStates, States>> predicate);
     }
 
     public interface IColdfinger : IHacsComponent, ITemperature, IStopAction

@@ -336,6 +336,14 @@ namespace AeonHacs.Components
             }
         }
 
+        /// <summary>
+        /// Restart the StateStopwatch and freezeThawTimer when the TargetState has changed.
+        /// </summary>
+        protected override void OnTargetStateChanged(TargetStates oldState, TargetStates newState)
+        {
+            StateStopwatch.Restart();
+            freezeThawTimer.Reset();
+        }
 
         // TODO: shouldn't this also be true if the coldfinger is active?
         /// <summary>
@@ -634,7 +642,10 @@ namespace AeonHacs.Components
                 else if (!freezeThawTimer.IsRunning)
                     freezeThawTimer.Restart();
                 else if (freezeThawTimer.Elapsed.TotalMinutes > MaximumMinutesToFreeze)
+                {
                     SlowToFreeze?.Invoke();
+                    freezeThawTimer.Reset();
+                }
             }
             else if (TargetState == TargetStates.Thaw)
             {

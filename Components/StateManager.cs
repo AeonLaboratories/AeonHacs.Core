@@ -1,6 +1,7 @@
 ﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
 using static AeonHacs.Utilities.Utility;
@@ -272,10 +273,13 @@ namespace AeonHacs.Components
         /// Change the TargetState
         /// </summary>
         /// <param name="targetState">the new TargetState</param>
-        public virtual void ChangeState(TargetStates targetState)
-        {
+        public virtual void ChangeState(TargetStates targetState) => 
             ChangeState(targetState, null);
-        }
+
+        /// <summary>
+        /// Occurs when the TargetState changes.
+        /// </summary>
+        protected virtual void OnTargetStateChanged(TargetStates oldState, TargetStates newState) { }
 
         /// <summary>
         /// Ensure the State Manager is running,
@@ -284,13 +288,19 @@ namespace AeonHacs.Components
         /// </summary>
         /// <param name="targetState"></param>
         /// <param name="predicate"></param>
-        public void ChangeState(TargetStates targetState, Predicate<StateManager<TargetStates, States>> predicate)
+        public bool ChangeState(TargetStates targetState, Predicate<StateManager<TargetStates, States>> predicate)
         {
             if (Stopped) Start();
+            var oldTarget = TargetState;
             TargetState = targetState;
             StateSignal.Set();        // release the StateLoop if it's waiting
-            WaitFor(() => predicate?.Invoke(this) ?? true || Hacs.Stopping, -1, 35); // TODO: implement timeout?
-            if (Initialized) Hacs.SystemLog.Record($"{Name}.State = {State}");
+            var conditionMet = WaitFor(() => predicate?.Invoke(this) ?? true || Hacs.Stopping, -1, 35); // TODO: implement timeout?
+            if (!EqualityComparer<TargetStates>.Default.Equals(targetState, oldTarget))
+            {
+                OnTargetStateChanged(oldTarget, targetState);
+                if (Initialized) Hacs.SystemLog.Record($"{Name}.State = {State}");
+            }
+            return conditionMet;
         }
 
         public override string ToString()

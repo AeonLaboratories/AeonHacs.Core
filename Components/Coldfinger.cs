@@ -43,7 +43,7 @@ namespace AeonHacs.Components
         [HacsInitialize]
         protected virtual void Initialize()
         {
-            EnsureState(TargetState);
+            ChangeState(TargetState);
         }
 
         [HacsPreStop]
@@ -405,18 +405,13 @@ namespace AeonHacs.Components
         }
 
         /// <summary>
-        /// Changes the TargetState (operating mode) of the FTC.
-        /// Does nothing if the state parameter matches the present TargetState.
+        /// Restart the StateStopwatch and freezeThawTimer when the TargetState has changed.
         /// </summary>
-        /// <param name="state"></param>
-        public override void ChangeState(TargetStates state)
+        protected override void OnTargetStateChanged(TargetStates oldState, TargetStates newState)
         {
-            if (TargetState != state)
-            {
-                EnsureState(state);
                 StateStopwatch.Restart();
+            freezeThawTimer.Reset();
             }
-        }
 
         /// <summary>
         /// What to do with the hardware device when this instance is Stopped.
@@ -442,13 +437,21 @@ namespace AeonHacs.Components
         /// <summary>
         /// Fill and maintain a minimal level of liquid nitrogen in the reservoir.
         /// </summary>
-        public void Freeze() => ChangeState(TargetStates.Freeze);
+        public void Freeze()
+        {
+            Target = FrozenTemperature;
+            ChangeState(TargetStates.Freeze);
+        }
 
         /// <summary>
         /// Reach and maintain a maximum level of liquid nitrogen,
         /// with a trickling overflow if possible.
         /// </summary>
-        public void Raise() => ChangeState(TargetStates.Raise);
+        public void Raise()
+        {
+            Target = FrozenTemperature;
+            ChangeState(TargetStates.Raise);
+        }
 
         /// <summary>
         /// Warm the coldfinger with forced air.
@@ -466,32 +469,6 @@ namespace AeonHacs.Components
             Target = temperature;
             ChangeState(TargetStates.Thaw);
         }
-
-        /// <summary>
-        /// Ensures the desired TargetState is in effect.
-        /// </summary>
-        /// <param name="state">the desired TargetState</param>
-        public void EnsureState(TargetStates state)
-        {
-            switch (state)
-            {
-                case TargetStates.Standby:
-                    break;
-                case TargetStates.Thaw:
-                    LNOff();
-                    break;
-                case TargetStates.Freeze:
-                case TargetStates.Raise:
-                    Target = FrozenTemperature;
-                    coldestLNSensorTemperature = Target + 3;
-                    break;
-                default:
-                    break;
-            }
-
-            base.ChangeState(state);
-        }
-
 
         /// <summary>
         /// whether overflow trickling is presently preferred
@@ -627,7 +604,10 @@ namespace AeonHacs.Components
                 else if (!freezeThawTimer.IsRunning)
                     freezeThawTimer.Restart();
                 else if (freezeThawTimer.Elapsed.TotalMinutes > MaximumMinutesToFreeze)
+                {
                     SlowToFreeze?.Invoke();
+                    freezeThawTimer.Reset();
+                }
             }
             else if (TargetState == TargetStates.Thaw)
             {
