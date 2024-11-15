@@ -1275,10 +1275,10 @@ namespace AeonHacs.Components
         int OpenedValue { get; }
         int ClosedValue { get; }
         int CenterValue { get; }
+        new int Position { get; set; }
         bool OpenIsPositive { get; }
 
         void DoWait(ActuatorOperation operation);
-        ValveState LastMotion { get; }
 
         // new, to resolve ambiguity between IActuator and IValve versions
         // (by hiding IValve version)

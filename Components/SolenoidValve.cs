@@ -47,7 +47,7 @@ namespace AeonHacs.Components
         public virtual int Position
         {
             get => 0;
-            protected set { }
+            set { }
         }
 
         [JsonProperty, DefaultValue(0.0)]
