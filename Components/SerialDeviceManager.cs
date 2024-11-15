@@ -84,8 +84,8 @@ namespace AeonHacs.Components
 
         ConcurrentQueue<ObjectPair> serviceQ = new ConcurrentQueue<ObjectPair>();
         protected IManagedDevice ServiceDevice = null;
-        protected string ServiceRequest = "";
-        protected string ServiceCommand = "";
+        public string ServiceRequest { get; protected set; } = "";
+        public string ServiceCommand { get; protected set; } = "";
         protected int ResponsesExpected = 0;
 
         /// <summary>
