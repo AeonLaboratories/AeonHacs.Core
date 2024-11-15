@@ -1085,6 +1085,8 @@ public class Cegs : ProcessManager, ICegs
         var coldfingers = FindAll<IColdfinger>(cf => cf.IsActivelyCooling);
         var list = string.Join(", ", coldfingers.Select(cf => cf.Name));
 
+        coldfingers.ForEach(cf => cf.Standby());
+
         Subject = "Process Exception";
         Message = $"A coldfinger is taking too long to freeze.\r\n" +
                       $"Active coldfingers set to Standby: {list}.\r\n" +
