@@ -373,7 +373,6 @@ namespace AeonHacs.Components
         /// </summary>
         bool trickleSupported => LNValve.Operations.Contains(Trickle);
         Stopwatch valveOpenStopwatch = new Stopwatch();
-        double coldestLNSensorTemperature;
         public double Target { get; protected set; }
 
         /// <summary>
@@ -409,9 +408,9 @@ namespace AeonHacs.Components
         /// </summary>
         protected override void OnTargetStateChanged(TargetStates oldState, TargetStates newState)
         {
-                StateStopwatch.Restart();
+            StateStopwatch.Restart();
             freezeThawTimer.Reset();
-            }
+        }
 
         /// <summary>
         /// What to do with the hardware device when this instance is Stopped.
@@ -487,40 +486,18 @@ namespace AeonHacs.Components
         {
             if (valveOpenStopwatch.IsRunning)
             {
-                // Track the coldest temperature observed since the valve was opened
-                if (Temperature < coldestLNSensorTemperature)
-                    coldestLNSensorTemperature = Temperature;
-
                 if (valveOpenStopwatch.Elapsed.TotalSeconds > MaximumSecondsLNFlowing)
-                {
-                    LNOff();            // cycle the valve periodically to avoid sticking
-                    Target = FrozenTemperature; // reset Target to default on timeout
-                }
+                    LNOff();
                 else if (Temperature <= Target)
                 {
-                    if (trickling)
-                    {
-                        if ((LNValve as IActuator).Operation?.Name != Trickle)
-                            LNOn();
-                    }
-                    else
-                    {
+                    if (!trickling)
                         LNOff();
-                    }
+                    else if ((LNValve as IActuator).Operation?.Name != Trickle)
+                        LNOn();
                 }
             }
-            else
-            {
-                if (Temperature > Target + trigger || trickling)
-                {
-                    // TODO reconsider whether the Target still needs to be dynamically adjusted
-                    // adjust Target to 2 degrees warmer than coldest observed temperature
-                    //Target = coldestLNSensorTemperature + 2;
-                    // but no warmer than 3 degrees over the default
-                    //if (Target > FrozenTemperature + 3) Target = FrozenTemperature + 3;
-                    LNOn();
-                }
-            }
+            else if (Temperature > Target + trigger || trickling)
+                LNOn();
         }
 
         /// <summary>
@@ -528,7 +505,6 @@ namespace AeonHacs.Components
         /// </summary>
         void LNOn()
         {
-            coldestLNSensorTemperature = Temperature;       // reset tracking
             if (!LNManifold.IsCold)
                 return;
             if (trickling && Temperature < Target + RaiseTrigger)
