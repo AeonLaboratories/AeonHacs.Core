@@ -401,10 +401,12 @@ namespace AeonHacs.Components
             var a = CurrentActuator;
             bool done = false;
 
-            if (LogEverything && State != priorState)
+            if (State != priorState)
             {
+                priorState = State;
                 operationStateStopwatch.Restart();
-                Log?.Record($"State = {priorState = State}");
+                if (LogEverything)
+                    Log?.Record($"State = {State}");
             }
 
             // was premature stop requested by actuator?
@@ -453,7 +455,7 @@ namespace AeonHacs.Components
             }
             if (done)
             {
-                // if the current ever went significantly above what it was just before 'go' was commanded
+                // if the current went significantly above what it was just before 'go' was commanded
                 if (peakCurrent > initialCurrent + 30) pushed = true;       // typically > 150 mA
 
                 string sysLogEntry = $"{a.Name} ";
@@ -475,7 +477,18 @@ namespace AeonHacs.Components
 
                 SystemLog.Record(sysLogEntry);
 
-                if (a.Device.Active) a.Device.Active = false;
+                if (a.Device.Active)
+                {
+                    if (a is CpwValve v && operation != null)
+                    {
+                        if (v.TimeLimitDetected)
+                            v.Device.Position = operation.Value;
+                        else if (v.TimeLimit > 0)
+                            v.Device.Position = (int)Math.Round((operation.Value - v.Device.Position) * (Math.Min(v.Elapsed, v.TimeLimit) / v.TimeLimit) + v.Device.Position);
+                    }
+
+                    a.Device.Active = false;
+                }
                 State = OperationState.Free;
                 if (LogEverything) Log?.Record("Operation done.");
             }
@@ -487,6 +500,7 @@ namespace AeonHacs.Components
         {
             SetServiceValues($"n{ChannelNumber} c");
             operation = a.ValidateOperation(a.FindOperation(ServiceRequest ?? ""));
+            if (operation != null)
             a.Device.Operation = operation;
             stopping = false;
             a.Device.Active = true;
@@ -532,8 +546,8 @@ namespace AeonHacs.Components
             if (!a.Configured)
                 return OperationState.Configuring;  // try again...
 
-            // wait up to 250 ms for idle current
-            if (a.Config.Settings.CurrentLimit > 0 && a.Current > a.IdleCurrentLimit && operationStateStopwatch.ElapsedMilliseconds > 250)
+            // Wait up to 1000 ms for idle current.
+            if (a.IdleCurrentLimit > 0 && a.Current > a.IdleCurrentLimit && operationStateStopwatch.ElapsedMilliseconds < 1000)
             {
                 if (LogEverything)
                     Log?.Record($"{a.Name}: current limit = {a.Config.Settings.CurrentLimit}; waiting for {a.IdleCurrentLimit}, current = {a.Current}");

@@ -1,9 +1,7 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
-using System;
 using System.ComponentModel;
 using System.Text;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
@@ -62,11 +60,13 @@ namespace AeonHacs.Components
 
         #endregion Valve
 
+        [JsonProperty]
         public virtual int Position
         {
-            get => Operation?.Value ?? CenterValue;
-            protected set { }
+            get => position;
+            set => Ensure(ref position, value);
         }
+        int position;
 
         [JsonProperty, DefaultValue(0.0)]
         public virtual double OpenedVolumeDelta
@@ -124,9 +124,6 @@ namespace AeonHacs.Components
 
         protected virtual ValveState cmdDirection(int cmd, int refcmd)
         {
-            if (cmd == refcmd) // they match; return the abolute direction
-                refcmd = CenterValue;
-
             if (cmd == refcmd)                  // both command and ref are center
                 return ValveState.Unknown;      // direction can't be determined
             else if ((cmd > refcmd) == OpenIsPositive)
@@ -138,40 +135,22 @@ namespace AeonHacs.Components
         protected virtual ValveState OperationDirection(IActuatorOperation operation)
         {
             if (operation == null)
-            {
-                if (Operation == null)
-                    return ValveState.Unknown;
-                else
-                    return OperationDirection(Operation);
-            }
-
+                return Operation == null ? ValveState.Unknown : OperationDirection(Operation);
             if (operation.Incremental)
-            {
-                if (operation.Value == 0)
-                    return ValveState.Unknown;
                 return cmdDirection(operation.Value, 0);
-            }
-
             return cmdDirection(operation.Value, Position);
         }
 
-        public ValveState LastMotion =>
-            ValveState == ValveState.Opened ? ValveState.Opening :
-            ValveState == ValveState.Closed ? ValveState.Closing :
-            OperationDirection(null);
+        protected ValveState CurrentMotion { get; set; }
+        protected ValveState LastMotion { get; set; }
+
         public override bool ActionSucceeded
         {
             get => base.ActionSucceeded || StopRequested;
             protected set => base.ActionSucceeded = value;
         }
-        public override IActuatorOperation ValidateOperation(IActuatorOperation operation)
-        {
-            var dir = OperationDirection(operation);
-            if ((dir == ValveState.Closing && IsClosed) || (dir == ValveState.Opening && IsOpened))
-                return null;
-            else
-                return operation;
-        }
+        public override IActuatorOperation ValidateOperation(IActuatorOperation operation) =>
+            (ValveState == ValveState.Unknown || Position != operation?.Value) ? operation : null;
 
         // Called when the valve becomes "Active", whenever a report
         // is received while active, and finally, once when the valve
@@ -180,14 +159,13 @@ namespace AeonHacs.Components
         {
             if (Operation != null)
             {
-                var dir = OperationDirection(Operation);  // normally "Opening" or "Closing"
-
                 ValveState =
-                    Active ?
-                        dir :
+                    Active ? CurrentMotion :
                     (PositionDetectable ? !LimitSwitchDetected : !ActionSucceeded) ? ValveState.Unknown :
-                    dir == ValveState.Opening ? ValveState.Opened :
-                    dir == ValveState.Closing ? ValveState.Closed :
+                    (StopRequested && !TimeLimitDetected) ? ValveState.Unknown :
+                    Position == ClosedValue ? ValveState.Closed :
+                    Position == OpenedValue ? ValveState.Opened :
+                    Position == Operation?.Value ? ValveState.Opened :
                     ValveState.Unknown;
             }
         }
@@ -195,6 +173,7 @@ namespace AeonHacs.Components
         protected override void OperationStarting()
         {
             base.OperationStarting();
+            CurrentMotion = OperationDirection(Operation);
             UpdateValveState();
         }
 
@@ -202,10 +181,11 @@ namespace AeonHacs.Components
         {
             base.OperationEnding();
             UpdateValveState();
+            LastMotion = CurrentMotion;
         }
 
         protected override bool ReviewOperation() =>
-            !OperationFailed && (Operation == null || TimeLimitDetected);
+            !OperationFailed && (Operation == null || Position == Operation.Value);
 
         public override long UpdatesReceived
         {
@@ -221,10 +201,10 @@ namespace AeonHacs.Components
 
         public override string ToString()
         {
-            var sb = new StringBuilder($"{Name}: {ValveState}");
+            var sb = new StringBuilder($"{Name}: {ValveState} ({(ValveState == ValveState.Unknown ? "~" : "")}{Position})");
             var sb2 = new StringBuilder();
             sb2.Append($"\r\nPending Operations: {PendingOperations}");
-            sb2.Append(Active ? $", Motion: {LastMotion}" : $", Last Motion: {LastMotion}");
+            sb2.Append(Active ? $", Motion: {CurrentMotion}" : $", Last Motion: {LastMotion}");
             if (LastMotion != ValveState.Unknown)
             {
                 if (Active)
@@ -256,52 +236,58 @@ namespace AeonHacs.Components
 
     public static class CpwValveExtensions
     {
-        private static void CloseMoreBy(this ICpwValve valve, int amount)
+        private static void CloseBy(this ICpwValve valve, int amount)
         {
             var operation = valve.FindOperation("Close");
-            if (operation != null)
-                operation.Value += amount;
-            else
+            if (operation == null)
                 return; // something went wrong
-            if (valve.IsClosed)
+
+            if (valve.OpenIsPositive)
+                amount = -amount;
+
+            operation.Value += amount;
+            if (valve.OpenIsPositive != amount < 0)
                 valve.OpenWait();
-            valve.Close();
+            valve.CloseWait();
         }
 
-        private static void OpenMoreBy(this ICpwValve valve, int amount)
+        private static void OpenBy(this ICpwValve valve, int amount)
         {
             var operation = valve.FindOperation("Open");
-            if (operation != null)
-                operation.Value -= amount;
-            else
+            if (operation == null)
                 return; // something went wrong
-            if (valve.IsOpened)
+
+            if (valve.OpenIsPositive)
+                amount = -amount;
+
+            operation.Value -= amount;
+            if (valve.OpenIsPositive != amount < 0)
                 valve.CloseWait();
-            valve.Open();
+            valve.OpenWait();
         }
 
         public static void CloseABitMore(this ICpwValve valve) =>
-            valve.CloseMoreBy(10);
+            valve.CloseBy(10);
 
         public static void CloseMore(this ICpwValve valve) =>
-            valve.CloseMoreBy(50);
+            valve.CloseBy(50);
 
         public static void CloseABitLess(this ICpwValve valve) =>
-            valve.CloseMoreBy(-10);
+            valve.CloseBy(-10);
 
         public static void CloseLess(this ICpwValve valve) =>
-            valve.CloseMoreBy(-50);
+            valve.CloseBy(-50);
 
         public static void OpenABitMore(this ICpwValve valve) =>
-            valve.OpenMoreBy(10);
+            valve.OpenBy(10);
 
         public static void OpenMore(this ICpwValve valve) =>
-            valve.OpenMoreBy(50);
+            valve.OpenBy(50);
 
         public static void OpenABitLess(this ICpwValve valve) =>
-            valve.OpenMoreBy(-10);
+            valve.OpenBy(-10);
 
         public static void OpenLess(this ICpwValve valve) =>
-            valve.OpenMoreBy(-50);
+            valve.OpenBy(-50);
     }
 }

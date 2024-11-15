@@ -42,7 +42,7 @@ namespace AeonHacs.Components
         public override int Position
         {
             get => RxValve.Position;
-            protected set
+            set
             {
                 RxValve.Device.Position = value;
                 NotifyPropertyChanged(nameof(Position));
@@ -466,8 +466,8 @@ namespace AeonHacs.Components
                 sb.Append(" (Calibration needed)");
             var sb2 = new StringBuilder();
             sb2.Append($"\r\nPending Operations: {PendingOperations}");
-            sb2.Append(Active ? $", Motion: {LastMotion}" : $", Last Motion: {LastMotion}");
-            if (LastMotion != ValveState.Unknown)
+            sb2.Append(Active ? $", Motion: {CurrentMotion}" : $", Last Motion: {LastMotion}");
+            if (CurrentMotion != ValveState.Unknown)
             {
                 if (Active)
                     sb2.Append(StopRequested ? ", Stopping" : ", Active");

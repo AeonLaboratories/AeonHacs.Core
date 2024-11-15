@@ -23,11 +23,6 @@ namespace AeonHacs.Components
 
         #endregion Device interfaces
 
-        public override int Position
-        {
-            get => position;
-            protected set => Ensure(ref position, value);
-        }
         [JsonProperty]
         int position;
         int IDevice.Position

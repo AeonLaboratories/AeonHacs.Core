@@ -12,6 +12,7 @@ namespace AeonHacs.Components
         public new interface IDevice : HacsDevice.IDevice
         {
             ValveState ValveState { get; set; }
+            int Position { get; set; }
         }
         public new interface IConfig : HacsDevice.IConfig { }
         public new IDevice Device => this;
@@ -36,8 +37,15 @@ namespace AeonHacs.Components
         /// </summary>
         public virtual int Position
         {
-            get => 0;
-            protected set { }
+            get => position;
+            protected set => Ensure(ref position, value);
+        }
+        int position;
+
+        int IDevice.Position
+        {
+            get => Position;
+            set => Position = value;
         }
 
         public virtual double OpenedVolumeDelta
