@@ -1393,11 +1393,12 @@ namespace AeonHacs.Components
         /// </summary>
         string LabId { get; set; }
         DateTime DateTime { get; set; }
+        Sample.States State { get; set; }
         IInletPort InletPort { get; set; }
-        string CoilTrap { get; set; }
+        string Traps { get; set; }
+        void AddTrap(string trapName);
         Id13CPort d13CPort { get; set; }
         string Process { get; set; }
-        bool RunCompleted { get; set; }
         List<Parameter> Parameters { get; set; }
         double Parameter(string name);
         void SetParameter(Parameter parameter);
