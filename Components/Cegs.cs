@@ -854,6 +854,7 @@ public class Cegs : ProcessManager, ICegs
                 {
                     ip.Sample = sample;
                     ip.State = LinePort.States.Prepared;    // assume this was done by the sample provider
+                    if (Sample is Sample) Sample.State = Components.Sample.States.Prepared;
                     Task.Run(() => RunSample(sample));
                 }
             }
@@ -1220,8 +1221,8 @@ public class Cegs : ProcessManager, ICegs
             return false;       // it still has a split in a d13CPort
         if (s.InletPort?.Sample == s && s.InletPort.State != LinePort.States.Complete)
             return false;       // it still incomplete in its inlet port...
-        if (!s.RunCompleted)
-            return false;       // it's hasn't completed a run
+        if (s.State != Components.Sample.States.Complete)
+            return false;       // it's hasn't completed a process-sequence run
         return true;
     }
 
@@ -1557,9 +1558,9 @@ public class Cegs : ProcessManager, ICegs
         if (collectionPath.FlowManager != null)
             collectionPath.OpenAndEvacuate();
         InletPort.Open();
-        Sample.CoilTrap = trap.Name;    // TODO: rename Sample.CoilTrap to Sample.FirstTrap?
-                                        // or maybe Sample.Traps, and append trap.Name for each?
         InletPort.State = LinePort.States.InProcess;
+        if (Sample is Sample) Sample.State = Components.Sample.States.InProcess;
+        Sample.AddTrap(trap.Name);
         CollectStopwatch.Restart();
         collectionPath.FlowManager?.Start(FirstTrapBleedPressure);
 
@@ -2064,6 +2065,8 @@ public class Cegs : ProcessManager, ICegs
         if (InletPort.State == LinePort.States.Loaded ||
             InletPort.State == LinePort.States.Prepared)
             InletPort.State = LinePort.States.InProcess;
+        if (Sample is Sample s && s.State < Components.Sample.States.InProcess)
+            s.State = Components.Sample.States.InProcess;
         if (openLine) Manifold(InletPort).VacuumSystem.OpenLine();
         WaitRemaining((int)QuartzFurnaceWarmupMinutes);
 
@@ -2159,6 +2162,8 @@ public class Cegs : ProcessManager, ICegs
         if (!IpIm(out ISection im)) return;
 
         InletPort.State = LinePort.States.InProcess;
+        if (Sample is Sample s && s.State < Components.Sample.States.InProcess)
+            s.State = Components.Sample.States.InProcess;
         EvacuateIP(0.1);
         Flush(im, 3, InletPort);
 
@@ -2986,7 +2991,8 @@ public class Cegs : ProcessManager, ICegs
 
         if (ProcessType == ProcessTypeCode.Sequence)
         {
-            Sample.RunCompleted = ProcessToRun == Sample.Process && RunCompleted;
+            if (Sample is Sample && ProcessToRun == Sample.Process)
+                Sample.State = Components.Sample.States.Complete;
             SampleLog.Record(message + "\r\n\t" + Sample.LabId);
         }
 
@@ -3050,6 +3056,7 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void AdmitSealedCO2IP()
     {
         if (InletPort.State == LinePort.States.Prepared) return;    // already done
+        if (Sample is Sample && Sample.State >= Components.Sample.States.Prepared) return;    // already done
         if (!IpIm(out ISection im)) return;
 
         ProcessStep.Start($"Evacuate and flush {InletPort.Name}");
@@ -3075,6 +3082,7 @@ public class Cegs : ProcessManager, ICegs
 
         ProcessStep.End();
         InletPort.State = LinePort.States.Prepared;
+        if (Sample is Sample) Sample.State = Components.Sample.States.Prepared;
     }
 
     /// <summary>
@@ -3318,8 +3326,9 @@ public class Cegs : ProcessManager, ICegs
 
         ProcessStep.Start($"Freeze the CO2 from {InletPort.Name} into the {trap.Name}");
         im_trap.Close();
-        InletPort.State = LinePort.States.InProcess;
         InletPort.Open();
+        InletPort.State = LinePort.States.InProcess;
+        if (Sample is Sample) Sample.State = Components.Sample.States.InProcess;
         im_trap.Open();
         WaitMinutes((int)CollectionMinutes);
         trap.Isolate();
@@ -3328,7 +3337,11 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.End();
     }
 
-    protected virtual void TransferCO2FromCTToVTT() => TransferCO2(FirstTrap, VTT, -30);
+    protected virtual void TransferCO2FromCTToVTT()
+    {
+        Sample.AddTrap(VTT.Name);
+        TransferCO2(FirstTrap, VTT, -30);
+    }
 
     #endregion Collect
 
@@ -4302,6 +4315,7 @@ public class Cegs : ProcessManager, ICegs
 
         InletPort.State = LinePort.States.Loaded;
         InletPort.Sample = Sample;
+        if (Sample is Sample) Sample.State = Components.Sample.States.Loaded;
     }
 
     /// <summary>
@@ -4647,7 +4661,7 @@ public class Cegs : ProcessManager, ICegs
         if (!basePressure.IsANumber())
             basePressure = OkPressure;
 
-        ProcessSubStep.Start($"Evacuate {manifold.Name}+{port.Name} to below {basePressure:0} Torr");
+        ProcessSubStep.Start($"Evacuate {manifold.Name}+{port.Name} to below {basePressure:0.0e0} Torr");
         manifold.Isolate();
         manifold.ClosePortsExcept(port);
         manifold.Open();
@@ -5211,7 +5225,7 @@ public class Cegs : ProcessManager, ICegs
 
         Message = $"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}";
 
-        MajorEvent(Message);
+        TestLog.Record(Message);
         gs?.Destination?.OpenAndEvacuate();
     }
 
@@ -5221,11 +5235,11 @@ public class Cegs : ProcessManager, ICegs
         gs?.Destination?.OpenAndEvacuate(OkPressure);
         gs?.Destination?.ClosePorts();
         gs?.Pressurize(pressure);
-        WaitSeconds(60);
+        WaitSeconds(15);
 
         Message = $"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}";
 
-        MajorEvent(Message);
+        TestLog.Record(Message);
         gs?.Destination?.OpenAndEvacuate();
     }
 

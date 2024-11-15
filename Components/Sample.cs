@@ -9,6 +9,16 @@ namespace AeonHacs.Components
 {
     public class Sample : HacsComponent, ISample
     {
+        public enum States { Unknown, Loaded, Prepared, InProcess, Complete }
+
+        [JsonProperty]
+        public virtual States State
+        {
+            get => state;
+            set => Ensure(ref state, value);
+        }
+        States state;
+
         #region static
         /// <summary>
         /// Generates a new unique Sample Name.
@@ -58,13 +68,25 @@ namespace AeonHacs.Components
         IInletPort inletPort;
 
 
-        [JsonProperty("CoilTrap")]
-        public string CoilTrap
+        [JsonProperty("Traps")]
+        public string Traps
         {
-            get => coilTrap;
-            set => Ensure(ref coilTrap, value);
+            get => traps;
+            set => Ensure(ref traps, value);
+        }   
+        string traps;
+
+        /// <summary>
+        /// Appends a trap name to Traps.
+        /// </summary>
+        /// <param name="trapName"></param>
+        public void AddTrap(string trapName)
+        {
+            if (!traps.IsBlank())
+                traps += ", " + trapName;
+            else
+                traps = trapName;
         }
-        string coilTrap;
 
 
         [JsonProperty("d13CPort")]
@@ -85,15 +107,6 @@ namespace AeonHacs.Components
             set => Ensure(ref process, value);
         }
         string process;
-
-        [JsonProperty]
-        [DefaultValue(false)]
-        public bool RunCompleted
-        {
-            get => processEnded;
-            set => Ensure(ref processEnded, value);
-        }
-        bool processEnded = false;
 
         [JsonProperty]
         public List<Parameter> Parameters
@@ -323,11 +336,11 @@ namespace AeonHacs.Components
             {
                 LabId = LabId,
                 DateTime = DateTime,
+                State = State,      // set to States.Unknown? - defer to caller
                 InletPort = InletPort,
-                CoilTrap = CoilTrap,
+                Traps = Traps,      // set to empty? - defer to caller
                 d13CPort = d13CPort,
                 Process = Process,
-                RunCompleted = RunCompleted,
                 Parameters = Parameters.Select(p => p.Clone()).ToList(),
                 SulfurSuspected = SulfurSuspected,
                 Take_d13C = Take_d13C,
