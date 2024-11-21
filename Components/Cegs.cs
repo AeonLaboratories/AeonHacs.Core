@@ -4896,7 +4896,7 @@ public class Cegs : ProcessManager, ICegs
             ProcessSubStep.CurrentStep.Description = getState();
             return pv > pvTarget - 10;
         }
-        WaitFor(preheated, 5 * oneMinute, 4*oneSecond);
+        WaitFor(preheated, 5 * oneMinute, 4 * oneSecond);
         step = "Pre-Heat ended: ";
         TestLog.Record($"{h.Name} calibration: {getState()}");
         ProcessSubStep.End();
@@ -4911,7 +4911,7 @@ public class Cegs : ProcessManager, ICegs
             ProcessSubStep.CurrentStep.Description = getState();
             return ProcessSubStep.Elapsed.TotalSeconds >= 60;
         }
-        WaitFor(stabilize, -1, 4);
+        WaitFor(stabilize, -1, 4 * oneSecond);
         ProcessSubStep.End();
         step = "";
 
