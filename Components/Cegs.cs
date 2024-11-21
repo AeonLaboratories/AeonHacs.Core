@@ -2014,9 +2014,9 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void CloseAllValves()
     {
-        ProcessStep.Start("Exercise all opened valves");
+        ProcessStep.Start("Close all opened valves");
         foreach (var v in Valves?.Values)
-            if ((v is CpwValve || v is PneumaticValve) && !(v is RS232Valve) && v.IsOpened)
+            if ((v is CpwValve || v is PneumaticValve) && !(v is RS232Valve))
                 v.CloseWait();
         ProcessStep.End();
     }
@@ -2040,6 +2040,13 @@ public class Cegs : ProcessManager, ICegs
         foreach (var v in Valves.Values)
             if (v is RS232Valve rv)
                 rv.Calibrate();
+    }
+
+    protected virtual void OpenRS232Valves()
+    {
+        foreach (var v in Valves.Values)
+            if (v is RS232Valve rv)
+                rv.Open();
     }
 
     #endregion Valve operations
@@ -2464,6 +2471,11 @@ public class Cegs : ProcessManager, ICegs
     /// <param name="section"></param>
     protected virtual void HoldForLeakTightness(ISection section)
     {
+        var basePressure = GetParameter("LeakTestBasePressure");
+        if (!basePressure.IsANumber())
+            basePressure = OkPressure; // OkPressure is a convenient but high starting pressure;
+                                       // ideally, ror tests start at ultimate pressure.
+
         // ports often have higher gas loads, usually due to water
         var leakRateLimit = 2 * LeakTightTorrLitersPerSecond;
         while (SectionLeakRate(section, leakRateLimit) > leakRateLimit)
@@ -2474,7 +2486,10 @@ public class Cegs : ProcessManager, ICegs
                           $"Restart the application to abort the process.";
 
             if (Warn(Message, Subject, NoticeType.Error).Ok())
+            {
+                section.VacuumSystem.Evacuate(basePressure);
                 continue;
+            }
             break;
         }
     }
@@ -4659,14 +4674,14 @@ public class Cegs : ProcessManager, ICegs
 
         var basePressure = GetParameter("LeakTestBasePressure");
         if (!basePressure.IsANumber())
-            basePressure = OkPressure;
+            basePressure = OkPressure; // OkPressure is a convenient but high starting pressure;
+                                       // ideally, ror tests start at ultimate pressure.
 
         ProcessSubStep.Start($"Evacuate {manifold.Name}+{port.Name} to below {basePressure:0.0e0} Torr");
         manifold.Isolate();
         manifold.ClosePortsExcept(port);
         manifold.Open();
         port.Open();
-        // OkPressure is a convenient but high starting pressure; ideally, ror tests start at ultimate pressure.
         manifold.Evacuate(basePressure);
         ProcessSubStep.End();
 
@@ -4721,10 +4736,63 @@ public class Cegs : ProcessManager, ICegs
 
     public void CalibrateManualHeater(IHeater h, IThermocouple tc)
     {
+        // Constants
         var oneSecond = 1000;       // milliseconds
         var oneMinute = 60 * oneSecond;
-        double pvTarget = 850;  // degrees C
-        double pvLimit = 1000;  // degrees C
+
+        double pvTarget = 850;      // degrees C
+        double pvLimit = 1000;      // degrees C
+
+        double dCoMin = 0.01;       // minimum control output change
+        double dCoMax = 1.0;        // maximum CO change
+        double dCo = dCoMin;        // calculated CO change
+        double dCo0 = dCo;          // previous change
+        double kP = -0.001;         // proportional control constant: the negative of nominal dCO / dT
+        double longEnough = 5;      // consecutive minutes with negligible error
+        int minSecondsAtCo = 20;    // minimum hold time at CO
+        double lagMinutes = 2;      // estimated seconds for small CO change to take full effect
+        var tooHigh = 65;           // degrees above target
+        var tooLow = -20;           // 
+
+        // Variables
+        double pv = tc.Temperature; // process variable
+        var sw = new Stopwatch();   // time since last tc.Temperature check
+        double dt = 0;              // .Elapsed.TotalMinutes for dPv/min and ddPv/min/min
+        double pv0 = 0;             // previous pv
+        double dPv = 0;             // change in pv
+        double dPv_dt = 0;          // change in pv per minute
+        double dPv0 = 0;            // previous change in pv
+        double ddPv = 0;            // change in dPv
+        double ddPv_dt = 0;         // change in dPv per minute
+        double error = 0;           // positive error is overtemp
+        double error0 = 0;          // previous error
+        double expectedError = 0;   // expected long-term error
+        bool timedOut = false;      // loop timed out with wait condition not met
+
+        var state = "";
+        var step = "";
+
+        string getState()
+        {
+            pv = tc.Temperature;
+            dt = sw.Elapsed.TotalMinutes;
+            sw.Restart();
+            dPv = pv - pv0;
+            pv0 = pv;
+            ddPv = dPv - dPv0;
+            dPv0 = dPv;
+            error0 = error;
+            error = pv - pvTarget;
+
+            if (dt > 1.5/60)    // need enough time to have received a new heater report
+            {
+                dPv_dt = dPv / dt;
+                ddPv_dt = ddPv / dt;
+                expectedError = error + lagMinutes * dPv_dt;
+            }
+            state = $"{step}CO={h.Config.PowerLevel:0.00}: {pv:0.0} °C (d={dPv_dt:0.0} dd={ddPv_dt:0.0}) e={expectedError:0.0}";
+            return state;
+        }
 
         if (!h.Config.ManualMode)
         {
@@ -4747,16 +4815,28 @@ public class Cegs : ProcessManager, ICegs
         }
 
         Subject = "Operator Needed";
-        Message = $"Move the calibration thermocouple to {h.Name}.";
-
+        Message = $"Move the calibration thermocouple to {h.Name}.\r\n" +
+            $"Ok to continue or Cancel to skip {h.Name}";
         if (!Ask(Message, Subject, NoticeType.Alert).Ok())
             return;
 
+        ProcessStep.Start($"Calibrating {h.Name} power level");
+        TestLog.Record($"Calibrating {h.Name}'s PowerLevel");
+
+        getState();
+        WaitSeconds(5, "Initialize state");
         if (tc.Temperature > pvTarget - 50)
         {
             h.TurnOff();
-            ProcessStep.Start($"Waiting for tCcal ({tc.Temperature:0} °C) to cool below {pvTarget - 50:0} °C");
-            if (!WaitFor(() => tc.Temperature < pvTarget - 50, oneMinute, oneSecond))
+            step = "Cooling: ";
+            TestLog.Record($"{h.Name} calibration: {getState()}.");
+            ProcessSubStep.Start(step);
+            bool cooled()
+            {   
+                ProcessSubStep.CurrentStep.Description = getState();
+                return pv < pvTarget - 50;
+            }
+            if (!WaitFor(cooled, oneMinute, oneSecond))
             {
                 Subject = "Error";
                 Message = "Calibration thermocouple is too hot.";
@@ -4766,52 +4846,102 @@ public class Cegs : ProcessManager, ICegs
                 ProcessStep.End();
                 return;
             }
-            ProcessStep.End();
+            ProcessSubStep.End();
         }
 
-        ProcessStep.Start($"Calibrating {h.Name} power level");
-        TestLog.Record($"Calibrating {h.Name}'s PowerLevel");
-
-        var pvIncreasing = tc.Temperature * 0.90323 + 102.42;        // +25 @ 800 C, +100 @ 25 C
-        ProcessSubStep.Start($"Pre-heat furnace: wait for {pvIncreasing:0} °C");
-        h.PowerLevel = Math.Min(24, h.Config.MaximumPowerLevel);
+        step = "Detect heating: ";
+        ProcessSubStep.Start(step);
+        var warmingTimeoutSeconds = 60;
+        h.MaximumPowerLevel = 15;
+        h.PowerLevel = 15;
         h.TurnOn();
-
-        TestLog.Record($"{h.Name} calibration: Temperature = {tc.Temperature:0.00} °C; PowerLevel = {h.Config.PowerLevel}; Waiting for {pvIncreasing:0.00} °C.");
-        if (!WaitFor(() => tc.Temperature > pvIncreasing, 2 * oneMinute, oneSecond))
+        TestLog.Record($"{h.Name} calibration: {getState()}.");
+        bool furnaceHeating()
+        {
+            ProcessSubStep.CurrentStep.Description = getState();
+            return dPv_dt > 5 && ddPv_dt > 5;
+        }
+        while (!WaitFor(furnaceHeating, warmingTimeoutSeconds * oneSecond, 4 * oneSecond))
         {
             h.TurnOff();
 
-            Subject = $"{h.Name} Calibration Aborted";
-            Message = "Temperature isn't rising fast enough.\r\n" +
-                     $"Is the calibration thermocouple in {h.Name}?";
+            Subject = $"{h.Name} Calibration Stopped";
+            Message = $"{h.Name} doesn't seem to be heating.\r\n" +
+                     $"Is the calibration thermocouple in {h.Name}?\r\n" +
+                     $"Ok to try again or Cancel calibrating {h.Name}.";
 
+            // Don't end the ProcessSubStep yet; retain the status in the UI.
             Alert(Message, Subject);
-            Ask(Message, Subject, NoticeType.Warning);
-            return;
+            if (Ask(Message, Subject, NoticeType.Warning).Ok())
+            {
+                ProcessSubStep.End();       // to restart the timer
+                ProcessSubStep.Start(step);
+                h.TurnOn();
+                TestLog.Record($"{h.Name} calibration: {getState()}");
+            }
+            else
+            {
+                ProcessSubStep.End();
+                return;
+            }
         }
-        ProcessSubStep.End();
-        ProcessSubStep.Start($"Wait for {pvTarget - 10:0} °C");
-        WaitFor(() => tc.Temperature > pvTarget - 10, 5 * oneMinute, oneSecond);
+        step = "Heating detected: ";
+        TestLog.Record($"{h.Name} calibration: {getState()}");
         ProcessSubStep.End();
 
-        double delta = 3;           // start at max
-        while (!Stopping && Math.Abs(delta) > 0)
+        step = $"Pre-heat: ";
+        ProcessSubStep.Start(step);
+        bool preheated()
+        {            
+            ProcessSubStep.CurrentStep.Description = getState();
+            return pv > pvTarget - 10;
+        }
+        WaitFor(preheated, 5 * oneMinute, 4*oneSecond);
+        step = "Pre-Heat ended: ";
+        TestLog.Record($"{h.Name} calibration: {getState()}");
+        ProcessSubStep.End();
+
+        step = $"Stabilize: ";
+        ProcessSubStep.Start(step);
+        double startingCO = 11.0;           // rough estimate
+        h.PowerLevel = startingCO;
+        TestLog.Record($"{h.Name} calibration: {getState()}");
+        bool stabilize()
+        {           
+            ProcessSubStep.CurrentStep.Description = getState();
+            return ProcessSubStep.Elapsed.TotalSeconds >= 60;
+        }
+        WaitFor(stabilize, -1, 4);
+        ProcessSubStep.End();
+        step = "";
+
+        while (!Stopping & !timedOut)
         {
-            double tooMuchError = 10;
-            double tooLong = 1;
-            double error = 0;
+            dCo0 = dCo;
+            var adjust = expectedError < tooLow || expectedError > tooHigh;
+            dCo = adjust ? kP * expectedError : 0;
+            if (dCo < 0)
+                dCo = Math.Clamp(dCo, -dCoMax, -dCoMin);
+            else
+                dCo = Math.Clamp(dCo, dCoMin, dCoMax);
 
-            ProcessSubStep.Start($"PowerLevel = {h.Config.PowerLevel:0.00}; delta = {delta:0.00}; waiting to adjust.");
+            var powerLevel = Math.Round(Math.Min(h.MaximumPowerLevel, h.Config.PowerLevel + dCo), 2);
+            h.PowerLevel = powerLevel;            
+
+            bool configured() => h.Config.PowerLevel == powerLevel;
+            WaitFor(configured, -1, 1);
+            TestLog.Record($"{h.Name} calibration: {getState()}.");
+
+            step = "";
+            ProcessSubStep.Start(step);
             bool changeNeeded()
             {
-                if (tc.Temperature > pvLimit) return true;
-                error = tc.Temperature - pvTarget;
-                ProcessSubStep.CurrentStep.Description =
-                    $"{h.Config.PowerLevel:0.00}: {tc.Temperature:0.00} error={error:0.0}";
-                return ProcessSubStep.Elapsed.TotalSeconds > 30 && Math.Abs(error) > tooMuchError;
+                if (tc.Temperature > pvLimit) return true;                
+                ProcessSubStep.CurrentStep.Description = getState();
+                return ProcessSubStep.Elapsed.TotalSeconds >= minSecondsAtCo &&
+                    (expectedError < tooLow || expectedError > tooHigh);
             }
-            WaitFor(changeNeeded, (int)(tooLong * oneMinute), oneSecond);
+            timedOut = !WaitFor(changeNeeded, (int)(longEnough * oneMinute), 5 * oneSecond);
             ProcessSubStep.End();
 
             if (tc.Temperature > pvLimit)
@@ -4819,27 +4949,13 @@ public class Cegs : ProcessManager, ICegs
                 RecordAlert($"{h.Name} calibration stopped", $"Temperature exceeded 1000 °C.");
                 break;
             }
-
-            delta = -error * 0.01;
-            if (delta >= 0 && delta < 0.01) delta = 0;
-            if (delta < 0 && delta > -0.01) delta = -0.01;
-            if (delta > 3) delta = 3;
-            if (delta < -3) delta = -3;
-
-            var co = h.Config.PowerLevel + delta;
-            if (co > h.MaximumPowerLevel && ProcessStep.Elapsed.TotalMinutes > 10)
-            {
-                RecordAlert($"{h.Name} calibration stopped", $"{h.Name}: co ({co:0.00}) > MaxPowerLevel {h.MaximumPowerLevel:0.00}.");
-                break;
-            }
-
-            h.PowerLevel = Math.Min(h.MaximumPowerLevel, h.Config.PowerLevel + delta);
-            TestLog.Record($"{h.Name} calibration: {tc.Temperature:0.00} °C: setting PowerLevel to {h.Config.PowerLevel:0.00}.");
         }
+        TestLog.Record($"{h.Name} calibration: {getState()}");
         h.TurnOff();
 
-        if (delta == 0)
+        if (timedOut)
         {
+            h.MaximumPowerLevel = h.Config.PowerLevel;
             RecordAlert($"{h.Name} calibration complete", $"{h.Name}'s PowerLevel is {h.Config.PowerLevel:0.00}.");
         }
         else

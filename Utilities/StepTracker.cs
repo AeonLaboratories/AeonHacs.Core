@@ -15,7 +15,24 @@ namespace AeonHacs.Utilities
         public Step CurrentStep
         {
             get => currentStep;
-            set { currentStep = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentStep))); }
+            set
+            {
+                void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
+                {
+                    if (e.PropertyName == nameof(Step.Description))
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Description)));
+                }
+
+                if (currentStep != null)
+                    currentStep.PropertyChanged -= OnPropertyChanged;
+                currentStep = value;
+                if (currentStep != null)
+                    currentStep.PropertyChanged += OnPropertyChanged;
+                
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentStep)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Description)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Elapsed)));
+            }
         }
         Step currentStep;
 
