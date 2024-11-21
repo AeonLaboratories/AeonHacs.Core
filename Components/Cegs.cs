@@ -4734,7 +4734,7 @@ public class Cegs : ProcessManager, ICegs
         return torr * liters / elapsed;
     }
 
-    public void CalibrateManualHeater(IHeater h, IThermocouple tc)
+    protected void CalibrateManualHeater(IHeater h, IThermocouple tc)
     {
         // Constants
         var oneSecond = 1000;       // milliseconds
@@ -5257,7 +5257,7 @@ public class Cegs : ProcessManager, ICegs
         //measure();
     }
 
-    void ValvePositionDriftTest()
+    protected void ValvePositionDriftTest()
     {
         var v = FirstOrDefault<RS232Valve>();
         var pos = v.ClosedValue / 2;
@@ -5285,7 +5285,7 @@ public class Cegs : ProcessManager, ICegs
         v.ActuatorOperations.Remove(op);
     }
 
-    void TestPort(IPort p)
+    protected void TestPort(IPort p)
     {
         for (int i = 0; i < 5; ++i)
         {
@@ -5298,7 +5298,7 @@ public class Cegs : ProcessManager, ICegs
     }
 
     // two minutes of moving the valve at a moderate pace
-    void TestValve(IValve v)
+    protected void TestValve(IValve v)
     {
         TestLog.Record($"Operating {v.Name} for 2 minutes");
         for (int i = 0; i < 24; ++i)
@@ -5310,7 +5310,7 @@ public class Cegs : ProcessManager, ICegs
         }
     }
 
-    void TestUpstream(IValve v)
+     protected void TestUpstream(IValve v)
     {
         TestLog.Record($"Checking {v.Name}'s 10-minute bump");
         v.OpenWait();
