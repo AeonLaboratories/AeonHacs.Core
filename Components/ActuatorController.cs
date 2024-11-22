@@ -479,7 +479,7 @@ namespace AeonHacs.Components
 
                 if (a.Device.Active)
                 {
-                    if (a is CpwValve v && operation != null)
+                    if (a is CpwValve v && a is not RS232Valve && operation != null)
                     {
                         if (v.TimeLimitDetected)
                             v.Device.Position = operation.Value;
