@@ -2786,7 +2786,7 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void EvacuateIP(double pressure)
     {
         if (!IpIm(out ISection im)) return;
-        ProcessStep.Start($"Evacuate {InletPort.Name} to below {pressure:0e0}.");
+        ProcessStep.Start($"Evacuate {InletPort.Name} to below {pressure:0.0e0}.");
         im.OpenAndEvacuate(pressure, InletPort);
         ProcessStep.End();
     }
@@ -3240,13 +3240,13 @@ public class Cegs : ProcessManager, ICegs
         manifold.Isolate();
         foreach (var p in ports) p.Open();
 
-        ProcessSubStep.Start($"Evacuate {manifold.Name} to {OkPressure:0} Torr");
+        ProcessSubStep.Start($"Evacuate {manifold.Name} to {OkPressure:0.0e0} Torr");
         manifold.OpenAndEvacuate(OkPressure);
         ProcessSubStep.End();
 
         Flush(manifold, 3);
 
-        ProcessSubStep.Start($"Evacuate {manifold.Name} to {OkPressure:0} Torr");
+        ProcessSubStep.Start($"Evacuate {manifold.Name} to {OkPressure:0.0e0} Torr");
         manifold.OpenAndEvacuate(OkPressure);
         ProcessSubStep.End();
 
