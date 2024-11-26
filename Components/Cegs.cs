@@ -4988,7 +4988,7 @@ public class Cegs : ProcessManager, ICegs
         }
     }
 
-    public void PidStepTest(params IHeater[] heaters)
+    protected void PidStepTest(params IHeater[] heaters)
     {
         double initialCO = 1.0;
         double stepCO = 4.0;
@@ -5034,10 +5034,14 @@ public class Cegs : ProcessManager, ICegs
         log.Close();
         log = null;
 
-        Array.ForEach(heaters, h => h.TurnOff());
+        Array.ForEach(heaters, h =>
+        {
+            h.TurnOff();
+            h.Auto();
+        });
     }
 
-    public void VttWarmStepTest()
+    protected void VttWarmStepTest()
     {
         if (Find<VTColdfinger>("VTC") is not VTColdfinger vtc)
             return;
