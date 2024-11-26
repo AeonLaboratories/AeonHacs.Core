@@ -5037,6 +5037,68 @@ public class Cegs : ProcessManager, ICegs
         Array.ForEach(heaters, h => h.TurnOff());
     }
 
+    public void VttWarmStepTest()
+    {
+        if (Find<VTColdfinger>("VTC") is not VTColdfinger vtc)
+            return;
+        if (vtc.Heater is not IHeater h)
+            return;
+
+        // Replace VTC heater with dummy so we can manually control the real heater.
+        vtc.Heater = new HC6Heater();
+
+        double initialCO = 0.1;
+        double stepCO = 0.3;
+
+        h.Setpoint = 50;
+        h.Manual(initialCO);
+        h.TurnOn();
+
+        WaitMinutes(60); // Wait for temperature to stabalize.
+
+        var log = new DataLog($"VttWarm Step Test.txt")
+        {
+            Columns = new()
+                {
+                    new DataLog.Column()
+                    {
+                        Name = "tVTC",
+                        Resolution = -1.0,
+                        Format = "0.00"
+                    },
+                    new DataLog.Column()
+                    {
+                        Name = vtc.TopThermometer.Name,
+                        Resolution = -1.0,
+                        Format = "0.00"
+                    },
+                    new DataLog.Column()
+                    {
+                        Name = vtc.WireThermometer.Name,
+                        Resolution = -1.0,
+                        Format = "0.00"
+                    }
+                },
+            ChangeTimeoutMilliseconds = 3 * 1000,
+            OnlyLogWhenChanged = false,
+            InsertLatestSkippedEntry = false
+        };
+
+        HacsLog.List.Add(log);
+
+        h.PowerLevel = stepCO;
+
+        WaitMinutes(40);
+
+        HacsLog.List.Remove(log);
+        log.Close();
+        log = null;
+
+        h.TurnOff();
+        h.Auto();
+        vtc.Heater = h;
+    }
+
     /// <summary>
     /// Transfer CO2 from MC to IP,
     /// optionally add some carrier gas,
