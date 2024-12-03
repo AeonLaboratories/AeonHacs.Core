@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using static AeonHacs.Components.CegsPreferences;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
@@ -507,12 +506,7 @@ public class Cegs : ProcessManager, ICegs
                 return null;
             }
 
-            var firstChamber = im.Chambers?.First();
-            var lastChamber = trap.Chambers?.Last();
-            var im_trap = FirstOrDefault<Section>(s =>
-                s.Chambers?.First() == firstChamber &&
-                s.Chambers?.Last() == lastChamber);
-
+            var im_trap = JoinedSection(im, trap);
             if (im_trap == null)
             {
                 Subject = "Configuration Error";
@@ -535,14 +529,8 @@ public class Cegs : ProcessManager, ICegs
         get
         {
             var chamber = IM_FirstTrap?.Chambers?.Last();
-            if (chamber == null)
-            {
-                Subject = "Configuration Error";
-                Message = "Can't find IM_FirstTrap Section.";
-
-                Warn(Message, Subject, NoticeType.Error);
+            if (chamber == null)        // error handled in IM_FirstTrap
                 return null;
-            }
             var trap = FirstOrDefault<Section>(s =>
                s.Chambers?.First() == chamber &&
                s.Chambers.Count() == 1);
@@ -550,7 +538,6 @@ public class Cegs : ProcessManager, ICegs
             {
                 Subject = "Configuration Error";
                 Message = $"Can't find a Section containing only chamber {chamber.Name}.";
-
                 Warn(Message, Subject, NoticeType.Error);
             }
             return trap;
@@ -1719,7 +1706,7 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    /// Get the sample gases into the first trap.
+    /// Get the condensable sample gases into the first trap.
     /// </summary>
     protected virtual void Collect()
     {
@@ -3911,23 +3898,43 @@ public class Cegs : ProcessManager, ICegs
 
     #region Transfer CO2 between chambers
 
-    // No foolproofing. All sections and coldfingers must be defined,
-    // and the combined section must be named as expected.
+    /// <summary>
+    /// Find a defined Section with the provided first and last Chambers.
+    /// </summary>
+    /// <param name="first">The first chamber in the Section's Chamber list.</param>
+    /// <param name="last">The last chamber in the Section's Chamber list.</param>
+    /// <returns></returns>
+    protected virtual ISection SectionSpanning(IChamber first, IChamber last) =>
+        FirstOrDefault<ISection>(s => s.Chambers.First() == first && s.Chambers.Last() == last);
+
+    /// <summary>
+    /// Find a defined Section that starts with fromSection and ends with toSection or vice-versa.
+    /// </summary>
+    /// <param name="fromSection">A (sub)Section at one extreme end of the desired Section.</param>
+    /// <param name="toSection">A (sub)Section at the other extreme end of the desired Section.</param>
+    /// <returns></returns>
+    protected virtual ISection JoinedSection(ISection fromSection, ISection toSection)
+    {
+        var first = fromSection.Chambers.First();
+        var last = toSection.Chambers.Last();
+        return SectionSpanning(first, last) ?? SectionSpanning(last, first);
+    }
+
     // If fromSection doesn't have a Coldfinger or VTColdfinger, this method
     // assumes fromSection is thawed (i.e., if there is an LN dewar on
     // fromSection, it must be removed before calling this method).
     protected virtual void TransferCO2(ISection fromSection, ISection toSection, double thawTemperature = double.NaN)
     {
-        var c1f = fromSection.Chambers.First().Name;
-        var c1l = fromSection.Chambers.Last().Name;
-        var c2f = toSection.Chambers.First().Name;
-        var c2l = toSection.Chambers.Last().Name;
-        var combinedSection = Find<Section>(c1f + "_" + c2l) ?? Find<Section>(c2f + "_" + c1l);
+        var combinedSection = JoinedSection(fromSection, toSection);
         if (combinedSection == null)
+        {
+            Subject = "Configuration Error";
+            Message = $"Can't find Section linking {fromSection.Name} and {toSection.Name}";
+            Warn(Message, Subject, NoticeType.Error);
             return;
+        }
 
         ProcessStep.Start($"Transfer CO2 from {fromSection.Name} to {toSection.Name}");
-
         fromSection.Isolate();
 
         var toSectionEvacuatesThroughFromSection =
@@ -3992,8 +3999,7 @@ public class Cegs : ProcessManager, ICegs
         if (gr == null) return;
         if (!GrGm([gr], out ISection gm)) return;
 
-        var pathName = MC.Name + "_" + gm.Name;
-        var mc_gm = Find<Section>(pathName);
+        var mc_gm = JoinedSection(MC, gm);
 
         var nHoldSampleAtPorts = GetParameter("HoldSampleAtPorts");
         var holdSampleAtPorts = nHoldSampleAtPorts.IsANumber() && nHoldSampleAtPorts != 0;
@@ -4001,7 +4007,7 @@ public class Cegs : ProcessManager, ICegs
         if (mc_gm == null)
         {
             Subject = "Configuration Error";
-            Message = $"Can't find Section {pathName}";
+            Message = $"Can't find Section joining {MC.Name} to {gm.Name}";
 
             Warn(Message, Subject, NoticeType.Error);
             return;
@@ -4243,13 +4249,11 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void TransferCO2FromGRToMC(IGraphiteReactor gr, bool firstFreezeGR)
     {
         if (!GrGm([gr], out ISection gm)) return;
-        var pathName = MC.Name + "_" + gm.Name;
-        var mc_gm = Find<Section>(pathName);
+        var mc_gm = JoinedSection(MC, gm);
         if (mc_gm == null)
         {
             Subject = "Configuration Error";
-            Message = $"Can't find Section {pathName}";
-
+            Message = $"Can't find Section joining {MC.Name} to {gm.Name}";
             Warn(Message, Subject, NoticeType.Error);
             return;
         }
@@ -4349,29 +4353,23 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.End();
 
         ProcessStep.Start($"Transfer CO2 from MC to {InletPort.Name}");
-
         Subject = "Operator Needed";
         Message = $"Almost ready for LN on {InletPort.Name}.\r\n" +
-                  $"Ok to continue, then raise LN onto {InletPort.Name} coldfinger.";
-
+                  $"First select Ok to continue, then raise LN onto {InletPort.Name} coldfinger.";
         Alert(Message, Subject);
         Ask(Message, Subject, NoticeType.Alert);
 
         im.VacuumSystem.Isolate();
         MC_Split.Open();
-
-        ProcessSubStep.Start($"Wait {MinutesString((int)CO2TransferMinutes)} for CO2 to freeze into {InletPort.Name}");
-        WaitMinutes((int)CO2TransferMinutes);
-        ProcessSubStep.End();
+        WaitMinutes((int)CO2TransferMinutes, $"Wait {MinutesString((int)CO2TransferMinutes)} for CO2 to freeze into {InletPort.Name}");
 
         Subject = "Operator Needed";
         Message = $"Raise {InletPort.Name} LN one inch.\r\n" +
                    "Ok to continue.";
-
         Alert(Message, Subject);
         Ask(Message, Subject, NoticeType.Alert);
 
-        WaitSeconds(30);
+        WaitSeconds(15, "Wait 15 seconds for LN to settle.");
         InletPort.Close();
         ProcessStep.End();
     }
