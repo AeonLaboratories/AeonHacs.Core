@@ -5116,7 +5116,7 @@ public class Cegs : ProcessManager, ICegs
 
             // if a transfer vessel is used... 
             Subject = "Operator Needed";
-            Message = $"Put LN on the {InletPort.Name} coldfinger\r\n." +
+            Message = $"Put LN on the {InletPort.Name} coldfinger.\r\n" +
                 $"Wait for it to freeze, then raise it a bit.\r\n" +
                  "Ok to continue.";
             Alert(Message, Subject);
