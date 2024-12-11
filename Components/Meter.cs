@@ -409,7 +409,11 @@ namespace AeonHacs.Components
                 firstOp = os?.Operations?.FirstOrDefault();
 
             bool insert = false;
-            if (firstOp is Arithmetic firstArithmetic)
+            if (firstOp is PchipInterpolator pchip)
+            {
+                pchip.Zero(offset);
+            }
+            else if (firstOp is Arithmetic firstArithmetic)
             {
                 if (firstArithmetic.Operator == Arithmetic.Operators.Subtract)
                     firstArithmetic.Operand = offset;
