@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace AeonHacs
@@ -17,18 +18,13 @@ namespace AeonHacs
         /// X is a scale output and Y is the corresponding true kilograms.
         /// </summary>
         [JsonProperty]
-        public List<(double X, double Y)> CalibrationData
+        public ImmutableList<(double X, double Y)> CalibrationData
         {
-            get => calibrationData;
-            set
-            {
-                calibrationData = value;
-                Initialize(calibrationData);
-            }
+            get => points.Select(p => (p.X, p.Y)).ToImmutableList();
+            set => Initialize(value);
         }
-        List<(double X, double Y)> calibrationData;
 
-        private List<(double X, double Y, double D)> points;
+        private List<(double X, double Y, double D)> points = [];
 
         /// <summary>
         /// Creates a new instance of the <see cref="PchipInterpolator"/> class.
@@ -40,12 +36,12 @@ namespace AeonHacs
         /// </summary>
         /// <param name="dataPoints">The data points for interpolation. Each point must have an X and Y value.</param>
         /// <exception cref="ArgumentException">Thrown when fewer than two data points are provided.</exception>
-        public PchipInterpolator(List<(double X, double Y)> dataPoints)
+        public PchipInterpolator(IList<(double X, double Y)> dataPoints)
         {
             Initialize(dataPoints);
         }
 
-        private void Initialize(List<(double X, double Y)> dataPoints)
+        private void Initialize(IList<(double X, double Y)> dataPoints)
         {
             if (dataPoints == null || dataPoints.Count < 2)
                 throw new ArgumentException("At least two points are required for interpolation.", nameof(dataPoints));
@@ -57,6 +53,11 @@ namespace AeonHacs
                 .ToList();
 
             CalculateSlopes();
+        }
+
+        public void Zero(double X)
+        {
+            points[0] = (X, points[0].Y, (points[1].Y - points[0].Y) / (points[1].X - X));
         }
 
         /// <summary>
