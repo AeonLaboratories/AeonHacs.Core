@@ -2544,13 +2544,15 @@ public class Cegs : ProcessManager, ICegs
             WaitSeconds(5);
             var p1 = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
 
-            ProcessSubStep.Start($"Calibrate {gr.Manometer.Name}");
-            // TODO: make this safe and move it into AIVoltmeter
-            var offset = gr.Manometer.Conversion.Operations[0];
-            var v = offset.Execute((gr.Manometer as AIVoltmeter).Voltage);
-            var gain = gr.Manometer.Conversion.Operations[1] as Arithmetic;
-            gain.Operand = p1 / v;
-            ProcessSubStep.End();
+            // This is not really necessary and it crashes when the manometer
+            // conversion is not ZeroOffset and Gain.
+            //ProcessSubStep.Start($"Calibrate {gr.Manometer.Name}");
+            //// TODO: make this safe and move it into AIVoltmeter
+            //var offset = gr.Manometer.Conversion.Operations[0];
+            //var v = offset.Execute((gr.Manometer as AIVoltmeter).Voltage);
+            //var gain = gr.Manometer.Conversion.Operations[1] as Arithmetic;
+            //gain.Operand = p1 / v;
+            //ProcessSubStep.End();
 
             gr.MilliLiters = gmMilliLiters * (p0 / p1 - 1);
             gr.Size = EnableSmallReactors && gr.MilliLiters < 2.0 ? GraphiteReactor.Sizes.Small : GraphiteReactor.Sizes.Standard;
