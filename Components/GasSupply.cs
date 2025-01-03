@@ -221,12 +221,12 @@ namespace AeonHacs.Components
         public void IsolateFromVacuum()
         {
             if (Path?.PathToVacuum is List<IValve> list && list.Any())
-                list.First().CloseWait();
+                list.Close(list.First());
             else
                 Path?.VacuumSystem?.Isolate();
 
             if (Destination?.PathToVacuum is List<IValve> list2 && list2.Any())
-                list2.First().CloseWait();
+                list2.Close(list2.First());
             else
                 Destination?.VacuumSystem?.Isolate();
         }
