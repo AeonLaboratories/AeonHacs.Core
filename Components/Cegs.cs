@@ -1254,6 +1254,27 @@ public class Cegs : ProcessManager, ICegs
         Sample?.Parameter(name) ?? CegsPreferences.Parameter(name);
 
     /// <summary>
+    /// Gets the parameter, Warns if it's not defined and pauses for Operator
+    /// interaction, and finally returns the retrieved value.
+    /// Once the warning is dismissed, the retrieved value is returned,
+    /// even if it's not a number.
+    /// </summary>
+    /// <param name="parameter"></param>
+    /// <returns></returns>
+    public double GetValidParameter(string parameter)
+    {
+        var value = GetParameter(parameter);
+        if (!value.IsANumber())
+        {
+            var subject = "Process Error";
+            var message = $"Sample Parameter '{parameter}' is not defined!\r\n" +
+                $"Process cannot continue.";
+            Warn(message, subject);
+        }
+        return value;
+    }
+
+    /// <summary>
     /// Sets the parameter to double.NaN.
     /// </summary>
     /// <param name="name"></param>
