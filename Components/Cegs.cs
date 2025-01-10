@@ -5261,7 +5261,7 @@ public class Cegs : ProcessManager, ICegs
         }
 
         ProcessStep.Start("Measure transfer efficiency");
-        if (ugCinMC < Sample.SelectedMicrogramsCarbon * 0.8)
+        if (ugCinMC < Sample.Micrograms * 0.8)
         {
             MC.VacuumSystem.OpenLine();
             MC.VacuumSystem.WaitForPressure(CleanPressure);
