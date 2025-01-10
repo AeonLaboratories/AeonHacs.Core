@@ -57,7 +57,6 @@ public class Cegs : ProcessManager, ICegs
 
         Power = Find<Power>(powerName);
         Ambient = Find<Chamber>(ambientName);
-        VacuumSystem = Find<VacuumSystem>(vacuumSystemName);
 
         IM = Find<Section>(imName);
         CT = Find<Section>(ctName);
@@ -101,7 +100,6 @@ public class Cegs : ProcessManager, ICegs
     {
         // check that the essentials were found
         CegsNeeds(Ambient, nameof(Ambient), ambientName);
-        CegsNeeds(VacuumSystem, nameof(VacuumSystem), vacuumSystemName);
         CegsNeeds(IM, nameof(IM), imName);
         CegsNeeds(VTT, nameof(VTT), vttName);
         CegsNeeds(MC, nameof(MC), mcName);
@@ -312,19 +310,6 @@ public class Cegs : ProcessManager, ICegs
         set => Ensure(ref ambient, value, NotifyPropertyChanged);
     }
     IChamber ambient;
-
-    [JsonProperty("VacuumSystem"), DefaultValue("VacuumSystem")]
-    string VacuumSystemName { get => VacuumSystem?.Name; set => vacuumSystemName = value; }
-    string vacuumSystemName;
-    /// <summary>
-    /// The main VacuumSystem (services VTT-GM).
-    /// </summary>
-    public virtual IVacuumSystem VacuumSystem
-    {
-        get => vacuumSystem;
-        set => Ensure(ref vacuumSystem, value, NotifyPropertyChanged);
-    }
-    IVacuumSystem vacuumSystem;
 
     [JsonProperty("InletManifold"), DefaultValue("IM")]
     string IMName { get => IM?.Name; set => imName = value; }
@@ -1097,7 +1082,7 @@ public class Cegs : ProcessManager, ICegs
         stoppedSignal2.Reset();
         try
         {
-            while (!Stopping)
+            while (Started && !Stopping)
             {
                 if (EnableAutozero) ZeroPressureGauges();
 
@@ -2829,7 +2814,7 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.Start("Close gas supplies");
         CloseGasSupplies();
         ProcessStep.End();
-        OpenLine(VacuumSystem);
+        OpenLine(MC.VacuumSystem);
     }
 
     /// <summary>
