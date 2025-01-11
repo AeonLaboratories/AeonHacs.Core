@@ -239,10 +239,15 @@ namespace AeonHacs.Components
                 case States.InProcess:
                     break;
                 case States.Start:
-                    if (Aliquot.GRStartPressure == 0)
-                        Aliquot.GRStartPressure = Pressure;
-                    TurnOn(GraphitizingTemperature);
-                    State = States.WaitTemp;
+                    var p = Sample.Parameter("ThawBeforeGraphitizing");
+                    var thawBeforeGraphitizing = p.IsANumber() && p != 0;
+                    if (!thawBeforeGraphitizing || Coldfinger.Thawed)
+                    {
+                        if (Aliquot.GRStartPressure == 0)
+                            Aliquot.GRStartPressure = Pressure;
+                        TurnOn(GraphitizingTemperature);
+                        State = States.WaitTemp;
+                    }
                     break;
                 case States.WaitTemp:
                     if (!Heater.IsOn) state = States.Start;
