@@ -24,8 +24,9 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void PreConnect()
     {
         #region Logs
-        SampleLog = Find<HacsLog>("SampleLog");
-        TestLog = Find<HacsLog>("TestLog");
+        SampleLog = Find<HacsLog>(samplelogName);
+        TestLog = Find<HacsLog>(testlogName);
+        SampleRecords = Find<HacsLog>(sampleRecordsName);
 
         List<string> somePotentialPressureLogNames = new()
         {
@@ -296,6 +297,18 @@ public class Cegs : ProcessManager, ICegs
     }
     HacsLog testlog;
 
+    [JsonProperty("SampleRecords"), DefaultValue("SampleRecords")]
+    string SampleRecordsName { get => SampleRecords?.Name; set => sampleRecordsName = value; }
+    string sampleRecordsName;
+    /// <summary>
+    /// Sample data in tabular form.
+    /// </summary>
+    public virtual HacsLog SampleRecords
+    {
+        get => sampleRecords;
+        set => Ensure(ref sampleRecords, value, NotifyPropertyChanged);
+    }
+    HacsLog sampleRecords;
     #endregion Data Logs
 
     [JsonProperty("Ambient"), DefaultValue("Ambient")]
@@ -1104,7 +1117,8 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    /// Event handler for MC temperature and pressure changes
+    /// Event handler for MC temperature and pressure changes. Whenever the MC sample 
+    /// measurement (in ugC) changes, notify subscribers that umolCinMC has changed as well.
     /// </summary>
     protected virtual void UpdateSampleMeasurement(object sender = null, PropertyChangedEventArgs e = null)
     {
@@ -1717,6 +1731,7 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void Collect()
     {
         var collectionPath = IM_FirstTrap;
+        collectionPath.VacuumSystem.MySection.Isolate();
         collectionPath.Isolate();
         collectionPath.FlowValve?.OpenWait();
         collectionPath.OpenAndEvacuate(OkPressure);
@@ -2042,6 +2057,17 @@ public class Cegs : ProcessManager, ICegs
                 rv.Open();
     }
 
+    /// <summary>
+    /// Moving the valves like this sometimes helps pinpoint vacuum performance issues.
+    /// </summary>
+    protected void ExerciseValvesForever()
+    {
+        while (true)
+        {
+            ExerciseAllValves(4);
+            WaitMinutes(2);
+        }
+    }
     #endregion Valve operations
 
     #region Support and general purpose functions
@@ -2550,16 +2576,6 @@ public class Cegs : ProcessManager, ICegs
             WaitSeconds(5);
             var p1 = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
 
-            // This is not really necessary and it crashes when the manometer
-            // conversion is not ZeroOffset and Gain.
-            //ProcessSubStep.Start($"Calibrate {gr.Manometer.Name}");
-            //// TODO: make this safe and move it into AIVoltmeter
-            //var offset = gr.Manometer.Conversion.Operations[0];
-            //var v = offset.Execute((gr.Manometer as AIVoltmeter).Voltage);
-            //var gain = gr.Manometer.Conversion.Operations[1] as Arithmetic;
-            //gain.Operand = p1 / v;
-            //ProcessSubStep.End();
-
             gr.MilliLiters = gmMilliLiters * (p0 / p1 - 1);
             gr.Size = EnableSmallReactors && gr.MilliLiters < 2.0 ? GraphiteReactor.Sizes.Small : GraphiteReactor.Sizes.Standard;
             ProcessStep.End();
@@ -2576,12 +2592,21 @@ public class Cegs : ProcessManager, ICegs
 
         if (IronPreconditioningMinutes > 0)
         {
+            if (IronPreconditionH2Pressure > 0)
+            {
+                ProcessStep.Start("Admit H2 into GRs");
+                gm.IsolateFromVacuum();
+                gsH2.FlowPressurize(IronPreconditionH2Pressure);
+                grs.ForEach(gr => gr.Close());
+                ProcessStep.End();
+            }
+
             ProcessStep.Start("Start Heating Fe under vacuum");
             grs.ForEach(gr => gr.TurnOn(IronPreconditioningTemperature));
             ProcessStep.End();
 
             int targetTemp = (int)IronPreconditioningTemperature - (int)IronPreconditioningTemperatureCushion;
-            ProcessStep.Start("Wait for GRs to reach " + targetTemp.ToString() + " °C.");
+            ProcessStep.Start($"Wait for GRs to reach {targetTemp} °C.");
             while (!WaitFor(() => Hacs.Stopping || !AnyUnderTemp(grs, targetTemp), (int)MaximumMinutesGrToReachTemperature * 60000, 1000))
             {
                 var sluggish = grs.Where(gr => gr.SampleTemperature < targetTemp);
@@ -2605,14 +2630,7 @@ public class Cegs : ProcessManager, ICegs
             }
             ProcessStep.End();
 
-            if (IronPreconditionH2Pressure > 0)
-            {
-                ProcessStep.Start("Admit H2 into GRs");
-                gm.IsolateFromVacuum();
-                gsH2.FlowPressurize(IronPreconditionH2Pressure);
-                grs.ForEach(gr => gr.Close());
-                ProcessStep.End();
-            }
+
             ProcessStep.Start("Precondition iron for " + MinutesString((int)IronPreconditioningMinutes));
             if (IronPreconditionH2Pressure > 0)
             {
@@ -2683,6 +2701,7 @@ public class Cegs : ProcessManager, ICegs
         }
 
         ProcessStep.Start("Evacuate & Flush IPs with inert gas");
+        im.VacuumSystem.MySection.Isolate();
         im.Isolate();
         ips.ForEach(ip => ip.Open());
         im.Evacuate(OkPressure);
@@ -2710,12 +2729,10 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.End();
 
         ips.ForEach(ip => ip.State = LinePort.States.Prepared);
-
-        //im.VacuumSystem.OpenLine();
+        OpenLine();
     }
 
     protected virtual void Prepare_d13CPorts() { }
-
 
     protected virtual void ChangeSulfurFe()
     {
@@ -3241,12 +3258,21 @@ public class Cegs : ProcessManager, ICegs
 
         Flush(manifold, 3);
 
-        ProcessSubStep.Start($"Evacuate {manifold.Name} to {OkPressure:0.0e0} Torr");
-        manifold.OpenAndEvacuate(OkPressure);
+        ProcessSubStep.Start($"Evacuate {manifold.Name} to {CleanPressure:0.0e0} Torr");
+        manifold.OpenAndEvacuate();
+        manifold.VacuumSystem.WaitForStablePressure(CleanPressure, 5);
         ProcessSubStep.End();
 
-        // TODO: insert a leak check here?
+        ProcessStep.Start("Check d13C ports for leaks");
+        HoldForLeakTightness(manifold);
+        ProcessStep.End();
+
+        ProcessStep.Start("Close prepared d13C ports");
+        manifold.ClosePorts();
+        ProcessStep.End();
+
         foreach (var p in ports) p.State = LinePort.States.Prepared;
+        manifold.VacuumSystem.OpenLine();
         ProcessStep.End();
     }
 
