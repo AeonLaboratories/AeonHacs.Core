@@ -51,7 +51,6 @@ public class FlowMonitor : HacsComponent
 
     object flowTrackingLock = new object();
 
-    [JsonProperty]
     public double TrackedFlow
     {
         get => trackedFlow;
