@@ -250,7 +250,6 @@ namespace AeonHacs.Components
         /// the VacuumManifold to reach a certain pressure. This value may be altered dynamically
         /// while WaitForPressure() is active; that's its intended purpose.
         /// </summary>
-        [JsonProperty]
         public double TargetPressure
         {
             get => targetPressure;
@@ -390,7 +389,6 @@ namespace AeonHacs.Components
             }
         }
 
-        [JsonProperty]
         protected Stopwatch StateStopwatch { get; private set; } = new Stopwatch();
         public long MillisecondsInState => StateStopwatch.ElapsedMilliseconds;
 
