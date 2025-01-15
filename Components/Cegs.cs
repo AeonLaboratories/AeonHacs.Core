@@ -3657,7 +3657,18 @@ public class Cegs : ProcessManager, ICegs
         {
             ProcessSubStep.Start("Bring MC to uniform temperature");
             MC.Thaw();
-            WaitFor(() => MC.Thawed); // (timeout is handled by Coldfinger)
+            bool thawed()
+            {
+                if (MC.Manometer.OverRange)
+                {
+                    if (MC.Ports[0].IsClosed)
+                        MC.Ports[0].Open();
+                    else if (MC.Ports[1].IsClosed)
+                        MC.Ports[1].Open();
+                }
+                return MC.Thawed;
+            }
+            WaitFor(() => thawed(), -1, 1000); // (timeout is handled by Coldfinger)
             ProcessSubStep.End();
         }
 
