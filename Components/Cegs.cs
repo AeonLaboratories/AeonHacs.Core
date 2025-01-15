@@ -3134,19 +3134,23 @@ public class Cegs : ProcessManager, ICegs
 
         ProcessStep.Start("Evacuate MC");
         MC.Isolate();
-        var aliquots = Sample?.AliquotsCount ?? 1;
-        if (aliquots > 1)
+        var particles = ugc_targetSize * CarbonAtomsPerMicrogram;
+        if (Pressure(particles, MC.CurrentVolume(true), MC.Temperature) > MC.Manometer.MaxValue)
             MC.Ports[0].Open();
-        if (aliquots > 2)
+        if (Pressure(particles, MC.CurrentVolume(true), MC.Temperature) > MC.Manometer.MaxValue)
             MC.Ports[1].Open();
+        if (Pressure(particles, MC.CurrentVolume(true), MC.Temperature) > MC.Manometer.MaxValue)
+        {
+            var ugcMax = Particles(MC.Manometer.MaxValue, MC.CurrentVolume(true), MC.Temperature) / CarbonAtomsPerMicrogram;
+            Subject = "Process Exception";
+            Message = $"Requested amount of Dead CO2 ({ugc_targetSize} µgC) exceeds {MC.Name} limit ({ugcMax} µgC).";
+            Warn(Message, Subject, NoticeType.Error);
+            ProcessStep.End();
+            return;
+        }
+
         MC.Evacuate(CleanPressure);
-
-        if (aliquots < 2)
-            MC.Ports[0].Close();
-        if (aliquots < 3)
-            MC.Ports[1].Close();
-
-        MC.VacuumSystem.WaitForPressure(CleanPressure);
+        MC.VacuumSystem.WaitForStablePressure(CleanPressure);
         ZeroMC();
         ProcessStep.End();
 
