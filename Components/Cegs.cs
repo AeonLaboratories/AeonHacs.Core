@@ -1611,27 +1611,32 @@ public class Cegs : ProcessManager, ICegs
 
         p = GetParameter("FirstTrapOpenFlowPressure");
         if (p.IsANumber() && im != null)
+        {
+            var value = p;
             CollectionActions.Add(() =>
             {
-                var value = p;
                 if (im.Pressure - FirstTrap.Pressure < value)
                     FirstTrap.FlowValve?.OpenWait();   // Fully open flow valve
             });
+        }
 
         p = GetParameter("FirstTrapFlowBypassPressure");
         if (p.IsANumber() && im != null)
+        {
+            var value = p;
             CollectionActions.Add(() =>
             {
-                var value = p;
                 if (im.Pressure - FirstTrap.Pressure < value)
                     FirstTrap.Open();   // open bypass if available
             });
+        }
 
         p = GetParameter("CollectCloseIpAtPressure");
         if (p.IsANumber())
+        {
+            var value = p;
             CollectionActions.Add(() =>
             {
-                var value = p;
                 var pressure = im.Pressure;
                 if (InletPort.IsOpened && pressure <= value)
                 {
@@ -1639,12 +1644,14 @@ public class Cegs : ProcessManager, ICegs
                     SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {im.Manometer.Name} = {pressure:0} Torr");
                 }
             });
+        }
 
         p = GetParameter("CollectCloseIpAtCtPressure");
         if (p.IsANumber())
+        {
+            var value = p;
             CollectionActions.Add(() =>
             {
-                var value = p;
                 var pressure = FirstTrap.Pressure;
                 if (InletPort.IsOpened && pressure <= value)
                 {
@@ -1652,6 +1659,7 @@ public class Cegs : ProcessManager, ICegs
                     SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {FirstTrap.Manometer.Name} = {pressure:0} Torr");
                 }
             });
+        }
 
         return CollectionActions;
     }
@@ -1681,34 +1689,34 @@ public class Cegs : ProcessManager, ICegs
         if (p.IsANumber())
         {
             var value = p;
-            CollectionConditions.Add(() => InletPort.Temperature <= p ?
-                $"InletPort.Temperature fell to {p:0} °C" : "");
+            CollectionConditions.Add(() => InletPort.Temperature <= value ?
+                $"InletPort.Temperature fell to {value:0} °C" : "");
         }
 
         p = GetParameter("CollectUntilCtPressureFalls");
         if (p.IsANumber())
         {
             var value = p;
-            CollectionConditions.Add(() => FirstTrap.Pressure <= p &&
-                (im == null || im.Pressure < Math.Ceiling(p) + 2) ?
-                $"{FirstTrap.Name}.Pressure fell to {p:0.00} Torr" : "");
+            CollectionConditions.Add(() => FirstTrap.Pressure <= value &&
+                (im == null || im.Pressure < Math.Ceiling(value) + 2) ?
+                $"{FirstTrap.Name}.Pressure fell to {value:0.00} Torr" : "");
         }
 
         p = GetParameter("FirstTrapEndPressure");
         if (p.IsANumber())
         {
             var value = p;
-                CollectionConditions.Add(() => FirstTrap.Pressure <= p &&
-                (im == null || im.Pressure < Math.Ceiling(p) + 2) ?
-                $"{FirstTrap.Name}.Pressure fell to {p:0.00} Torr" : "");
+            CollectionConditions.Add(() => FirstTrap.Pressure <= value &&
+                (im == null || im.Pressure < Math.Ceiling(value) + 2) ?
+                $"{FirstTrap.Name}.Pressure fell to {value:0.00} Torr" : "");
         }
 
         p = GetParameter("CollectUntilMinutes");
         if (p.IsANumber())
         {
             var value = p;
-            CollectionConditions.Add(() => CollectStopwatch.Elapsed.TotalMinutes >= p ?
-                $"{MinutesString((int)p)} elapsed" : "");
+            CollectionConditions.Add(() => CollectStopwatch.Elapsed.TotalMinutes >= value ?
+                $"{MinutesString((int)value)} elapsed" : "");
         }
 
         return CollectionConditions;
@@ -3504,7 +3512,7 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void Extract()
     {
-        ProcessStep.Start($"Exctract CO2 from {VTT.Name} to {MC.Name}");
+        ProcessStep.Start($"Extract CO2 from {VTT.Name} to {MC.Name}");
         MC.OpenAndEvacuateAll(CleanPressure);
         ZeroMC();
         MC.ClosePorts();
@@ -3590,19 +3598,25 @@ public class Cegs : ProcessManager, ICegs
         {
             Sample.SelectedMicrogramsCarbon = ugC;
             ApportionAliquots();
-        }
 
-        string yield = "";
-        if (Sample.TotalMicrogramsCarbon == 0)    // first measurement
+            string yield = "";
+            if (Sample.TotalMicrogramsCarbon == 0)    // first measurement
+            {
+                yield = $"\tYield: {100 * ugC / Sample.Micrograms:0.00}%";
+                Sample.TotalMicrogramsCarbon = ugC;
+            }
+
+            SampleLog.Record("Sample measurement:\r\n" +
+                $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
+                $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
+            );
+        }
+        else
         {
-            yield = $"\tYield: {100 * ugC / Sample.Micrograms:0.00}%";
-            Sample.TotalMicrogramsCarbon = ugC;
+            TestLog.Record("CO2 measurement:\r\n" +
+                $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC)"
+            );
         }
-
-        SampleLog.Record("Sample measurement:\r\n" +
-            $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
-            $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
-        );
         ProcessStep.End();
     }
 
