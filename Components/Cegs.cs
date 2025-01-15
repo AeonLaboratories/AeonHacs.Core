@@ -1095,8 +1095,9 @@ public class Cegs : ProcessManager, ICegs
         stoppedSignal2.Reset();
         try
         {
-            while (Started && !Stopping)
+            while (!Stopping)
             {
+                if (!Hacs.Started) continue;    // Wait for all devices to be started, not just the CEGS
                 if (EnableAutozero) ZeroPressureGauges();
 
                 GraphiteReactors?.ForEach(gr => { gr.Update(); PostUpdateGR(gr); });
