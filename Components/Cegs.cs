@@ -2926,7 +2926,7 @@ public class Cegs : ProcessManager, ICegs
             s.Coldfinger is IColdfinger c &&
             c.Temperature < 5).ToList();
         coldSections.ForEach(s => s.Thaw(10));
-        if (!WaitFor(() => coldSections.All(s => s.Temperature > 5), 120 * 1000, 1000))
+        if (!WaitFor(() => coldSections.All(s => s.Temperature > 5), 600 * 1000, 1000))
         {
             Subject = "Process Exception";
             Message = "At least one coldfinger is taking too long to thaw.\r\n" +
