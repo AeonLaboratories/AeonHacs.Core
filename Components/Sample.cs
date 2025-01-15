@@ -125,6 +125,17 @@ namespace AeonHacs.Components
             Parameters?.Find(x => x.ParameterName == name)?.Value ??
                 CegsParameter(name)?.Value ?? double.NaN;
 
+        /// <summary>
+        /// Checks for the parameter with the given name and returns true if it is 
+        /// found and its value is a non-zero number; otherwise returns false.
+        /// </summary>
+        /// <param name="name"></param>
+        public bool ParameterTrue(string name)
+        {
+            var p = Parameter(name);
+            return p.IsANumber() && p != 0;
+        }
+
         public void SetParameter(Parameter parameter)
         {
             RemoveParameter(parameter.ParameterName);

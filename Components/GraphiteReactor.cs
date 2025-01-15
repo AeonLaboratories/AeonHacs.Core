@@ -239,8 +239,7 @@ namespace AeonHacs.Components
                 case States.InProcess:
                     break;
                 case States.Start:
-                    var p = Sample.Parameter("ThawBeforeGraphitizing");
-                    var thawBeforeGraphitizing = p.IsANumber() && p != 0;
+                    var thawBeforeGraphitizing = Sample.ParameterTrue("ThawBeforeGraphitizing");
                     if (!thawBeforeGraphitizing || Coldfinger.Thawed)
                     {
                         if (Aliquot.GRStartPressure == 0)

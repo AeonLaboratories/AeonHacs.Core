@@ -1401,6 +1401,7 @@ namespace AeonHacs.Components
         string Process { get; set; }
         List<Parameter> Parameters { get; set; }
         double Parameter(string name);
+        bool ParameterTrue(string name);
         void SetParameter(Parameter parameter);
         void RemoveParameter(string name);
         bool SulfurSuspected { get; set; }
