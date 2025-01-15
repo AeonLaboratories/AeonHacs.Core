@@ -1253,6 +1253,17 @@ public class Cegs : ProcessManager, ICegs
         Sample?.Parameter(name) ?? CegsPreferences.Parameter(name);
 
     /// <summary>
+    /// Checks for the parameter with the given name and returns true if it is 
+    /// found and its value is a non-zero number; otherwise returns false.
+    /// </summary>
+    /// <param name="name"></param>
+    public bool ParameterTrue(string name)
+    {
+        var p = GetParameter(name);
+        return p.IsANumber() && p != 0;
+    }
+
+    /// <summary>
     /// Gets the parameter, Warns if it's not defined and pauses for Operator
     /// interaction, and finally returns the retrieved value.
     /// Once the warning is dismissed, the retrieved value is returned,
@@ -1587,87 +1598,153 @@ public class Cegs : ProcessManager, ICegs
         ClearParameter("CollectUntilMinutes");
     }
 
+    // These are actions which are taken during collection when
+    // a condition occurs. (Supersedes the old "DuringBleed()".
+    // Override this method to add more actions.)
+    protected virtual List<Action> CollectionActions()
+    {
+        IpIm(out ISection im);
+        double p;
+
+        var CollectionActions = new List<Action>();
+
+        p = GetParameter("FirstTrapOpenFlowPressure");
+        if (p.IsANumber() && im != null)
+            CollectionActions.Add(() =>
+            {
+                var value = p;
+                if (im.Pressure - FirstTrap.Pressure < value)
+                    FirstTrap.FlowValve?.OpenWait();   // Fully open flow valve
+            });
+
+        p = GetParameter("FirstTrapFlowBypassPressure");
+        if (p.IsANumber() && im != null)
+            CollectionActions.Add(() =>
+            {
+                var value = p;
+                if (im.Pressure - FirstTrap.Pressure < value)
+                    FirstTrap.Open();   // open bypass if available
+            });
+
+        p = GetParameter("CollectCloseIpAtPressure");
+        if (p.IsANumber())
+            CollectionActions.Add(() =>
+            {
+                var value = p;
+                var pressure = im.Pressure;
+                if (InletPort.IsOpened && pressure <= value)
+                {
+                    InletPort.Close();
+                    SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {im.Manometer.Name} = {pressure:0} Torr");
+                }
+            });
+
+        p = GetParameter("CollectCloseIpAtCtPressure");
+        if (p.IsANumber())
+            CollectionActions.Add(() =>
+            {
+                var value = p;
+                var pressure = FirstTrap.Pressure;
+                if (InletPort.IsOpened && pressure <= value)
+                {
+                    InletPort.Close();
+                    SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {FirstTrap.Manometer.Name} = {pressure:0} Torr");
+                }
+            });
+
+        return CollectionActions;
+    }
+
+    // These are conditions which stop collection when they occur.
+    // Each CollectionCondition returns a string reason for stopping collection,
+    // or an empty string if the condition isn't met.
+    protected virtual List<Func<string>> CollectionConditions()
+    {
+        IpIm(out ISection im);
+        double p;
+
+        var CollectionConditions = new List<Func<string>>
+        {
+            () => Stopping ? "CEGS is shutting down" : ""
+        };
+
+        p = GetParameter("CollectUntilTemperatureRises");
+        if (p.IsANumber())
+        {
+            var value = p;
+            CollectionConditions.Add(() => InletPort.Temperature >= value ?
+                $"InletPort.Temperature rose to {value:0} °C" : "");
+        }
+
+        p = GetParameter("CollectUntilTemperatureFalls");
+        if (p.IsANumber())
+        {
+            var value = p;
+            CollectionConditions.Add(() => InletPort.Temperature <= p ?
+                $"InletPort.Temperature fell to {p:0} °C" : "");
+        }
+
+        p = GetParameter("CollectUntilCtPressureFalls");
+        if (p.IsANumber())
+        {
+            var value = p;
+            CollectionConditions.Add(() => FirstTrap.Pressure <= p &&
+                (im == null || im.Pressure < Math.Ceiling(p) + 2) ?
+                $"{FirstTrap.Name}.Pressure fell to {p:0.00} Torr" : "");
+        }
+
+        p = GetParameter("FirstTrapEndPressure");
+        if (p.IsANumber())
+        {
+            var value = p;
+                CollectionConditions.Add(() => FirstTrap.Pressure <= p &&
+                (im == null || im.Pressure < Math.Ceiling(p) + 2) ?
+                $"{FirstTrap.Name}.Pressure fell to {p:0.00} Torr" : "");
+        }
+
+        p = GetParameter("CollectUntilMinutes");
+        if (p.IsANumber())
+        {
+            var value = p;
+            CollectionConditions.Add(() => CollectStopwatch.Elapsed.TotalMinutes >= p ?
+                $"{MinutesString((int)p)} elapsed" : "");
+        }
+
+        return CollectionConditions;
+    }
+
+
     /// <summary>
     /// Wait for a collection stop condition to occur.
     /// </summary>
     protected virtual void CollectUntilConditionMet()
     {
         ProcessStep.Start($"Wait for a collection stop condition");
-        IpIm(out ISection im);
+        var actions = CollectionActions();
+        var conditions = CollectionConditions();
 
         string stoppedBecause = "";
-        bool shouldStop()
+
+        while (!Stopping && stoppedBecause == "")
         {
-            if (CollectStopwatch.IsRunning && CollectStopwatch.ElapsedMilliseconds < 1000)
-                return false;
+            // do all the actions
+            actions.ForEach(action => action());
 
-            // TODO: what if flow manager becomes !Busy (because, e.g., FlowValve is fully open)?
-            // TODO: should we invoke DuringBleed()? When?
-            // TODO: should we disable/enable CT.VacuumSystem.Manometer?
-
-            // Open flow bypass when conditions allow it without producing an excessive
-            // downstream pressure spike.
-            if (im != null && im.Pressure - FirstTrap.Pressure < FirstTrapFlowBypassPressure)
-                FirstTrap.Open();   // open bypass if available
-
-
-            if (CollectCloseIpAtPressure.IsANumber() && InletPort.IsOpened && im != null && im.Pressure <= CollectCloseIpAtPressure)
+            // check for stop conditions
+            foreach (var condition in conditions)
             {
-                var p = im.Pressure;
-                InletPort.Close();
-                SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {im.Manometer.Name} = {p:0} Torr");
-            }
-            if (CollectCloseIpAtCtPressure.IsANumber() && InletPort.IsOpened && FirstTrap.Pressure <= CollectCloseIpAtCtPressure)
-            {
-                var p = FirstTrap.Pressure;
-                InletPort.Close();
-                SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {FirstTrap.Manometer.Name} = {p:0} Torr");
+                stoppedBecause = condition();
+                if (stoppedBecause != "") break;
             }
 
-            if (Stopping)
+            // has it been too long?
+            var p = GetParameter("MinutesCollectingTooLong");
+            if (p.IsANumber() && CollectStopwatch.Elapsed.TotalMinutes >= p)
             {
-                stoppedBecause = "CEGS is shutting down";
-                return true;
+                //what to do?
             }
-            if (CollectUntilTemperatureRises.IsANumber() && InletPort.Temperature >= CollectUntilTemperatureRises)
-            {
-                stoppedBecause = $"InletPort.Temperature rose to {CollectUntilTemperatureRises:0} °C";
-                return true;
-            }
-            if (CollectUntilTemperatureFalls.IsANumber() && InletPort.Temperature <= CollectUntilTemperatureFalls)
-            {
-                stoppedBecause = $"InletPort.Temperature fell to {CollectUntilTemperatureFalls:0} °C";
-                return true;
-            }
-
-            if (CollectUntilCtPressureFalls.IsANumber() &&
-                FirstTrap.Pressure <= CollectUntilCtPressureFalls &&
-                (im == null || im.Pressure < Math.Ceiling(CollectUntilCtPressureFalls) + 2))
-            {
-                stoppedBecause = $"{FirstTrap.Name}.Pressure fell to {CollectUntilCtPressureFalls:0.00} Torr";
-                return true;
-            }
-
-            // old?: FirstTrap.Pressure < FirstTrapEndPressure;
-            if (FirstTrapEndPressure.IsANumber() &&
-                FirstTrap.Pressure <= FirstTrapEndPressure &&
-                (im == null || im.Pressure < Math.Ceiling(FirstTrapEndPressure) + 2))
-            {
-                stoppedBecause = $"{FirstTrap.Name}.Pressure fell to {FirstTrapEndPressure:0.00} Torr";
-                return true;
-            }
-
-            if (CollectUntilMinutes.IsANumber() && CollectStopwatch.Elapsed.TotalMinutes >= CollectUntilMinutes)
-            {
-                stoppedBecause = $"{MinutesString((int)CollectUntilMinutes)} elapsed";
-                return true;
-            }
-
-            stoppedBecause = "";
-            return false;
+            WaitMilliseconds(1000, null);
         }
-
-        WaitFor(shouldStop, -1, 1000);          // TODO: add a timeout
         SampleLog.Record($"{Sample.LabId}\tCollection stop condition met:\t{stoppedBecause}");
 
         ProcessStep.End();
@@ -1676,7 +1753,9 @@ public class Cegs : ProcessManager, ICegs
     /// <summary>
     /// Stop collecting immediately
     /// </summary>
-    protected virtual void StopCollecting() => StopCollecting(true);
+    protected virtual void StopCollectingImmediately() => StopCollecting(true);
+
+    protected virtual void StopCollecting() => StopCollecting(ParameterTrue("FinishCollecting"));
 
     /// <summary>
     /// Close the IP and wait for CT pressure to bleed down until it stops falling.
