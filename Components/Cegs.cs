@@ -5286,6 +5286,8 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void CleanupCO2InMC()
     {
         TransferCO2FromMCToVTT();
+        VTT.VacuumSystem.Evacuate(CleanPressure);
+        VTT.Isolate();
         Extract();
         Measure();
     }
