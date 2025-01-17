@@ -103,9 +103,13 @@ namespace AeonHacs.Components
 
         public virtual void RunProcess(string processToRun)
         {
-            if (ProcessState != ProcessStateCode.Ready) return;         // silently fail, for now
+            Hacs.SystemLog.Record($"RunProcess: {processToRun}");
+            if (ProcessState != ProcessStateCode.Ready)
+            {
+                Hacs.SystemLog.Record($"Can't start [{processToRun}]. [{ProcessToRun}] is running.");
+                return;         // silently fail, for now
                 //throw new Exception($"Can't start [{processToRun}]. [{ProcessToRun}] is running.");
-
+            }
             ProcessToRun = processToRun;
 
             lock(ProcessTimer) RunCompleted = false;

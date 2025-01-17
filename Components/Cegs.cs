@@ -1,5 +1,6 @@
 ﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
+using Org.BouncyCastle.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -10,7 +11,6 @@ using System.Threading.Tasks;
 using static AeonHacs.Components.CegsPreferences;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
-using static System.Collections.Specialized.BitVector32;
 
 namespace AeonHacs.Components;
 
@@ -2826,6 +2826,8 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void RunSample()
     {
+        Hacs.SystemLog.Record($"Run sample {Sample?.Name} ({Sample?.LabId})");
+
         if (Sample == null)
         {
             Tell(InletPort == null ? "No sample to run." : $"{InletPort.Name} doesn't contain a sample.",
@@ -2910,8 +2912,12 @@ public class Cegs : ProcessManager, ICegs
     /// Run the listed samples.
     /// </summary>
     /// <param name="samples"></param>
-    protected virtual void RunSamples(List<ISample> samples) =>
+    protected virtual void RunSamples(List<ISample> samples)
+    {
+        var list = string.Join(", ", samples.Select(p => $"{p.Name} ({p.LabId})"));
+        Hacs.SystemLog.Record($"Run samples {list}");
         samples.ForEach(RunSample);
+    }
 
 
     /// <summary>
