@@ -1,8 +1,7 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
@@ -186,7 +185,15 @@ namespace AeonHacs.Components
             /// Automatic operations are suspended but can
             /// be invoked manually.
             /// </summary>
-            Standby
+            Standby,
+            /// <summary>
+            /// LN supply is inhibited.
+            /// </summary>
+            Inhibited,
+            /// <summary>
+            /// The LNManifold is in an unknown state. This should be impossible.
+            /// </summary>
+            Unknown
         }
 
 
@@ -219,18 +226,21 @@ namespace AeonHacs.Components
         bool needed => TargetState == TargetStates.StayActive || Coldfinger.AnyNeed(this);
 
 
-
         public override States State
         {
             get
             {
                 if (TargetState == TargetStates.Standby)
                     return States.Standby;
-                if (LNSupplyValve?.IsOpened ?? false)
+                if (IsOn)
                     return States.Filling;
+                if (full)
+                    return States.Full;
                 if (TargetState == TargetStates.Monitor)
                     return States.Monitoring;
-                return States.Full;
+                if (OverflowIsDetected || InhibitLN)
+                    return States.Inhibited;
+                return States.Unknown;
             }
         }
 
@@ -238,8 +248,8 @@ namespace AeonHacs.Components
         /// <summary>
         /// Whether the LN valve is on or off.
         /// </summary>
-        public bool IsOn => LNSupplyValve.IsOpened;
-        public bool IsOff => LNSupplyValve.IsClosed;
+        public bool IsOn => LNSupplyValve?.IsOpened ?? false;
+        public bool IsOff => LNSupplyValve?.IsClosed ?? true;
 
         public OnOffState OnOffState => IsOn.ToOnOffState();
 

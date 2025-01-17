@@ -639,17 +639,13 @@ namespace AeonHacs.Components
         public virtual void RaiseLN()
         {
             var step = StepTracker.Default;
-            Raise();
-
-            step?.Start($"Wait for {Name} LN flowing");
-            WaitFor(() => !LNValve.IsClosed || Hacs.Stopping);
-            if (Hacs.Stopping) return;
-            step?.End();
-
+            
             step?.Start($"Wait for {Name} LN Raised");
+            Raise();
+            LNOn();     // force LN on immediately; ManageState will turn it off.
             WaitFor(() => Raised || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
-            if (Hacs.Stopping) return;
             step?.End();
+            if (Hacs.Stopping) return;
 
             // Shortcut if the FTC supports overflow-trickle, in which case,
             // the level is always at peak;
@@ -657,8 +653,8 @@ namespace AeonHacs.Components
 
             step?.Start($"Wait for {Name} LN level to peak");
             WaitFor(() => LNValve.IsClosed || Hacs.Stopping);
-            if (Hacs.Stopping) return;
             step?.End();
+            if (Hacs.Stopping) return;
 
             step?.Start($"Wait {SecondsToWaitAfterRaised} seconds with LN raised");
             WaitFor(() => false, SecondsToWaitAfterRaised * 1000, 1000);

@@ -3134,19 +3134,23 @@ public class Cegs : ProcessManager, ICegs
 
         ProcessStep.Start("Evacuate MC");
         MC.Isolate();
-        var aliquots = Sample?.AliquotsCount ?? 1;
-        if (aliquots > 1)
+        var particles = ugc_targetSize * CarbonAtomsPerMicrogram;
+        if (Pressure(particles, MC.CurrentVolume(true), MC.Temperature) > MC.Manometer.MaxValue)
             MC.Ports[0].Open();
-        if (aliquots > 2)
+        if (Pressure(particles, MC.CurrentVolume(true), MC.Temperature) > MC.Manometer.MaxValue)
             MC.Ports[1].Open();
+        if (Pressure(particles, MC.CurrentVolume(true), MC.Temperature) > MC.Manometer.MaxValue)
+        {
+            var ugcMax = Particles(MC.Manometer.MaxValue, MC.CurrentVolume(true), MC.Temperature) / CarbonAtomsPerMicrogram;
+            Subject = "Process Exception";
+            Message = $"Requested amount of Dead CO2 ({ugc_targetSize} µgC) exceeds {MC.Name} limit ({ugcMax} µgC).";
+            Warn(Message, Subject, NoticeType.Error);
+            ProcessStep.End();
+            return;
+        }
+
         MC.Evacuate(CleanPressure);
-
-        if (aliquots < 2)
-            MC.Ports[0].Close();
-        if (aliquots < 3)
-            MC.Ports[1].Close();
-
-        MC.VacuumSystem.WaitForPressure(CleanPressure);
+        MC.VacuumSystem.WaitForStablePressure(CleanPressure);
         ZeroMC();
         ProcessStep.End();
 
@@ -3653,7 +3657,18 @@ public class Cegs : ProcessManager, ICegs
         {
             ProcessSubStep.Start("Bring MC to uniform temperature");
             MC.Thaw();
-            WaitFor(() => MC.Thawed); // (timeout is handled by Coldfinger)
+            bool thawed()
+            {
+                if (MC.Manometer.OverRange)
+                {
+                    if (MC.Ports[0].IsClosed)
+                        MC.Ports[0].Open();
+                    else if (MC.Ports[1].IsClosed)
+                        MC.Ports[1].Open();
+                }
+                return MC.Thawed;
+            }
+            WaitFor(() => thawed(), -1, 1000); // (timeout is handled by Coldfinger)
             ProcessSubStep.End();
         }
 
@@ -5271,6 +5286,8 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void CleanupCO2InMC()
     {
         TransferCO2FromMCToVTT();
+        VTT.VacuumSystem.Evacuate(CleanPressure);
+        VTT.Isolate();
         Extract();
         Measure();
     }
