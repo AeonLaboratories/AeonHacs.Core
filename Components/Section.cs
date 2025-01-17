@@ -565,14 +565,7 @@ namespace AeonHacs.Components
             if (Coldfinger != null)
                 Coldfinger.Freeze();
             else
-            {
-                string subject = "Operator Needed";
-                string message = $"Put LN on {Name}.\r\n" +
-                                 $"Ok to continue.";
-
-                Alert(message, subject);
-                Ask(message, subject, NoticeType.Alert);
-            }
+                WaitForOperator($"Put LN on {Name}.");
         }
 
         public virtual void ThawWait()
@@ -609,14 +602,7 @@ namespace AeonHacs.Components
             if (Coldfinger != null)
                 Coldfinger.Raise();
             else
-            {
-                string subject = "Operator Needed";
-                string message = $"Raise LN on {Name} one inch.\r\n" +
-                                 $"Ok to continue.";
-
-                Alert(message, subject);
-                Ask(message, subject, NoticeType.Alert);
-            }
+                WaitForOperator($"Raise LN on {Name}.");
         }
 
         public virtual void RaiseLN()
@@ -641,13 +627,7 @@ namespace AeonHacs.Components
             if (Coldfinger != null)
                 Coldfinger.Thaw();
             else
-            {
-                var subject = "Operator Needed";
-                var message = $"Remove LN from {Name} and warm coldfinger to ambient.";
-
-                Alert(message, subject);
-                Ask(message, subject, NoticeType.Alert);
-            }
+                WaitForOperator($"Remove LN from {Name} and warm coldfinger to ambient.");
         }
 
         public virtual void Thaw(double temperature)
@@ -655,13 +635,7 @@ namespace AeonHacs.Components
             if (Coldfinger != null)
                 Coldfinger.Thaw(temperature);
             else
-            {
-                var subject = "Operator Needed";
-                var message = $"Remove LN from {Name} and warm coldfinger to {temperature:0} °C.";
-
-                Alert(message, subject);
-                Ask(message, subject, NoticeType.Alert);
-            }
+                WaitForOperator($"Remove LN from {Name} and warm coldfinger to {temperature:0} °C.");
         }
 
         /// <summary>

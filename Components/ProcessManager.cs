@@ -196,14 +196,14 @@ namespace AeonHacs.Components
         {
             if (message.IsBlank())
                 message = $"Process{(ProcessType == ProcessTypeCode.Sequence ? " sequence" : "")} starting: {ProcessToRun}";
-            MajorEvent(message);
+            Hacs.SystemLog.Record(message);
         }
 
         protected virtual void ProcessEnded(string message = "")
         {
             if (message.IsBlank())
                 message = $"Process {(RunCompleted ? "completed" : "aborted")}: {ProcessToRun}";
-            MajorEvent(message);
+            Hacs.SystemLog.Record(message);
         }
 
         #region ProcessSequences

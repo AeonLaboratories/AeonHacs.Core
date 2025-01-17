@@ -62,9 +62,8 @@ namespace AeonHacs.Utilities
                 CurrentStep = Stack.Pop();
             else if (CurrentStep == null)
             {
-                string message = $"{Name} Push/Pop mismatch";
-
-                Notify.Announce(message, type: NoticeType.Error);
+                Notify.Announce($"{Name} Push/Pop mismatch", 
+                    type: NoticeType.Error);
             }
             else
                 CurrentStep = null;

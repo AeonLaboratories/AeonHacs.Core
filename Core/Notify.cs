@@ -25,11 +25,11 @@ public delegate Notice PromptHandler(Notice notice);
 public enum Audience
 {
     /// <summary>
-    /// Send a message to the remote.
+    /// Send a message to remote subscribers.
     /// </summary>
     Remote = 1,
     /// <summary>
-    /// Show a message in the UI.
+    /// Show a message in the local UI.
     /// </summary>
     Local = 2,
     /// <summary>
@@ -96,20 +96,20 @@ public static class Notify
     /// <summary>
     /// Send an alert to the remote audience.
     /// </summary>
-    public static void Alert(string message) =>
+    public static void Alert(string message, string details = "") =>
         _ = SendNotice(new Notice(message), Audience.Remote);
-
-    /// <summary>
-    /// Send a notice to both the remote and local audiences.
-    /// </summary>
-    public static void Tell(string message, string details = "", NoticeType type = NoticeType.Information, CancellationToken cancellationToken = default) =>
-        _ = SendNotice(new Notice(message, details, type, cancellationToken), Audience.All);
 
     /// <summary>
     /// Send a notice to the local audience.
     /// </summary>
-    public static void Announce(string message, string details = "", NoticeType type = NoticeType.Information, CancellationToken cancellationToken = default) =>
+    public static void Tell(string message, string details = "", NoticeType type = NoticeType.Information, CancellationToken cancellationToken = default) =>
         _ = SendNotice(new Notice(message, details, type, cancellationToken), Audience.Local);
+
+    /// <summary>
+    /// Send a notice to both the remote and local audiences.
+    /// </summary>
+    public static void Announce(string message, string details = "", NoticeType type = NoticeType.Information, CancellationToken cancellationToken = default) =>
+        _ = SendNotice(new Notice(message, details, type, cancellationToken), Audience.All);
 
     /// <summary>
     /// Send a notice requesting a response from the local audience.
@@ -149,6 +149,30 @@ public static class Notify
     /// </summary>
     public static Notice Warn(string message, string details = "", CancellationToken cancellationToken = default, Audience audience = Audience.All) =>
         OkCancel(message, details, NoticeType.Warning, cancellationToken, audience);
+
+    /// <summary>
+    /// Send an Alert prompt to All with the message "Operator Needed", and details "Waiting for Operator; Ok to continue".
+    /// </summary>
+    public static void WaitForOperator() =>
+        WaitForOperator("Waiting for Operator.");
+
+    /// <summary>
+    /// Send an Alert prompt to All with the message "Operator Needed". Appends "Ok to continue" to the Details.
+    /// </summary>
+    /// <param name="whatToDo">Operator instructions to be included in the notice Details</param>
+    public static void WaitForOperator(string whatToDo) =>
+        Pause("Operator Needed", $"{whatToDo}\r\nOk to continue.");
+
+    /// <summary>
+    /// Send a Configuration Error message to all suggesting to restart the application to abort the process, but allow the operator to elect to continue in this state.
+    /// </summary>
+    /// <param name="configError"></param>
+    public static void ConfigurationError(string configError) =>
+        Pause(configError,
+            "This is a configuration error.\r\n" +
+            "Restart the application to abort the process.",
+            NoticeType.Error,
+            response: "Continue in this state");
 
     #region Extension Methods
 

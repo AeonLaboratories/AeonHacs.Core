@@ -340,10 +340,9 @@ namespace AeonHacs.Utilities
             try { fin = new StreamReader(filename); }
             catch (Exception e)
             {
-                string message = e.ToString();
-
-                Notify.Announce(message, type: NoticeType.Error);
-                throw new Exception("Couldn't open '" + filename + "'");
+                Notify.Announce($"Couldn't open file '{filename}'", 
+                    e.ToString(), type: NoticeType.Error);
+                return;
             }
             this.filename = filename;
 

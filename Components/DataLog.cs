@@ -73,7 +73,7 @@ namespace AeonHacs.Components
 
                 if (Source == null)
                 {
-                    Notify.Announce($"{Name}: Source object '{tokens[0]}' not found.", "Configuration Error", NoticeType.Error);
+                    Notify.ConfigurationError($"{Name}: Source object '{tokens[0]}' not found.");
                     return () => double.NaN;
                 }
 
@@ -87,7 +87,7 @@ namespace AeonHacs.Components
                     }
                     catch
                     {
-                        Notify.Announce($"{Name}: '{expression}' failed at '{token}'.", "Configuration Error", NoticeType.Error);
+                        Notify.ConfigurationError($"{Name}: '{expression}' failed at '{token}'.");
                         return () => double.NaN;
                     }
                 }

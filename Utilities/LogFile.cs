@@ -32,18 +32,16 @@ namespace AeonHacs.Utilities
                         try { log.flush(); }
                         catch (Exception e)
                         {
-                            string message = e.ToString();
-
-                            Notify.Announce(message, type: NoticeType.Error);
+                            Notify.Announce($"Exception writing to {log.fileName}", 
+                                type: NoticeType.Error);
                         }
                     }
                 }
             }
             catch (Exception e)
             {
-                string message = e.ToString();
-
-                Notify.Announce(message, type: NoticeType.Error);
+                Notify.Announce($"Exception in {typeof(LogFile).Name}.flusher()", 
+                    e.ToString(), type: NoticeType.Error);
             }
         }
 

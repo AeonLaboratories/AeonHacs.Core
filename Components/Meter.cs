@@ -312,11 +312,8 @@ namespace AeonHacs.Components
             sw.Restart();
             while (!WaitFor(() => { if (!IsStable) sw.Restart(); return sw.Elapsed.TotalSeconds >= seconds; }, 15 * 60000, 50))
             {
-                var subject = $"{Name}";
-                var message = $"{Name} is taking a long time to stabilize.\r\n" +
-                              $"Maybe its Filter is misconfigured?";
-
-                Announce(message, subject, NoticeType.Warning);
+                Announce($"{Name} is taking a long time to stabilize.",
+                    $"Maybe its Filter is misconfigured?", NoticeType.Warning);
             }
         }
 

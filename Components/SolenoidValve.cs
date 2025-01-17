@@ -75,10 +75,8 @@ namespace AeonHacs.Components
         {
             if (!WaitFor(() => Idle, 500, 5))
             {
-                string subject = "System Warning";
-                string message = $"{Name} is too busy! ({PendingOperations} pending operations)";
-
-                Announce(message, subject, NoticeType.Warning);
+                Announce($"{Name} is too busy!",
+                    $"There are {PendingOperations} pending operations", NoticeType.Warning);
                 PendingOperations = 0;
             }
         }

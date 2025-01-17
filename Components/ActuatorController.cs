@@ -445,10 +445,8 @@ namespace AeonHacs.Components
             if (State == OperationState.Free) done = true;
             if (State == OperationState.Failed)
             {
-                // AeonServo communications may be broken.
-                var subject = "System Error";
                 var message = $"{Name}: {a.Name} \"{a.Operation.Name}\" failed.";
-                Warn(message, subject, NoticeType.Error);
+                Pause(message, $"{AeonServo.Name} communications may be broken.", NoticeType.Error);
                 Log?.Record(message);
                 // is any corrective action needed?
                 done = true;
@@ -723,12 +721,11 @@ namespace AeonHacs.Components
                     var skipOperation = false;
                     while (a is IRS232Valve && !skipOperation && (AeonServo == null || !AeonServo.Responsive))
                     {
-                        var subject = "System Error";
-                        var message = $"{Name}.SelectDeviceService: Can't operate {a.Name} because {nameof(AeonServo)} is missing or unresponsive.\r\n" +
-                                      $"Ok to skip ServiceRequest \"{ServiceRequest}\"?\r\n" +
-                                      $"Cancel to retry";
-                        Log?.Record(message);
-                        skipOperation = Warn(message, subject, NoticeType.Error).Ok();
+                        Log?.Record($"{Name}.SelectDeviceService: " + $"Can't operate {a.Name}");
+                        skipOperation = OkCancel($"Can't operate {a.Name}",
+                            $"{Name}.SelectDeviceService: {nameof(AeonServo)} is missing or unresponsive.\r\n" +
+                            $"Ok to skip ServiceRequest \"{ServiceRequest}\"?\r\n" +
+                            $"Cancel to retry", NoticeType.Error).Ok();
                         if (!skipOperation && AeonServo != null && !AeonServo.Responsive)
                             AeonServo.SerialDevice?.Reset();
                     }

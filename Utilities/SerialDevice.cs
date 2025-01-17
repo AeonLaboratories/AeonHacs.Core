@@ -546,9 +546,8 @@ namespace AeonHacs.Utilities
             }
             catch (Exception e)
             {
-                string message = e.ToString();
-
-                Announce(message, type: NoticeType.Error);
+                Announce("Exception in SerialDevice.Transmit()", 
+                    $"{e}\r\nPort: {PortSettings?.PortName}", type: NoticeType.Error);
             }
             Log?.Record($"SerialDevice ending Transmit thread.");
         }
@@ -660,10 +659,8 @@ namespace AeonHacs.Utilities
             }
             catch (Exception e)
             {
-                string message = $"{e}\r\n" +
-                                 $"Unable to process messages from {PortSettings.PortName}.";
-
-                Announce(message, type: NoticeType.Error);
+                Announce($"Unable to process messages from {PortSettings.PortName}.",
+                    e.ToString(), type: NoticeType.Error);
             }
             Log?.Record($"SerialDevice ending ProcessRx thread.");
         }
@@ -715,10 +712,8 @@ namespace AeonHacs.Utilities
             }
             catch (Exception e)
             {
-                string message = $"{e}\r\n" +
-                                 $"Unable to process messages from {PortSettings.PortName}.";
-
-                Announce(message, type: NoticeType.Error);
+                Announce($"Unable to process messages from {PortSettings.PortName}.",
+                    e.ToString(), type: NoticeType.Error);
             }
             Log?.Record($"SerialDevice ending ProcessRx2 thread.");
         }

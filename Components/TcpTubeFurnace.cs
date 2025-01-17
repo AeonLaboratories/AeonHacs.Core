@@ -178,10 +178,7 @@ namespace AeonHacs.Components
         {
             if (Config.OperatingMode != AutoManualCode.Auto)
             {
-                string subject = $"{Name} Error";
-                string message = "OperatingMode must be Auto for setpoint control.";
-
-                Notify.Warn(message, subject, NoticeType.Error);
+                Notify.ConfigurationError($"{Name} has an invalid OperatingMode. It must be Auto for setpoint control.");
                 return;
             }
             base.TurnOn(setpoint);

@@ -89,24 +89,18 @@ public class HacsBridge
 
         if (works.IsBlank())
         {
-            subject = "File Not Found";
-            message = "Unable to find a settings file to load.\r\n" +
-                          "Application will close.";
-
-            Notify.Error(message, subject);
+            Hacs.EventLog.Record("No settings file found. Application closing.");
             CloseUI();
             return;
         }
        
         if (works != settingsFilename)
         {
-            subject = "Loaded From Backup";
-            message = $"Successfully loaded settings from '{works}'.\r\n" +
-                      $"Last saved: {File.GetLastWriteTime(works)}.\r\n" +
-                      $"Ok to continue with these settings?\r\n" +
-                      $"Cancel to close application.";
-
-            if (!Notify.Warn(message, subject).Ok())
+            if (!Notify.Warn("Settings loaded from a backup",
+                $"Successfully loaded settings from '{works}'.\r\n" +
+                $"Backup timestamp: {File.GetLastWriteTime(works)}.\r\n" +
+                $"Ok to continue with these settings?\r\n" +
+                $"Cancel to close application.").Ok())
             {
                 CloseUI();
                 return;
@@ -133,10 +127,7 @@ public class HacsBridge
         {
             if (e is not FileNotFoundException)
             {
-                var subject = "Json Deserialization Error";
-                var message = e.ToString();
-
-                Notify.Announce(message, subject, NoticeType.Error);
+                Notify.Pause("Json Deserialization Exception", $"{e}\r\nApplication will close.", NoticeType.Error);
             }
             HacsImplementation = default;
             return false;

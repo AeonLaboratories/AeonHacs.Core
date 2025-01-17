@@ -389,12 +389,12 @@ namespace AeonHacs.Components
                 lock (responseTimeoutsLocker) ResponseTimeouts++;
                 if (!Responsive)
                 {
-                    var subject = "System Error";
-                    var message = $"{Name}: No response to command {ServiceCommand}.\r\n" +
-                                     $"Ok to discard it?";
-
-                    if (Warn(message, subject, NoticeType.Error).Ok())
+                    if (Warn(
+                        $"{Name}: No response to command {ServiceCommand}.",
+                        $"Ok to discard this command?").Ok())
+                    {
                         AwaitingResponses = 0;
+                    }
                     else if (!Stopping)
                     {
                         Log?.Record($"{Name}: Resetting disconnected SerialDevice {SerialDevice.PortSettings.PortName}.");

@@ -309,10 +309,9 @@ namespace AeonHacs.Components
 
             if (currentLimit == 0 || timeLimit == 0)
             {
-                string subject = "Configuration Error";
-                string message = $"Can't calibrate {Name} without both currentLimit ({currentLimit}) and timeLimit ({timeLimit}). Calibration aborted.";
-
-                Announce(message, subject, NoticeType.Error);
+                ConfigurationError(
+                    $"Can't calibrate {Name} without both currentLimit ({currentLimit}) and timeLimit ({timeLimit}).\r\n" +
+                    $"Calibration aborted.");
                 return;
             }
 
@@ -369,10 +368,7 @@ namespace AeonHacs.Components
 
             if (!CurrentLimitDetected)
             {
-                string subject = $"{Name} Calibration Failed";
-                string message = "Cannot find closed position.";
-
-                Warn(message, subject, NoticeType.Error);
+                Warn($"{Name} Calibration Failed", "Cannot find closed position.");
                 ActuatorOperations.Remove(operation);
                 isCalibrating = false;
                 Calibrated = false;

@@ -240,14 +240,11 @@ namespace AeonHacs.Components
             purgeFlowManager.Start();
 
             ProcessStep.CurrentStep.Description = "Tube furnace ready to be opened";
-            
-            var subject = "Operator Needed";
-            var message = "Tube furnace ready to be opened." +
-                          "Purge flow is active.\r\n" +
-                          "Dismiss this window when furnace is closed again.";
-
-            Alert(message, subject);
-            Ask(message, subject, NoticeType.Alert);
+           
+            WaitForOperator(
+                "Tube furnace ready to be opened." +
+                "Purge flow is active.\r\n" +
+                "Dismiss this window when furnace is closed again.");
             purgeFlowManager.Stop();
 
             ProcessStep.End();
@@ -260,12 +257,13 @@ namespace AeonHacs.Components
             ProcessStep.Start($"{Name}: Bakeout tube furnace");
             isolateTF();
 
-            var subject = "Process Paused";
-            var message = "Has the prior sample been removed?!\r\n" +
-                          "Ok to continue.";
-
-            if (!Ask(message, subject).Ok())
+            if (!OkCancel("Confirm prior sample is removed",
+                "Has the prior sample been removed?!\r\n" +
+                "Ok to continue, or" +
+                "Cancel to abort the process.").Ok())
+            {
                 return;
+            }
 
             TubeFurnacePort.State = LinePort.States.InProcess;
 
@@ -297,7 +295,7 @@ namespace AeonHacs.Components
             evacuateTF(OkPressure);
             var msg = $"{Name}: Tube bakeout process complete";
             SampleLog.Record(msg);
-            Alert(msg, "Sytem Status");
+            Alert(msg);
             ProcessStep.End();
             TubeFurnacePort.State = LinePort.States.Complete;
         }
@@ -356,7 +354,7 @@ namespace AeonHacs.Components
             evacuateTF();
 
             var msg = $"{Name}: Degas LiBO2, boat, and sleeve process complete";
-            Alert(msg, "Sytem Status");
+            Alert(msg);
             SampleLog.Record(msg);
             SampleLog.Record($"Degas O2 bleed volume\t{MFC.TrackedFlow}\tcc");
 

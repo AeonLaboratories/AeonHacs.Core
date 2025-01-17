@@ -45,18 +45,7 @@ namespace AeonHacs
         public static Action OnStop;
         public static Action OnPostStop;
 
-        static Hacs()
-        {
-            Notify.OnActionTaken += notice => SystemLog.Record(notice.Message);
-            Notify.OnMajorEvent += notice => EventLog.Record(notice.Message);
-            Notify.OnError += notice =>
-            {
-                EventLog.Record(notice.Message);
-                return Notice.NoResponse;
-            };
-        }
-
-            public static void Connect()
+        public static void Connect()
         {
             OnPreConnect?.ParallelInvoke();
             OnConnect?.ParallelInvoke();

@@ -46,16 +46,12 @@ namespace AeonHacs
                     credentialsOk = false;
                     if (e is FileNotFoundException)
                     {
-                        var subject = "File Not Found";
-                        var message = $"Credentials file is missing: {credentialsFileName}";
-
-                        Announce(message, subject);
+                        Announce($"Credentials file \"{credentialsFileName}\" is missing.");
                     }
                     else
                     {
-                        var message = e.ToString();
-
-                        Announce(message, type: NoticeType.Error);
+                        Announce("Exception loading credentials",
+                            e.ToString(), type: NoticeType.Error);
                     }
                 }
             }
@@ -143,11 +139,10 @@ namespace AeonHacs
                 using (var stream = File.CreateText(CredentialsFilename))
                     Serializer.Serialize(stream, this);
             }
-            catch
+            catch (Exception e)
             {
-                string message = $"Unable to save {CredentialsFilename}";
-
-                Announce(message, type: NoticeType.Error);
+                Announce($"Unable to save {CredentialsFilename}", 
+                    e.ToString(), type: NoticeType.Error);
             }
         }
 

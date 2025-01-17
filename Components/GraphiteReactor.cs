@@ -309,11 +309,8 @@ namespace AeonHacs.Components
 
                 if (FurnaceUnresponsive)
                 {
-                    string subject = "GraphiteReactor Warning";
-                    string message = $"{Heater.Name} is unresponsive.";
-
-                    Announce(message, subject, NoticeType.Warning);
-                    Alert(message, subject);
+                    Announce($"{Heater.Name} is unresponsive.",
+                        type: NoticeType.Warning);
                     State = State;  // reset the timer
                 }
 
@@ -323,23 +320,16 @@ namespace AeonHacs.Components
                         Stop();
                     else
                     {
-                        var subject = "Graphite Reaction Warning";
-                        var message = $"{Name} reaction hasn't started.\r\n" +
-                                      $"Is {Heater.Name} in place?";
-
-                        Announce(message, subject, NoticeType.Warning);
-                        Alert(message, subject);
+                        Announce($"{Name} reaction hasn't started.",
+                            $"Is {Heater.Name} in place?", NoticeType.Warning);
                         State = State;  // reset the timer
                     }
                 }
 
                 if (ReactionNotFinishing)
                 {
-                    var subject = "Graphite Reaction Warning";
-                    var message = $"{Name} reaction hasn't finished.";
-
-                    Announce(message, subject, NoticeType.Warning);
-                    Alert(message, subject);
+                    Announce($"{Name} reaction hasn't finished.",
+                        "Check reaction conditions.", NoticeType.Warning);
                     State = State;  // reset the timer
                 }
             }

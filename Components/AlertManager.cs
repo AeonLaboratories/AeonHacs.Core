@@ -25,7 +25,6 @@ public class AlertManager : HacsComponent, IAlertManager
         HandlerTask = Task.Run(() => AlertHandler(HandlerTokenSource.Token), HandlerTokenSource.Token);
 
         OnAlert += EnqueueNotice;
-        OnWarning += EnqueuePrompt;
     }
 
     [HacsStop]
@@ -35,7 +34,6 @@ public class AlertManager : HacsComponent, IAlertManager
         AlertTimer.Reset();
 
         OnAlert -= EnqueueNotice;
-        OnWarning -= EnqueuePrompt;
 
         HandlerTokenSource?.Cancel();
         HandlerTask?.Wait();
@@ -81,8 +79,8 @@ public class AlertManager : HacsComponent, IAlertManager
     protected void SendMail(Notice notice)
     {
         // We can use HandlerTokenSource.Token to check for cancellation
-        var subject = $"({notice.Timestamp:MMMM dd, H:mm:ss}) {notice.Subject}";
-        var message = notice.Message;
+        var subject = notice.Message;
+        var message = $"({notice.Timestamp:MMMM dd, H:mm:ss})\r\n {notice.Details}";
 
         try
         {
@@ -97,7 +95,7 @@ public class AlertManager : HacsComponent, IAlertManager
             mail.Subject = subject;
             mail.Body = new TextPart(MimeKit.Text.TextFormat.Plain)
             {
-                Text = $"{notice.Message}\r\n{smtpInfo.SenderName}: {DateTime.Now}"
+                Text = $"{message}\r\n{smtpInfo.SenderName}: {DateTime.Now}"
             };
 
             using (var client = new SmtpClient())
@@ -113,18 +111,17 @@ public class AlertManager : HacsComponent, IAlertManager
         }
         catch (Exception e)
         {
-            var errorCaption = $"{Name}: Can't transmit Alert";
-            var errorMessage = $"Subject: '{subject}'\r\n" +
-                $"Message: '{message}'\r\n\r\n";
+            var errorDetails = $"Subject: '{subject}'\r\nMessage: '{message}'\r\n\r\n";
             if (SmtpInfo == null)
-                errorMessage += $"(No Email account configured)\r\n";
+                errorDetails += $"(No Email account configured)\r\n";
             else
             {
-                errorMessage += $"(Check Email configuration in '{SmtpInfo.CredentialsFilename}'.)\r\n";
-                errorMessage += $"Exception: {e.Message}\r\n";
+                errorDetails += $"(Check Email configuration in '{SmtpInfo.CredentialsFilename}'.)\r\n";
+                errorDetails += $"Exception: {e.Message}\r\n";
             }
-            errorMessage += $"\r\nRespond Ok to continue or Cancel to disable Alerts";
-            if (Ask(errorMessage, errorCaption, NoticeType.Warning).Ok())
+            errorDetails += $"\r\nOk to continue or Cancel to disable Alerts";
+            if (OkCancel($"{Name}: Can't transmit Alert", 
+                errorDetails, NoticeType.Warning).Cancelled())
                 AlertsEnabled = false;
         }
     }
@@ -147,7 +144,7 @@ public class AlertManager : HacsComponent, IAlertManager
         var fresh = DateTime.Now.Subtract(DuplicateMessageSuppressionDuration);
         History.RemoveAll(h => h.Timestamp < fresh);
 
-        bool match = History.RemoveAll(h => h.Subject == notice.Subject && h.Message == notice.Message) > 0;
+        bool match = History.RemoveAll(h => h.Message == notice.Message && h.Details == notice.Details) > 0;
 
         History.Add(notice);
         return match;
@@ -159,10 +156,5 @@ public class AlertManager : HacsComponent, IAlertManager
             return;
         MessageQueue.Enqueue(notice);
     }
-
-    protected virtual Notice EnqueuePrompt(Notice notice)
-    {
-        EnqueueNotice(notice);
-        return Notice.NoResponse;
-    }
+    
 }

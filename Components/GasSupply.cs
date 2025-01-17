@@ -300,12 +300,10 @@ namespace AeonHacs.Components
                 {
                     ShutOff();
 
-                    var subject = "Process Exception";
-                    var message = $"It's taking too long for {Meter.Name} to reach {pressure:0} Torr.\r\n" +
-                                  $"Ok to keep waiting or Cancel to move on.\r\n" +
-                                  $"Restart the application to abort the process.";
-
-                    if (Warn(message, subject, NoticeType.Error).Ok())
+                    if (Warn(
+                        $"It's taking too long for {Meter.Name} to reach {pressure:0} Torr.",
+                        $"Ok to try again or Cancel to move on.\r\n" +
+                        $"Restart the application to abort the process.").Ok())
                     {
                         SourceValve.OpenWait();
                         continue;
@@ -363,11 +361,8 @@ namespace AeonHacs.Components
                 {
                     if (pressure > Meter.MaxValue)
                     {
-                        subject = "Process Warning";
-                        message = $"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.\r\n" +
-                                      $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).";
-
-                        Tell(message, subject, NoticeType.Warning);
+                        Announce($"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.",
+                            $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).", NoticeType.Warning);
                         pressure = Meter.MaxValue;
                     }
                     for (int i = 0; i < 5; ++i)
@@ -391,8 +386,14 @@ namespace AeonHacs.Components
                                   $"Cancel to continue at {Meter.Value:0} {Meter.UnitSymbol}.\r\n" +
                                   $"Restart the application to abort the process.";
 
-                    if (!Warn(message, subject, NoticeType.Error).Ok())
+                    if (!Warn(
+                        $"Couldn't admit {pressure:0} {Meter.UnitSymbol} of {GasName} into {Destination.Name}.",
+                        $"Ok to try again.\r\n" +
+                        $"Cancel to continue with only {Meter.Value:0} {Meter.UnitSymbol}.\r\n" +
+                        $"Restart the application to abort the process.").Ok())
+                    {
                         break;
+                    }
                 }
             }
             MajorStep.End();
@@ -449,11 +450,9 @@ namespace AeonHacs.Components
         {
             if (pressureHigh > Meter.MaxValue)
             {
-                var subject = "Process Warning";
-                var message = $"Requested pressure ({pressureHigh:0} {Meter.UnitSymbol}) too high.\r\n" +
-                              $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).";
+                Announce($"Requested pressure ({pressureHigh:0} {Meter.UnitSymbol}) too high.",
+                    $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).", NoticeType.Warning);
 
-                Tell(message, subject, NoticeType.Warning);
                 pressureHigh = Meter.MaxValue;
             }
 
@@ -490,11 +489,9 @@ namespace AeonHacs.Components
 
             if (pressure > Meter.MaxValue)
             {
-                subject = "Process Warning";
-                message = $"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.\r\n" +
-                          $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).";
+                Announce($"Requested pressure ({pressure:0} {Meter.UnitSymbol}) too high.",
+                    $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).", NoticeType.Warning);
 
-                Tell(message, subject, NoticeType.Warning);
                 pressure = Meter.MaxValue;
             }
             bool normalized = false;
@@ -508,11 +505,9 @@ namespace AeonHacs.Components
 
             if (!normalized)
             {
-                message = FlowValve.Name + " minimum flow is too high.";
-                subject = "Configuration Warning";
-
-                MajorEvent(message, subject);
-                Announce(message, subject, NoticeType.Warning);
+                Announce($"{FlowValve.Name} minimum flow is too high.",
+                    $"Increase the PurgePressure above {PurgePressure:0.00} Torr, or\r\n" +
+                    $"or adjust {FlowValve.Name}'s minimum flow rate below that.", NoticeType.Warning);
             }
 
             FlowPressurize(pressure);
@@ -545,20 +540,21 @@ namespace AeonHacs.Components
             JoinToVacuumManifold();
             vacuumSystem.Rough();
 
-            if (!WaitFor(() => vacuumSystem.State == VacuumSystem.StateCode.Roughing || vacuumSystem.State == VacuumSystem.StateCode.Isolated, 30 * 1000, 35))
+            while (!WaitFor(() => vacuumSystem.State == VacuumSystem.StateCode.Roughing || vacuumSystem.State == VacuumSystem.StateCode.Isolated, 30 * 1000, 35))
             {
                 SourceValve.CloseWait();
                 vacuumSystem.Isolate();
-                var subject = "System Error";
-                var message = $"{vacuumSystem.Name} failed to enter roughing or isolated state.\r\n" +
-                              "Establish the desired VacuumSystem state manually, then Ok to continue.\r\n" +
-                              "Restart the application to abort the process.";
 
-                if (Error(message, subject).Ok())
+                if (Warn($"{vacuumSystem.Name} is taking too long to reach roughing or isolated state.",
+                    $"Establish {vacuumSystem.Name}'s state manually and\r\n" +
+                    $"Ok to try again or Cancel to move on.\r\n" +
+                    $"Restart the application to abort the process.").Ok())
                 {
                     SourceValve.OpenWait();
                     vacuumSystem.Rough();
+                    continue;
                 }
+                break;
             }
 
             WaitSeconds(secondsFlow);
@@ -649,11 +645,9 @@ namespace AeonHacs.Components
 
             if (targetValue > Meter.MaxValue)
             {
-                subject = "Process Warning";
-                message = $"Requested targetValue ({targetValue:0} {Meter.UnitSymbol}) too high.\r\n" +
-                          $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).";
+                Announce($"Requested value ({targetValue:0} {Meter.UnitSymbol}) too high.",
+                    $"Reducing target to maximum ({Meter.MaxValue:0} {Meter.UnitSymbol}).", NoticeType.Warning);
 
-                Tell(message, subject, NoticeType.Warning);
                 targetValue = Meter.MaxValue;
             }
 

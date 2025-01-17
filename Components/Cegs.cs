@@ -10,14 +10,12 @@ using System.Threading.Tasks;
 using static AeonHacs.Components.CegsPreferences;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
+using static System.Collections.Specialized.BitVector32;
 
 namespace AeonHacs.Components;
 
 public class Cegs : ProcessManager, ICegs
 {
-    // instance-wide fields for notifications
-    protected string Subject, Message;
-
     #region HacsComponent
 
     [HacsPreConnect]
@@ -54,7 +52,7 @@ public class Cegs : ProcessManager, ICegs
         if (inletPort == null)
             inletPort = FirstOrDefault<IInletPort>();
         if (inletPort == null)
-            Warn("No InletPorts exist; a CEGS must have at least one.", "Configuration Error");
+            ConfigurationError("No InletPort exists; a CEGS must have at least one.");
 
         Power = Find<Power>(powerName);
         Ambient = Find<Chamber>(ambientName);
@@ -88,11 +86,7 @@ public class Cegs : ProcessManager, ICegs
         if (obj is not null)
             return;
 
-        Subject = "Configuration Error";
-        Message = $"Can't find {objName} \"{expectedName}\". Cegs expects one.";
-
-        // TODO (Notify) Update to compile all missing needs and notify once?
-        Announce(Message, Subject, NoticeType.Error);
+        ConfigurationError($"Can't find {objName} \"{expectedName}\".");
     }
 
 
@@ -110,8 +104,11 @@ public class Cegs : ProcessManager, ICegs
         CegsNeeds(MC_Split, nameof(MC_Split), mc_splitName);
         CegsNeeds(ugCinMC, nameof(ugCinMC), sampleMeterName);
 
-        foreach (var cf in Coldfingers.Values)
-            cf.SlowToFreeze += OnSlowToFreeze;
+        foreach (var coldfinger in Coldfingers.Values)
+        {
+            var cf = coldfinger;
+            cf.SlowToFreeze += () => OnSlowToFreeze(cf);
+        }
 
         if (Power is Power p)
         {
@@ -120,9 +117,10 @@ public class Cegs : ProcessManager, ICegs
             p.MainsRestored += OnMainsRestored;
         }
 
-        foreach (var x in LNManifolds.Values)
+        foreach (var manifold in LNManifolds.Values)
         {
-            x.OverflowDetected += OnOverflowDetected;
+            var x = manifold;
+            x.OverflowDetected += () => OnOverflowDetected(x);
             x.SlowToFill += () => OnSlowToFill(x);
         }
 
@@ -159,9 +157,7 @@ public class Cegs : ProcessManager, ICegs
     {
         try
         {
-            Message = "System shutting down";
-
-            MajorEvent(Message);
+            Hacs.SystemLog.Record("System shutting down.");
             Stopping = true;
 
             lowPrioritySignal.Set();
@@ -174,9 +170,7 @@ public class Cegs : ProcessManager, ICegs
         }
         catch (Exception e)
         {
-            Message = e.ToString();
-
-            MajorEvent(Message);
+            Hacs.SystemLog.Record(e.ToString());
         }
     }
 
@@ -200,9 +194,7 @@ public class Cegs : ProcessManager, ICegs
         }
         catch (Exception e)
         {
-            Message = e.ToString();
-
-            MajorEvent(Message);
+            Hacs.SystemLog.Record(e.ToString());
         }
     }
 
@@ -497,20 +489,14 @@ public class Cegs : ProcessManager, ICegs
             var trap = CT ?? VTT;
             if (trap == null)
             {
-                Subject = "Configuration Error";
-                Message = "Can't find first trap";
-
-                Warn(Message, Subject, NoticeType.Error);
+                ConfigurationError("Can't find first trap");
                 return null;
             }
 
             var im_trap = JoinedSection(im, trap);
             if (im_trap == null)
             {
-                Subject = "Configuration Error";
-                Message = $"Can't find Section linking {im.Name} and {trap.Name}";
-
-                Warn(Message, Subject, NoticeType.Error);
+                ConfigurationError($"Can't find Section linking {im.Name} and {trap.Name}");
             }
 
             return im_trap;
@@ -534,9 +520,7 @@ public class Cegs : ProcessManager, ICegs
                s.Chambers.Count() == 1);
             if (trap == null)
             {
-                Subject = "Configuration Error";
-                Message = $"Can't find a Section containing only chamber {chamber.Name}.";
-                Warn(Message, Subject, NoticeType.Error);
+                ConfigurationError($"Can't find a Section containing only chamber {chamber.Name}.");
             }
             return trap;
         }
@@ -683,8 +667,7 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void StartThreads()
     {
-        MajorEvent("System Started");
-
+        Hacs.SystemLog.Record("System Started");
         systemLogThread = new Thread(LogSystemStatus)
         {
             Name = $"{Name} logSystemStatus",
@@ -781,10 +764,8 @@ public class Cegs : ProcessManager, ICegs
                 {
                     if (!exceptionAnnounced)
                     {
-                        Subject = "System Error";
-                        Message = e.ToString();
-
-                        Announce(Message, Subject, NoticeType.Error);
+                        Tell("Exception while updating logs", 
+                            e.ToString(), NoticeType.Error);
                         exceptionAnnounced = true;
                     }
                 }
@@ -793,10 +774,8 @@ public class Cegs : ProcessManager, ICegs
         }
         catch (Exception e)
         {
-            Message = e.ToString() + "\r\n" +
-                          "Logs will no longer be updated.";
-
-            Announce(Message, type: NoticeType.Error);
+            Tell("Logs will no longer be updated.", 
+                e.ToString(), type: NoticeType.Error);
         }
         stoppedSignal1.Set();
     }
@@ -859,13 +838,12 @@ public class Cegs : ProcessManager, ICegs
         {
             if (updateExceptionOccurred) return;
 
-            Subject = "System Error";
-            Message = $"{e}\r\n" +
-                          $"System should be restarted.\r\n" +
-                          $"This message will not be repeated.";
+            Announce("Exception in CEGS Update loop",
+                $"{e}\r\n" +
+                $"System should be restarted.\r\n" +
+                $"This message will not be repeated.", 
+                NoticeType.Error);
 
-            Alert(Message, Subject);
-            Announce(Message, Subject, NoticeType.Error);
             updateExceptionOccurred = true;
         }
     }
@@ -951,13 +929,8 @@ public class Cegs : ProcessManager, ICegs
                     $"\tGraphite {gr.Contents}");
                 if (BusyGRCount() == 1 && !SampleIsRunning)  // the 1 is this GR; "Stop" is still 'Busy'
                 {
-                    Subject = "Operator Needed";
-                    Message = $"Last graphite reactor finished.";
-                    if (PreparedGRs() < 1)
-                        Message += "\r\nGraphite reactors need service.";
-
-                    Alert(Message, Subject);
-                    Announce(Message, Subject);         // it's ok not to Pause here
+                    Announce("Last graphite reactor finished.", 
+                        (PreparedGRs() < 1) ? "Graphite reactors need service." : "");
                 }
             }
         }
@@ -1010,29 +983,20 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void OnMainsDown()
     {
-        Subject = "System Warning";
-        Message = "Mains Power is down";
-
-        Alert(Message, Subject);
-        Announce(Message, Subject, NoticeType.Warning);
+        Announce("Mains Power is down",
+            type: NoticeType.Warning);
     }
 
     protected virtual void OnMainsRestored()
     {
-        Subject = "System Message";
-        Message = $"Mains Power restored (down {Power.MainsDownTimer.ElapsedMilliseconds} ms)";
-
-        Alert(Message, Subject);
-        Announce(Message, Subject, NoticeType.Information);
+        Announce("Mains Power restored",
+            $"Power was down {Power.MainsDownTimer.ElapsedMilliseconds} ms)");
     }
 
     protected virtual void OnMainsFailed()
     {
-        Subject = "System Failure";
-        Message = "Mains Power Failure. Shutting down...";
-
-        Alert(Message, Subject);
-        MajorEvent(Message, Subject);
+        Announce("Mains Power Failure.",
+            "Shutting down...", NoticeType.Error);
 
         ShutDownAllColdfingers();
         FindAll<IHeater>().ForEach(h => h.TurnOff());
@@ -1048,39 +1012,29 @@ public class Cegs : ProcessManager, ICegs
         Hacs.CloseApplication?.Invoke();
     }
 
-    protected virtual void OnOverflowDetected()
+    protected virtual void OnOverflowDetected(ILNManifold manifold)
     {
-        Subject = "System Alert";
-        Message = "LN containment failure.";
-
-        Alert(Message, Subject);
-        Warn(Message, Subject);
+        Pause("LN containment failure.", 
+            $"{manifold?.Name ?? "LN Manifold"} service suspended.\r\n" +
+            $"Correct the issue and Ok to continue.");
     }
 
     protected virtual void OnSlowToFill(ILNManifold manifold)
     {
-        Subject = "System Warning";
-        Message = $"{manifold?.Name ?? "An LN Manifold"} is slow to fill.";
-
-        Alert(Message, Subject);
-        Warn(Message, Subject);
+        Announce($"{manifold?.Name ?? "An LN Manifold"} is slow to fill.");
     }
 
-    protected virtual void OnSlowToFreeze()
+    protected virtual void OnSlowToFreeze(IColdfinger coldfinger)
     {
         var coldfingers = FindAll<IColdfinger>(cf => cf.IsActivelyCooling);
-        var list = string.Join(", ", coldfingers.Select(cf => cf.Name));
-
         coldfingers.ForEach(cf => cf.Standby());
-
-        Subject = "Process Exception";
-        Message = $"A coldfinger is taking too long to freeze.\r\n" +
-                      $"Active coldfingers set to Standby: {list}.\r\n" +
-                      $"The process is paused for operator.\r\n" +
-                      $"Restore their states manually and Ok to try again or \r\n" +
-                      $"Restart the application to abort the process.";
-
-        while (!Warn(Message, Subject).Ok()) ;
+        var list = string.Join(", ", coldfingers.Select(cf => cf.Name));
+        Pause($"{coldfinger?.Name ?? "A coldfinger"} is taking too long to freeze.",
+            $"\r\nActive coldfingers set to Standby: {list}.\r\n" +
+            $"The process is paused for operator.\r\n" +
+            $"Restore their states manually and Ok to continue or \r\n" +
+            $"Restart the application to abort the process."
+        );
     }
 
     protected virtual void ShutDownAllColdfingers()
@@ -1108,11 +1062,8 @@ public class Cegs : ProcessManager, ICegs
         }
         catch (Exception e)
         {
-            Subject = "System Error";
-            Message = $"{e}\r\n" +
-                          $"Low priority activities stopped.";
-
-            Announce(Message, Subject, NoticeType.Error);
+            Announce($"Low priority activities stopped.",
+                e.ToString(), NoticeType.Error);
         }
         stoppedSignal2.Set();
     }
@@ -1277,10 +1228,7 @@ public class Cegs : ProcessManager, ICegs
         var value = GetParameter(parameter);
         if (!value.IsANumber())
         {
-            var subject = "Process Error";
-            var message = $"Sample Parameter '{parameter}' is not defined!\r\n" +
-                $"Process cannot continue.";
-            Warn(message, subject);
+            ConfigurationError($"Sample Parameter '{parameter}' is not defined!");
         }
         return value;
     }
@@ -1479,13 +1427,9 @@ public class Cegs : ProcessManager, ICegs
         while (!WaitFor(() => Stopping || InletPort.Temperature < IpSetpoint, (int)MaximumMinutesIpToReachTemperature * 60000, 1000))
         {
             InletPort.SampleFurnace.TurnOff();
-
-            Subject = "Process Exception";
-            Message = $"{InletPort.SampleFurnace.Name} is taking too long to reach {IpSetpoint:0} °C.\r\n" +
-                          $"Ok to keep waiting or Cancel to move on.\r\n" +
-                          $"Restart the application to abort the process.";
-
-            if (Warn(Message, Subject).Ok())
+            if (Warn($"{InletPort.SampleFurnace.Name} is taking too long to reach {IpSetpoint:0} °C.",
+                $"Ok to keep waiting or Cancel to move on.\r\n" +
+                $"Restart the application to abort the process.").Ok())
             {
                 InletPort.SampleFurnace.TurnOn(); ;
                 continue;
@@ -1515,13 +1459,9 @@ public class Cegs : ProcessManager, ICegs
         while (!WaitFor(() => Stopping || InletPort.Temperature >= closeEnough, (int)MaximumMinutesIpToReachTemperature * 60000, 1000))
         {
             InletPort.SampleFurnace.TurnOff();
-
-            Subject = "Process Exception";
-            Message = $"{InletPort.SampleFurnace.Name} is taking too long to reach {closeEnough:0} °C.\r\n" +
-                          $"Ok to keep waiting or Cancel to move on.\r\n" +
-                          $"Restart the application to abort the process.";
-
-            if (Warn(Message, Subject).Ok())
+            if (Warn($"{InletPort.SampleFurnace.Name} is taking too long to reach {closeEnough:0} °C.",
+                $"Ok to keep waiting or Cancel to move on.\r\n" +
+                $"Restart the application to abort the process.").Ok())
             {
                 InletPort.SampleFurnace.TurnOn(); ;
                 continue;
@@ -1914,20 +1854,16 @@ public class Cegs : ProcessManager, ICegs
         im = Manifold(InletPort);
         if (InletPort == null)
         {
-            Subject = "Process Exception";
-            Message = "No InletPort is selected.";
-
-            Alert(Message, Subject);
-            Announce(Message, Subject, NoticeType.Error);
+            Pause("Can't find Inlet Manifold",
+                "No InletPort is selected.\r\n" +
+                "Restart the application to abort the process.",
+                NoticeType.Error,
+                response: "Continue without it");
             return false;
         }
         if (im == null)
         {
-            Subject = "Process Exception";
-            Message = $"Can't find manifold Section for {InletPort.Name}.";
-
-            Alert(Message, Subject);
-            Announce(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find manifold section for {InletPort.Name}.");
             return false;
         }
         return true;
@@ -1956,11 +1892,7 @@ public class Cegs : ProcessManager, ICegs
         gs = InertGasSupply(im);
         if (gs != null) return true;
 
-        Subject = "Configuration Error";
-        Message = $"Section {im.Name} has no inert GasSupply.";
-
-        Alert(Message, Subject);
-        Announce(Message, Subject, NoticeType.Error);
+        OkCancel($"Section {im.Name} has no inert GasSupply.", "Configuration Error?", NoticeType.Error);
         return false;
     }
 
@@ -1977,11 +1909,7 @@ public class Cegs : ProcessManager, ICegs
         var trap = FirstTrap;
         if (trap == null)
         {
-            Subject = "Configuration Error";
-            Message = $"Can't find Section {trap.Name}.";
-
-            Alert(Message, Subject);
-            Announce(Message, Subject, NoticeType.Error);
+            OkCancel($"Can't find Section {trap.Name}.", "Configuration Error?", NoticeType.Error);
             return false;
         }
 
@@ -1993,11 +1921,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (im_trap == null)
         {
-            Subject = "Configuration Error";
-            Message = $"Can't find Section linking {im.Name} and {trap.Name}.";
-
-            Alert(Message, Subject);
-            Announce(Message, Subject, NoticeType.Error);
+            OkCancel($"Can't find Section linking {im.Name} and {trap.Name}.", "Configuration Error?", NoticeType.Error);
             return false;
         }
         return true;
@@ -2012,12 +1936,9 @@ public class Cegs : ProcessManager, ICegs
         gm = Manifold(grs);
         if (gm == null)
         {
-            Subject = "Process Exception";
-            Message = grs == null || grs.Count() == 0 ?
-                "Graphite manifold search requires a valid graphite reactor." :
-                $"Can't find graphite manifold for {string.Join(", ", grs.Select(gr => gr.Name))}.";
-
-            Tell(Subject, Message, NoticeType.Warning);
+            OkCancel("Can't find graphite manifold",
+                $"None contain [{string.Join(", ", grs.Select(gr => gr.Name))}]\r\n"+
+                "Configuration Error?", NoticeType.Error);
             return false;
         }
         return true;
@@ -2045,12 +1966,7 @@ public class Cegs : ProcessManager, ICegs
         if (!GrGm(grs, out gm)) return false;
         gs = InertGasSupply(gm);
         if (gs != null) return true;
-
-        Subject = "Configuration Error";
-        Message = $"Section {gm.Name} has no inert GasSupply.";
-
-        Alert(Message, Subject);
-        Announce(Message, Subject, NoticeType.Error);
+        OkCancel($"Section {gm.Name} has no inert GasSupply.", "Configuration Error?", NoticeType.Error);
         return false;
     }
 
@@ -2080,14 +1996,6 @@ public class Cegs : ProcessManager, ICegs
 
     #endregion parameterized processes
 
-    protected virtual void WaitForOperator()
-    {
-        Subject = "Operator Needed";
-        Message = "Waiting for Operator.";
-
-        Alert(Message, Subject);
-        Ask(Message, Subject, NoticeType.Alert);
-    }
 
     #region Valve operations
 
@@ -2186,13 +2094,10 @@ public class Cegs : ProcessManager, ICegs
 
         if (InletPort.NotifySampleFurnaceNeeded)
         {
-            Subject = "Operator Needed";
-            Message = $"{Sample?.LabId} is ready for sample furnace.\r\n" +
-                          $"Remove any coolant from combustion tube and \r\n" +
-                          $"raise the sample furnace at {InletPort.Name}.\r\n" +
-                          "Ok when ready to continue";
-
-            Ask(Message, Subject, NoticeType.Information);
+            WaitForOperator(
+                $"{Sample?.LabId} is ready for sample furnace.\r\n" +
+                $"Remove any coolant from combustion tube and \r\n" +
+                $"raise the sample furnace at {InletPort.Name}.");
         }
         ProcessStep.End();
     }
@@ -2264,10 +2169,7 @@ public class Cegs : ProcessManager, ICegs
             gs.Flush(PressureOverAtm, 0.1, n, port);
         else
         {
-            Subject = "Configuration Error";
-            Message = $"Section {section.Name} has no inert GasSupply.";
-
-            Warn(Message, Subject);
+            Warn($"Section {section.Name} has no inert GasSupply.", "Configuration Error?");
         }
     }
 
@@ -2447,13 +2349,10 @@ public class Cegs : ProcessManager, ICegs
         while (!WaitFor(() => Hacs.Stopping || gm.Pressure > preAdmitPressure + 5, 3000, 20))
         {
             gasSupply.ShutOff();
-
-            Subject = "Process Exception";
-            Message = $"{gasSupply.GasName} is not flowing into {gm.Name}.\r\n" +
-                          $"Ok to try again or Cancel to continue without gas.\r\n" +
-                          $"Restart the application to abort the process.";
-
-            if (Warn(Message, Subject, NoticeType.Error).Ok())
+            if (Warn(
+                $"{gasSupply.GasName} is not flowing into {gm.Name}.",
+                $"Ok to try again or Cancel to continue without gas.\r\n" +
+                $"Restart the application to abort the process.").Ok())
             {
                 gasSupply.Admit();
                 continue;
@@ -2464,13 +2363,10 @@ public class Cegs : ProcessManager, ICegs
         while (!WaitFor(() => Hacs.Stopping || gm.Pressure >= pressure, (int)MaximumSecondsAdmitGas * 1000, 250))
         {
             gasSupply.ShutOff();
-
-            Subject = "Process Exception";
-            Message = $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.\r\n" +
-                             $"Ok to keep waiting or Cancel to move on.\r\n" +
-                             $"Restart the application to abort the process.";
-
-            if (Warn(Message, Subject, NoticeType.Error).Ok())
+            if (Warn(
+                $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.",
+                $"Ok to keep waiting or Cancel to move on.\r\n" +
+                $"Restart the application to abort the process.").Ok())
             {
                 gasSupply.Admit();
                 continue;
@@ -2489,13 +2385,10 @@ public class Cegs : ProcessManager, ICegs
         while (!WaitFor(() => Hacs.Stopping || gm.Pressure >= pressure, (int)MaximumSecondsAdmitGas * 1000 / 2, 250))
         {
             gasSupply.ShutOff();
-
-            Subject = "Process Exception";
-            Message = $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.\r\n" +
-                          $"Ok to keep waiting or Cancel to move on.\r\n" +
-                          $"Restart the application to abort the process.";
-
-            if (Warn(Message, Subject, NoticeType.Error).Ok())
+            if (Warn(
+                $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.",
+                $"Ok to keep waiting or Cancel to move on.\r\n" +
+                $"Restart the application to abort the process.").Ok())
             {
                 gasSupply.Admit();
                 continue;
@@ -2525,27 +2418,16 @@ public class Cegs : ProcessManager, ICegs
 
         if (grs.Count < 1)
         {
-            Subject = "Nothing To Do";
-            Message = "No graphite reactors are awaiting service.";
-
-            Announce(Message, Subject);
+            Tell("No graphite reactors are awaiting service.", 
+                "Nothing to do.");
             return;
         }
 
         grs.ForEach(gr => SampleRecord(gr.Aliquot));
 
-        Subject = "Operator Needed";
-        Message = "Mark Fe/C tubes with graphite IDs.\r\n" +
-                  "Ok to continue";
-
-        Ask(Message, Subject, NoticeType.Information);
+        WaitForOperator("Mark Fe/C tubes with graphite IDs.");
 
         PressurizeGRsWithInertGas(grs);
-
-        Subject = "Operator Needed";
-        Message = "Ready to load new iron and desiccant.";
-
-        Announce(Message, Subject, NoticeType.Information);
 
         List<IAliquot> toDelete = new List<IAliquot>();
         grs.ForEach(gr =>
@@ -2562,6 +2444,8 @@ public class Cegs : ProcessManager, ICegs
                 a.Name = null;          // remove the aliquot from the NamedObject Dictionary.
             }
         });
+
+        Announce("Ready to load new iron and desiccant.");
     }
 
     protected virtual bool AnyUnderTemp(List<IGraphiteReactor> grs, int targetTemp)
@@ -2587,12 +2471,11 @@ public class Cegs : ProcessManager, ICegs
         var leakRateLimit = 2 * LeakTightTorrLitersPerSecond;
         while (SectionLeakRate(section, leakRateLimit) > leakRateLimit)
         {
-            Subject = "Process Exception";
-            Message = $"Something in the {section.Name} isn't holding vacuum well enough.\r\n" +
-                          $"Ok to try again or Cancel to move on.\r\n" +
-                          $"Restart the application to abort the process.";
-
-            if (Warn(Message, Subject, NoticeType.Error).Ok())
+            if (Warn(
+                $"{section.Name} is leaking.",
+                $"Something in the {section.Name} isn't holding vacuum well enough.\r\n" +
+                $"Ok to try again or Cancel to move on.\r\n" +
+                $"Restart the application to abort the process.").Ok())
             {
                 section.VacuumSystem.Evacuate(basePressure);
                 continue;
@@ -2601,16 +2484,17 @@ public class Cegs : ProcessManager, ICegs
         }
     }
 
+
+
+
     protected virtual void PreconditionGRs()
     {
         var grs = GraphiteReactors.FindAll(gr => gr.State == GraphiteReactor.States.WaitPrep);
 
         if (grs.Count < 1)
         {
-            Subject = "Nothing To Do";
-            Message = "No graphite reactors are awaiting preparation.";
-
-            Announce(Message, Subject);
+            Tell("No graphite reactors are awaiting preparation.", 
+                "Nothing to do.");
             return;
         }
 
@@ -2620,10 +2504,7 @@ public class Cegs : ProcessManager, ICegs
         var gsH2Needed = IronPreconditionH2Pressure > 0;
         if (gsH2 == null && gsH2Needed)
         {
-            Subject = "Configuration Error";
-            Message = $"Can't find H2 gas supply for {gm.Name}.";
-
-            Announce(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find H2 gas supply for {gm.Name}.");
             return;
         }
 
@@ -2704,12 +2585,9 @@ public class Cegs : ProcessManager, ICegs
                     "GR " + sluggish.First().Name + " is " :
                     "GRs " + string.Join(", ", sluggish.Select(gr => gr.Name)) + " are ";
 
-                Subject = "Process Exception";
-                Message = $"{which} taking too long to reach {targetTemp} °C.\r\n" +
-                          $"Ok to keep waiting or Cancel to move on.\r\n" +
-                          $"Restart the application to abort the process.";
-
-                if (Warn(Message, Subject, NoticeType.Error).Ok())
+                if (Warn($"{which} taking too long to reach {targetTemp} °C.",
+                    $"Ok to keep waiting or Cancel to move on.\r\n" +
+                    $"Restart the application to abort the process.").Ok())
                 {
                     grs.ForEach(gr => gr.TurnOn(IronPreconditioningTemperature));
                     continue;
@@ -2750,11 +2628,7 @@ public class Cegs : ProcessManager, ICegs
 
         gm.VacuumSystem.OpenLine();
 
-        Subject = "Operator Needed";
-        Message = "Graphite reactor preparation complete.";
-
-        Alert(Message, Subject);
-        Announce(Message, Subject);
+        Announce("Graphite reactor preparation complete.");
     }
 
     protected virtual void PrepareIPsForCollection() =>
@@ -2781,10 +2655,7 @@ public class Cegs : ProcessManager, ICegs
         var im = Manifold(ips);
         if (im == null)
         {
-            Subject = "Process Exception";
-            Message = $"No manifold includes all of these ports:\r\n" +
-                $"\t{portNames}.";
-            Announce(Message, Subject);
+            ConfigurationError($"No manifold includes {portNames}:");
             return;
         }
 
@@ -2804,16 +2675,9 @@ public class Cegs : ProcessManager, ICegs
         ips.ForEach(ip => ip.Close());
 
         ProcessStep.Start("Release the samples");
-        var msg = "Release the samples at the following ports:";
-        ips.ForEach(ip => msg += $"\r\n\t{ip?.Sample?.LabId} at {ip.Name}");
-
-        Subject = "Operator Needed";
-        Message = "Release the samples at ports:\r\n" +
-            $"\t{portNames}.\r\n" +
-            "Ok to continue.";
-
-        Alert(Message, Subject);
-        Ask(Message, Subject, NoticeType.Information);
+        WaitForOperator(
+            "Release the samples at ports:\r\n" +
+            $"\t{portNames}.");
         ProcessStep.End();
 
         ips.ForEach(ip => ip.State = LinePort.States.Prepared);
@@ -2829,33 +2693,21 @@ public class Cegs : ProcessManager, ICegs
 
         if (grs.Count < 1)
         {
-            Subject = "Nothing To Do";
-            Message = "No sulfur traps are awaiting service.";
-
-            Announce(Message, Subject);
+            Tell("No sulfur traps are awaiting service.", 
+                "Nothing to do.");
             return;
         }
         var gm = Manifold(grs);
         if (gm == null)
         {
             var grList = string.Join(", ", grs.Select(gr => gr.Name));
-
-            Subject = "Configuration Error";
-            Message = $"Can't find graphite manifold for {grList}.";
-
-            Announce(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find graphite manifold for {grList}.");
             return;
         }
 
         PressurizeGRsWithInertGas(grs);
 
-        PlaySound();
-
-        Subject = "Operator Needed";
-        Message = "Replace iron in sulfur traps.\r\n" +
-                  "Ok to continue";
-
-        Ask(Message, Subject, NoticeType.Information);
+        WaitForOperator("Replace iron in sulfur traps.");
 
         // assume the Fe has been replaced
 
@@ -2936,12 +2788,8 @@ public class Cegs : ProcessManager, ICegs
         coldSections.ForEach(s => s.Thaw(10));
         if (!WaitFor(() => coldSections.All(s => s.Temperature > 5), 600 * 1000, 1000))
         {
-            Subject = "Process Exception";
-            Message = "At least one coldfinger is taking too long to thaw.\r\n" +
-                "Compressed air problem?";
-
-            Alert(Message, Subject);
-            Announce(Message, Subject, NoticeType.Error);
+            Announce("A coldfinger is taking too long to thaw.",
+                "Compressed air problem?", NoticeType.Warning);
         }
         ProcessStep.End();
 
@@ -2978,24 +2826,17 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void RunSample()
     {
-
         if (Sample == null)
         {
-            Subject = "Process Exception";
-            if (InletPort != null)
-                Message = $"{InletPort.Name} does not contain a sample.";
-            else
-                Message = $"No sample to run.";
-            Announce(Message, Subject, NoticeType.Error);
+            Tell(InletPort == null ? "No sample to run." : $"{InletPort.Name} doesn't contain a sample.",
+                "Nothing to do.");
             return;
         }
 
         if (InletPort != null && InletPort.State > LinePort.States.Prepared)
         {
-            Subject = "Process Exception";
-            Message = $"{InletPort.Name} is not ready to run.";
-
-            Announce(Message, Subject, NoticeType.Error);
+            Tell($"{InletPort.Name} is not ready to run.", 
+                "Nothing to do.");
             return;
         }
 
@@ -3003,30 +2844,29 @@ public class Cegs : ProcessManager, ICegs
         {
             double liters = LNManifolds.Values.Sum(x => x.Liters.Value);
 
-            Subject = "System Alert";
-            Message = $"There might not be enough LN! ({liters:0.0} L)\r\n" +
-                      "Ok to proceed anyway, or Cancel to abort.";
-
-            if (!Ask(Message, Subject, NoticeType.Warning).Ok())
+            if (!Warn(
+                $"LN supply is low.",
+                $"There might not be enough to finish the sample: ({liters:0.0} L)\r\n" +
+                "Ok to proceed anyway, or Cancel to abort.").Ok())
+            {
                 return;
+            }
+
+
+
         }
 
         if (!EnoughGRs())
         {
-            Subject = "Process Exception";
-            Message = "Unable to start process.\r\n" +
-                      "Not enough GRs are prepared.";
-
-            Announce(Message, Subject, NoticeType.Error);
+            Announce("Not enough GRs are prepared.",
+                "Unable to start process.");
             return;
         }
 
         if (!ProcessSequences.ContainsKey(Sample.Process))
         {
-            Subject = "Process Exception";
-            Message = $"No such Process Sequence: '{Sample.Process}' ({Sample.Name} at {InletPort.Name} needs it.)";
-
-            Announce(Message, Subject, NoticeType.Error);
+            Announce($"Process '{Sample.Process}' not found",
+                $"{Sample.Name} at {InletPort.Name} needs it.", NoticeType.Error);
             return;
         }
 
@@ -3111,10 +2951,7 @@ public class Cegs : ProcessManager, ICegs
             SampleLog.Record(message + "\r\n\t" + Sample.LabId);
         }
 
-        Subject = "System Status";
-
-        Alert(message, Subject);
-
+        Alert(message);
         base.ProcessEnded(message);
     }
 
@@ -3142,9 +2979,11 @@ public class Cegs : ProcessManager, ICegs
         if (Pressure(particles, MC.CurrentVolume(true), MC.Temperature) > MC.Manometer.MaxValue)
         {
             var ugcMax = Particles(MC.Manometer.MaxValue, MC.CurrentVolume(true), MC.Temperature) / CarbonAtomsPerMicrogram;
-            Subject = "Process Exception";
-            Message = $"Requested amount of Dead CO2 ({ugc_targetSize} µgC) exceeds {MC.Name} limit ({ugcMax} µgC).";
-            Warn(Message, Subject, NoticeType.Error);
+            
+            Warn("Dead CO2 sample is too big",
+                $"Requested amount ({ugc_targetSize} µgC) exceeds {MC.Name} limit ({ugcMax} µgC).\r\n"+
+                "Admit Dead CO2 process will abort.");
+
             ProcessStep.End();
             return;
         }
@@ -3191,15 +3030,9 @@ public class Cegs : ProcessManager, ICegs
         InletPort.Close();
 
         ProcessStep.Start("Release the sample");
-
-        Subject = "Operator Needed";
-        Message = $"Release the sealed sample '{Sample.LabId}' at {InletPort.Name}.\r\n" +
-                      "Press Ok to continue";
-
-        Alert(Message, Subject);
-        Ask(Message, Subject, NoticeType.Information);
-
+        WaitForOperator($"Release the sealed sample '{Sample.LabId}' at {InletPort.Name}.");
         ProcessStep.End();
+
         InletPort.State = LinePort.States.Prepared;
         if (Sample is Sample) Sample.State = Components.Sample.States.Prepared;
     }
@@ -3226,15 +3059,9 @@ public class Cegs : ProcessManager, ICegs
 
         ProcessStep.End();
 
-        Subject = "Operator Needed";
-        Message = $"Carbonate sample contains {pIM:0} Torr He.";
-
-        Alert(Message, Subject);
-        Announce(Message, Subject, NoticeType.Information);
-
         SampleLog.Record($"Carbonate vial pressure: {pIM:0}");
-
         im.VacuumSystem.OpenLine();
+        Announce($"Carbonate sample contains {pIM:0} Torr He.");
     }
 
     protected virtual void LoadCarbonateSample()
@@ -3253,7 +3080,7 @@ public class Cegs : ProcessManager, ICegs
 
         PlaySound();
         ProcessStep.Start("Remove previous sample or plug from IP needle");
-        WaitFor(() => im.Manometer.IsFalling, 10 * 1000, 100);
+        WaitFor(() => im.Manometer.IsFalling, 20 * 1000, 100);
         ProcessStep.End();
 
         ProcessStep.Start("Wait for stable He flow at IP needle");
@@ -3282,38 +3109,40 @@ public class Cegs : ProcessManager, ICegs
         var ports = FindAll<d13CPort>(p => p.State == LinePort.States.Complete);
         var count = ports.Count;
 
+        // TODO: allow ampoules, needs different words
+        //      how to know whether they are vials or ampoules?
+
         if (count == 0)
         {
             if (FirstOrDefault<d13CPort>(p => p.State == LinePort.States.Loaded) == null)
             {
-                Subject = "Process Alert";
-                Message = $"Nothing to do! No vial ports are Completed or Loaded.";
-                Announce(Message, Subject);
+                Tell("No vial ports are Completed or Loaded.", 
+                    "Nothing to do.");
                 return;
             }
             else
             {
-                Subject = "Process Alert";
-                Message = $"No vial ports are Completed.\r\n" +
+                if (!OkCancel("No vial ports are Completed.",
                     $"Ok to prepare previously Loaded vials, or\r\n" +
-                    $"Cancel the procedure";
-                if (!Ask(Message, Subject).Ok())
+                    $"Cancel the procedure").Ok())
+                {
                     return;
+                }
             }
         }
         else
         {
-            var list = string.Join(", ", ports.Select(p => p.Name));
-
             // TODO: should this procedure do the loading under positive inertGas pressure?
-            Subject = "Operator needed";
-            Message = $"Remove and replace the vials at Completed d13C {"port".Plurality(count)}\r\n" +
+            var list = string.Join(", ", ports.Select(p => p.Name));
+            if (!OkCancel("Ready for new vials",
+                $"Remove and replace the vials at Completed d13C {"port".Plurality(count)}\r\n" +
                 $"{list}.\r\n" +
                 $"Ok when ready to evacuate the new vials, or" +
-                $"Cancel the procedure.";
-            if (!Ask(Message, Subject).Ok())
+                $"Cancel the procedure.").Ok())
+            {
                 return;
-                ports.ForEach(p => p.State = LinePort.States.Loaded);
+            }
+            ports.ForEach(p => p.State = LinePort.States.Loaded);
         }
 
         // also prepare any other ports that are loaded
@@ -3333,9 +3162,7 @@ public class Cegs : ProcessManager, ICegs
         if (manifold == null)
         {
             var list = string.Join(", ", ports.Select(p => p.Name));
-            Subject = "Configuration Error";
-            Message = $"Can't find d13C port manifold for {list}";
-            Warn(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find d13C port manifold for {list}");
             return;
         }
 
@@ -3376,9 +3203,8 @@ public class Cegs : ProcessManager, ICegs
         var ports = FindAll<d13CPort>(p => p.State == LinePort.States.Loaded);
         if (ports.Count == 0) 
         {
-            Subject = "Process Alert";
-            Message = $"Nothing to do! No vial ports are Loaded.";
-            Announce(Message, Subject);
+            Tell("No vial ports are Loaded.", 
+                "Nothing to do.");
             return;
         }
         Prepare_d13CPorts(ports);
@@ -3395,14 +3221,15 @@ public class Cegs : ProcessManager, ICegs
 
         if (port.State != LinePort.States.Loaded)
         {
-            Subject = "Sample Alert";
-            Message = $"Port {port.Name} is not available.\r\n" +
-                       "It may contain a prior d13C sample.\r\n" +
-                       "Ok to evacuate it anyway, or \r\n" +
-                       "Cancel the procedure.";
-
-            if (!Warn(Message, Subject).Ok())
+            if (!Warn(
+                $"Port {port.Name} is not available.",
+                "It may contain a prior d13C sample.\r\n" +
+                "Ok to evacuate it anyway, or \r\n" +
+                "Cancel the procedure."
+                ).Ok())
+            {
                 return;
+            }
         }
 
         Prepare_d13CPorts([port]);
@@ -3421,10 +3248,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (trap == null)
         {
-            Subject = "Configuration Error";
-            Message = $"Can't find Section {trap.Name}";
-
-            Warn(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find Section {trap.Name}");
             return;
         }
 
@@ -3435,10 +3259,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (im_trap == null)
         {
-            Subject = "Configuration Error";
-            Message = $"Can't find Section linking {im.Name} and {trap.Name}";
-
-            Warn(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find Section linking {im.Name} and {trap.Name}");
             return;
         }
 
@@ -3488,17 +3309,21 @@ public class Cegs : ProcessManager, ICegs
 
         targetTemp -= 1;            // continue at 1 deg under
         ProcessSubStep.Start($"Wait for {VTT.Name} to reach {targetTemp:0} °C");
-        if (!WaitFor(() => Hacs.Stopping || vtc.Temperature >= targetTemp, 10 * 60000, 1000))
+        while (!WaitFor(() => Hacs.Stopping || vtc.Temperature >= targetTemp, 10 * 60000, 1000))
         {
             ShutDownAllColdfingers();
 
-            Subject = "Process Exception";
-            Message = $"{vtc.Name} is taking too long to reach {targetTemp:0} °C.\r\n" +
-                           "All coldfingers have have been set to Standby.\r\n" +
-                           "Establish the desired Extraction conditions manually, then Ok to continue.\r\n" +
-                           "Restart the application to abort the process.";
-
-            while (!Warn(Message, Subject, NoticeType.Error).Ok()) ;
+            if (Warn(
+                $"{vtc.Name} is taking too long to reach {targetTemp:0} °C.",
+                "All coldfingers have have been set to Standby.\r\n" +
+                "Establish the desired Extraction conditions manually," +
+                "then Ok to try again,\r\n" +
+                "or Cancel to move on now.\r\n" +
+                "Restart the application to abort the process.").Ok())
+            {
+                continue;
+            }
+            break;
         }
         ProcessSubStep.End();
 
@@ -3822,10 +3647,12 @@ public class Cegs : ProcessManager, ICegs
         IGraphiteReactor gr = NextGR(PriorGR, size);
         if (gr == null)
         {
-            Subject = "Process Exception";
-            Message = $"Can't find a suitable graphite reactor for this {aliquot.MicrogramsCarbon:0.0} µgC ({aliquot.MicromolesCarbon:0.00} µmol) aliquot.";
+            Pause("No graphite reactor available",
+                $"Can't find a suitable graphite reactor for aliquot {aliquot.Name}.\r\n" +
+                $"Sample size: {aliquot.MicrogramsCarbon:0.0} µgC ({aliquot.MicromolesCarbon:0.00} µmol).\r\n" +
+                "Restart the application to abort the process."
+                , NoticeType.Error);
 
-            Ask(Message, Subject, NoticeType.Error);
             return;
         }
 
@@ -3836,10 +3663,7 @@ public class Cegs : ProcessManager, ICegs
     {
         if (!(gs?.FlowManager?.Meter is IMeter meter))
         {
-            Subject = "Process Exception";
-            Message = $"AdmitGasToPort: {gs?.Name}.FlowManager.Meter is invalid.";
-
-            Warn(Message, Subject);
+            ConfigurationError($"AdmitGasToPort: {gs?.Name}.FlowManager.Meter is invalid.");
             return [double.NaN, double.NaN];
         }
 
@@ -3929,22 +3753,24 @@ public class Cegs : ProcessManager, ICegs
 
             if (targetFinalH2Pressure > 1500)       // way more than reasonable
             {
-                Subject = "System Error";
-                Message = $"Excessive H2 pressure required.\r\n" +
-                          $"The H2 is not going into {aliquot.GraphiteReactor}.\r\n" +
-                          $"Process paused.";
-
-                Warn(Message, Subject, NoticeType.Error);
+                if (!Warn($"Excessive H2 pressure required.",
+                    $"The H2 is not going into {aliquot.GraphiteReactor}.\r\n" +
+                    $"Process paused.\r\n" +
+                    $"Ok to continue trying or Cancel to move on as is.\r\n" +
+                    $"Restart the application to abort the process.").Ok())
+                {
+                    break;
+                }
             }
         }
 
         if (pH2ratio < H2_CO2StoichiometricRatio * 1.05)
         {
-            Subject = "Sample Alert";
-            Message = $"Not enough H2 in {aliquot.GraphiteReactor}\r\n" +
-                      $"Process paused.";
-
-            Warn(Message, Subject);
+            Pause($"Not enough H2 in {aliquot.GraphiteReactor}",
+                "Process paused.\r\n" +
+                "Restart the application to abort the process,\r\n" +
+                "or choose Ok to continue as is."
+                , NoticeType.Warning);
         }
     }
 
@@ -3976,11 +3802,7 @@ public class Cegs : ProcessManager, ICegs
         if (gm == null)
         {
             var grList = string.Join(", ", grs.Select(gr => gr.Name));
-
-            Subject = "Configuration Error";
-            Message = $"Can't find graphite manifold for {grList}.";
-
-            Announce(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find graphite manifold for {grList}.");
             return;
         }
 
@@ -4032,8 +3854,12 @@ public class Cegs : ProcessManager, ICegs
         }
         catch (Exception e)
         {
-            Message = e.ToString();
-            Announce(Message, type: NoticeType.Error);
+            Pause("Exception in GraphtitizeEtc()",
+                $"{e}\r\n" +
+                "Process paused.\r\n" +
+                "Restart the application to abort the process,\r\n" +
+                "or choose Ok to continue as is."
+                , NoticeType.Error);
         }
     }
 
@@ -4071,9 +3897,7 @@ public class Cegs : ProcessManager, ICegs
         var combinedSection = JoinedSection(fromSection, toSection);
         if (combinedSection == null)
         {
-            Subject = "Configuration Error";
-            Message = $"Can't find Section linking {fromSection.Name} and {toSection.Name}";
-            Warn(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find Section linking {fromSection.Name} and {toSection.Name}");
             return;
         }
 
@@ -4149,10 +3973,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (mc_gm == null)
         {
-            Subject = "Configuration Error";
-            Message = $"Can't find Section joining {MC.Name} to {gm.Name}";
-
-            Warn(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find Section joining {MC.Name} to {gm.Name}");
             return;
         }
         PriorGR = gr.Name;
@@ -4167,11 +3988,20 @@ public class Cegs : ProcessManager, ICegs
         var take_d13C = !skip_d13C && (Sample?.Take_d13C ?? false) && aliquotIndex == 0;
         if (take_d13C && gr.Aliquot != null && gr.Aliquot.MicrogramsCarbon < MinimumUgCThatPermits_d13CSplit)
         {
-            Subject = "Process Exception";
-            Message = $"d13C was requested but the sample ({gr.Aliquot.MicrogramsCarbon:0.0} µmol) is too small.";
+            Announce($"{Sample.LabId} ({gr.Aliquot.MicrogramsCarbon:0.0} µgC) is too small for d13C",
+                $"d13C was requested but the sample mass\r\n" +
+                $"is too small to take the split (< {MinimumUgCThatPermits_d13CSplit}).");
 
-            Warn(Message, Subject, NoticeType.Error);
-            take_d13C = false;
+            //if (Prompt("Sample too small for d13C",
+            //    $"d13C was requested but the sample ({gr.Aliquot.MicrogramsCarbon:0.0} µmol) is too small." +
+            //    "Process paused.\r\n" +
+            //    "To abort the process, restart the application.\r\n" +
+            //    "Take the d13C split anyway, or skip d13C?",
+            //    NoticeType.Error, responses: ["Take d13C split", "Skip d13C"]).Message != "Take d13C split")
+            //{
+                take_d13C = false;
+            //}
+
         }
 
         Id13CPort d13CPort = take_d13C ? Guess_d13CPort(Sample) : null;
@@ -4192,10 +4022,13 @@ public class Cegs : ProcessManager, ICegs
         {
             if (d13CPort.ShouldBeClosed)
             {
-                Subject = "Process Exception";
-                Message = $"Need to take d13C, but {d13CPort.Name} is not available.";
-
-                Warn(Message, Subject, NoticeType.Error);
+                Pause($"{d13CPort.Name} is not available",
+                    $"Need to take d13C, but {d13CPort.Name} is not available.\r\n" +
+                    $"To abort the process, restart the application.\r\n" +
+                    $"Or, make {d13CPort.Name} available (Loaded or Prepared) and\r\n" +
+                    $"Choose Ok to continue." +
+                    $"If {d13CPort.Name} is still unavailable when you continue,\r\n" +
+                    $"the d13C split will not be taken.");
             }
 
             if (d13CPort.ShouldBeClosed)
@@ -4379,9 +4212,7 @@ public class Cegs : ProcessManager, ICegs
             SampleLog.Record(
                 $"\t\tpHeGM: ({pHeInitial:0} => {pHeFinal:0}) / " +
                 $"({VPInitialHePressure:0} => {VPErrorPressure - dropTarget})");
-            Subject = "Process Alert";
-            Message = $"Vial He pressure error: {pError:0}";
-            Tell(Message, Subject);
+            Tell($"Vial He pressure error: {pError:0}");
         }
         port.Coldfinger.Thaw();
     }
@@ -4395,9 +4226,7 @@ public class Cegs : ProcessManager, ICegs
         var mc_gm = JoinedSection(MC, gm);
         if (mc_gm == null)
         {
-            Subject = "Configuration Error";
-            Message = $"Can't find Section joining {MC.Name} to {gm.Name}";
-            Warn(Message, Subject, NoticeType.Error);
+            ConfigurationError($"Can't find Section joining {MC.Name} to {gm.Name}");
             return;
         }
 
@@ -4466,13 +4295,10 @@ public class Cegs : ProcessManager, ICegs
         else
             TransferCO2FromMCToGR(gr);
 
-        Subject = "Operator Needed";
-        Message = $"Close the transfer vessel,\r\n" +
+        WaitForOperator($"Move transfer vessel to {Sample.InletPort.Name}\r\n" +
+            $"Close the transfer vessel,\r\n" +
             $"then move it from {grName} to {Sample.InletPort.Name}." +
-            $"Keep it closed.\r\n" +
-            $"Ok to continue.";
-        Alert(Message, Subject);
-        Ask(Message, Subject, NoticeType.Information);
+            $"Keep it closed.");
         gr.Coldfinger.Standby();
 
         InletPort.State = LinePort.States.Loaded;
@@ -4496,21 +4322,15 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.End();
 
         ProcessStep.Start($"Transfer CO2 from MC to {InletPort.Name}");
-        Subject = "Operator Needed";
-        Message = $"Almost ready for LN on {InletPort.Name}.\r\n" +
-                  $"First select Ok to continue, then raise LN onto {InletPort.Name} coldfinger.";
-        Alert(Message, Subject);
-        Ask(Message, Subject, NoticeType.Alert);
+        Pause("Operator Needed",
+            $"Almost ready for LN on {InletPort.Name}.\r\n" +
+            $"First choose Ok to continue, then raise LN onto {InletPort.Name} coldfinger.");
 
         im.VacuumSystem.Isolate();
         MC_Split.Open();
         WaitMinutes((int)CO2TransferMinutes, $"Wait {MinutesString((int)CO2TransferMinutes)} for CO2 to freeze into {InletPort.Name}");
 
-        Subject = "Operator Needed";
-        Message = $"Raise {InletPort.Name} LN one inch.\r\n" +
-                   "Ok to continue.";
-        Alert(Message, Subject);
-        Ask(Message, Subject, NoticeType.Alert);
+        WaitForOperator($"Raise {InletPort.Name} LN one inch.");
 
         WaitSeconds(15, "Wait 15 seconds for LN to settle.");
         InletPort.Close();
@@ -4661,11 +4481,10 @@ public class Cegs : ProcessManager, ICegs
         {
             if (!gr.Prepared)
             {
-                Subject = "Error";
-                Message = "CalibrateGRH2() requires all of the listed grs to be Prepared.";
-
-                Alert(Message, Subject);
-                Ask(Message, Subject, NoticeType.Error);
+                var list = string.Join(", ", grs.Select(gr => gr.Name));
+                Tell("CalibrateGRH2() requires all of the selected grs to be Prepared.",
+                    $"Selected: {list}\r\n" +
+                    $"{gr.Name} (at least) is not.", NoticeType.Error);
                 return;
             }
         });
@@ -4741,9 +4560,8 @@ public class Cegs : ProcessManager, ICegs
         var port = FirstOrDefault<Id13CPort>(p => !p.ShouldBeClosed);
         if (port == null)
         {
-            Subject = "Error";
-            Message = "No vial port available for finding VPInitialHePressure.";
-            Tell(Message, Subject, NoticeType.Warning);
+            Tell("No vial port available", 
+                "One must be Loaded or Prepared to find VPInitialHePressure.", NoticeType.Error);
             return;
         }
 
@@ -4937,29 +4755,24 @@ public class Cegs : ProcessManager, ICegs
 
         if (!h.Config.ManualMode)
         {
-            Subject = "Invalid Heater Mode";
-            Message = $"{h.Name} is not a manual-mode heater.";
-
-            Alert(Message, Subject);
-            Announce(Message, Subject, NoticeType.Warning);
+            Tell($"{h.Name} is not in Manual mode.", 
+                "Cannot calibrate it in this state.", NoticeType.Error);
             return;
         }
 
         if (tc == null)
         {
-            Subject = "Missing Thermocouple";
-            Message = "No calibration thermocouple provided.";
-
-            Alert(Message, Subject);
-            Announce(Message, Subject, NoticeType.Warning);
+            Tell("Calibration thermocouple missing.", 
+                "Cannot calibrate heater without one.", NoticeType.Error);
             return;
         }
 
-        Subject = "Operator Needed";
-        Message = $"Move the calibration thermocouple to {h.Name}.\r\n" +
-            $"Ok to continue or Cancel to skip {h.Name}";
-        if (!Ask(Message, Subject, NoticeType.Alert).Ok())
+        if (!OkCancel("Operator Needed",
+            $"Move the calibration thermocouple to {h.Name}.\r\n" +
+            $"Ok to continue or Cancel to skip {h.Name}").Ok())
+        {
             return;
+        }
 
         ProcessStep.Start($"Calibrating {h.Name} power level");
         TestLog.Record($"Calibrating {h.Name}'s PowerLevel");
@@ -4979,11 +4792,9 @@ public class Cegs : ProcessManager, ICegs
             }
             if (!WaitFor(cooled, oneMinute, oneSecond))
             {
-                Subject = "Error";
-                Message = "Calibration thermocouple is too hot.";
-
-                Alert(Message, Subject);
-                Announce(Message, Subject, NoticeType.Error);
+                Announce("Calibration thermocouple is too hot.", 
+                    "And it hasn't cooled sufficiently after over a minute.\r\n" +
+                    $"Is it in {h.Name}?", NoticeType.Error);
                 ProcessStep.End();
                 return;
             }
@@ -5006,14 +4817,11 @@ public class Cegs : ProcessManager, ICegs
         {
             h.TurnOff();
 
-            Subject = $"{h.Name} Calibration Stopped";
-            Message = $"{h.Name} doesn't seem to be heating.\r\n" +
-                     $"Is the calibration thermocouple in {h.Name}?\r\n" +
-                     $"Ok to try again or Cancel calibrating {h.Name}.";
-
             // Don't end the ProcessSubStep yet; retain the status in the UI.
-            Alert(Message, Subject);
-            if (Ask(Message, Subject, NoticeType.Warning).Ok())
+            if (OkCancel($"{h.Name} doesn't seem to be heating.",
+                $"Calibration Stopped\r\n" +
+                $"Is the calibration thermocouple in {h.Name}?\r\n" +
+                $"Ok to try again or Cancel calibrating {h.Name}.", NoticeType.Warning).Ok())
             {
                 ProcessSubStep.End();       // to restart the timer
                 ProcessSubStep.Start(step);
@@ -5101,18 +4909,15 @@ public class Cegs : ProcessManager, ICegs
         }
         else
         {
-            Subject = $"{h.Name} Calibration Unsuccessful";
-            Message = $"Check {TestLog.Name} for details.";
-
-            Alert(Message, Subject);
-            Announce(Message, Subject, NoticeType.Error);
+            Announce($"{h.Name} Calibration Unsuccessful",
+                $"Check {TestLog.Name} for details.", NoticeType.Error);
         }
         ProcessStep.End();
 
-        void RecordAlert(string caption, string message)
+        void RecordAlert(string message, string details)
         {
-            Alert(message, caption);
-            TestLog.Record(caption + ". " + message);
+            Alert(message, details);
+            TestLog.Record(message + ". " + details);
         }
     }
 
@@ -5258,21 +5063,13 @@ public class Cegs : ProcessManager, ICegs
             PrepareIPsForCollection([InletPort]);
 
             // if a transfer vessel is used... 
-            Subject = "Operator Needed";
-            Message = $"Put LN on the {InletPort.Name} coldfinger.\r\n" +
-                $"Wait for it to freeze, then raise it a bit.\r\n" +
-                 "Ok to continue.";
-            Alert(Message, Subject);
-            Ask(Message, Subject, NoticeType.Information);
+            WaitForOperator($"Put LN on the {InletPort.Name} coldfinger.\r\n" +
+                $"Wait for it to freeze, then raise it a bit.");
 
             admitCarrier.Invoke();
         }
 
-        Subject = "Operator Needed";
-        Message = $"Remove LN from {InletPort.Name} and thaw the coldfinger.\r\n" +
-                   "Ok to continue.";
-        Alert(Message, Subject);
-        Ask(Message, Subject, NoticeType.Alert);
+        WaitForOperator($"Remove LN from {InletPort.Name} and thaw the coldfinger.");
 
         Collect();
         Extract();
@@ -5397,9 +5194,7 @@ public class Cegs : ProcessManager, ICegs
     {
         if (Sample == null)
         {
-            Message = "A sample must be defined in order to test process efficiency.";
-
-            Announce(Message, type: NoticeType.Alert);
+            Tell("A sample must be defined in order to test process efficiency.");
             return;
         }
 
@@ -5548,9 +5343,7 @@ public class Cegs : ProcessManager, ICegs
         gs?.Admit(pressure);
         WaitSeconds(10);
 
-        Message = $"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}";
-
-        TestLog.Record(Message);
+        TestLog.Record($"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}");
         gs?.Destination?.OpenAndEvacuate();
     }
 
@@ -5562,9 +5355,7 @@ public class Cegs : ProcessManager, ICegs
         gs?.Pressurize(pressure);
         WaitSeconds(15);
 
-        Message = $"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}";
-
-        TestLog.Record(Message);
+        TestLog.Record($"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}");
         gs?.Destination?.OpenAndEvacuate();
     }
 

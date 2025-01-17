@@ -591,12 +591,8 @@ namespace AeonHacs.Components
                     freezeThawTimer.Restart();
                 else if (freezeThawTimer.Elapsed.TotalMinutes > MaximumMinutesToThaw)
                 {
-                    var subject = "System Warning";
-                    var message = $"{Name} is taking too long to thaw.\r\n" +
-                                   "Compressed air problem?";
-
-                    Tell(message, subject, NoticeType.Warning);
-
+                    Announce($"{Name} is taking too long to thaw.", 
+                        "Compressed air problem?");
                     freezeThawTimer.Reset();
                 }
             }

@@ -502,11 +502,8 @@ namespace AeonHacs.Components
             {
                 if (timeouts % (4 * 24) == 0)
                 {
-                    var subject = "System Error";
-                    var message = $"{Manometer.Name} has failed to reach {TargetPressure:0.0e0} Torr within {ProcessStep.Elapsed.TotalMinutes:0} minutes.";
-
-                    Alert(message, subject);
-                    Announce(message, subject);
+                    Announce($"{Manometer.Name} hasn't reached {TargetPressure:0.0e0} Torr",
+                        $"It's been evacuating for {ProcessStep.Elapsed.TotalMinutes:0} minutes.");
                 }
                 timeouts++;
             }
@@ -639,10 +636,8 @@ namespace AeonHacs.Components
                                         {
                                             if (!WaitFor(() => ForelineManometer.Pressure <= GoodBackingPressure || Hacs.Stopping, 10 * 60000, 35))
                                             {
-                                                var subject = "System Error";
-                                                var message = "Backing pump failed to reach operating pressure.";
-
-                                                Announce(message, subject, NoticeType.Error);
+                                                Announce($"{Name} backing pressure too high", 
+                                                    $"Foreline pressure ({ForelineManometer.Pressure:0.0} {ForelineManometer.UnitSymbol}) is too high for Turbo Pump.", NoticeType.Error);
                                             }
 
                                             BackingValve.OpenWait();
@@ -685,12 +680,10 @@ namespace AeonHacs.Components
             }
             catch (Exception e)
             {
-                var subject = $"VacuumSystem Error";
-                var message = e.ToString() + "\r\n" +
-                                 $"{Name} control has been lost.";
-
-                Alert(message, subject);
-                MajorEvent(message);
+                Announce($"{Name} control has been lost.", 
+                    $"Exception in {Name}'s state loop:\r\n" +
+                    $"{e}\r\n" +
+                    "The application must be restarted to recover.", NoticeType.Error);
             }
             stoppedSignal.Set();
         }
