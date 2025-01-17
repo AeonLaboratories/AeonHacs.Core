@@ -5,89 +5,167 @@ using System.Threading.Tasks;
 
 namespace AeonHacs;
 
+/// <summary>
+/// Represents the method that will handle notices that do not expect a response.
+/// </summary>
+/// <param name="notice"></param>
 public delegate void NoticeHandler(Notice notice);
 
+/// <summary>
+/// Represents the method that will handle notices that expect a response.
+/// </summary>
+/// <param name="notice"></param>
+/// <returns></returns>
 public delegate Notice PromptHandler(Notice notice);
+
+/// <summary>
+/// The intended audience for a notice.
+/// </summary>
+[Flags]
+public enum Audience
+{
+    /// <summary>
+    /// Send a message to the remote.
+    /// </summary>
+    Remote = 1,
+    /// <summary>
+    /// Show a message in the UI.
+    /// </summary>
+    Local = 2,
+    /// <summary>
+    /// Both
+    /// </summary>
+    All = 3
+}
 
 #nullable enable
 
+/// <summary>
+/// Handles messaging between the application and the user.
+/// </summary>
 public static class Notify
 {
-    public static event NoticeHandler? OnActionTaken; // Write to SystemLog
-    public static event NoticeHandler? OnAlert; // Send to AlertManager
-    public static event NoticeHandler? OnInfo; // Show in UI
-    public static event NoticeHandler? OnMajorEvent; // Write to EventLog
-    public static event PromptHandler? OnQuestion; // Show in UI and await response
-    public static event NoticeHandler? OnSound; // Play sound
-    public static event PromptHandler? OnWarning; // Send to AlertManager + Show in UI and await response
-    public static event PromptHandler? OnError; // Write to EventLog + Show in UI, Exit/Restart application?
-
-    private static void Notice(NoticeHandler? handler, Notice notice)
-    {
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(Hacs.CancellationToken, notice.CancellationToken);
-        notice.CancellationToken = cts.Token;
-
-        Task.Run(() => Parallel.Invoke(handler?.GetInvocationList().Cast<NoticeHandler>().Select<NoticeHandler, Action>(h => () => h(notice)).ToArray() ?? []));
-    }
-
-    private static async Task<Notice> Prompt(PromptHandler? handler, Notice notice)
-    {
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(Hacs.CancellationToken, notice.CancellationToken);
-        notice.CancellationToken = cts.Token;
-
-        var tasks = handler?.GetInvocationList().Cast<PromptHandler>().Select(h => Task.Run(() => h(notice)));
-
-        var response = await tasks.WhenAny().Result;
-
-        cts.Cancel();
-
-        return response;
-    }
-
-    public static void ActionTaken(string message, string? subject = null, NoticeType type = NoticeType.ActionTaken, CancellationToken cancellationToken = default) =>
-        Notice(OnActionTaken, new Notice(message, subject, type, cancellationToken));
-
-    public static void Alert(string message, string? subject = null, NoticeType type = NoticeType.Alert, CancellationToken cancellationToken = default) =>
-        Notice(OnAlert, new Notice(message, subject, type, cancellationToken));
+    /// <summary>
+    /// Invoked when the intended audience is remote.
+    /// </summary>
+    public static event NoticeHandler? OnAlert;
 
     /// <summary>
-    /// Send a message to all subscribers of the <see cref="OnAlert"/> and <see cref="OnInfo"/> events.
+    /// Invoked when the intended audience is local.
     /// </summary>
-    public static void Tell(string message, string? subject = null, NoticeType type = NoticeType.Information, CancellationToken cancellationToken = default)
-    {
-        var notice = new Notice(message, subject, type, cancellationToken);
+    public static event NoticeHandler? OnNotice;
 
-        Notice(OnAlert, notice);
-        Notice(OnInfo, notice);
+    /// <summary>
+    /// Invoked when a response is expected from the local audience.
+    /// </summary>
+    public static event PromptHandler? OnPrompt;
+
+    private static async Task<Notice> SendNotice(Notice notice, Audience audience)
+    {
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(Hacs.CancellationToken, notice.CancellationToken);
+        notice.CancellationToken = cts.Token;
+
+        if (cts.Token.IsCancellationRequested)
+            return Notice.NoResponse;
+
+        Hacs.SystemLog.Record(notice.Message);
+
+        if (audience.HasFlag(Audience.Remote))
+            _ = OnAlert?.GetInvocationList().Cast<NoticeHandler>().Select(h => Task.Run(() => h(notice)));
+
+        if (audience.HasFlag(Audience.Local))
+        {
+            if (notice.Responses.Any())
+            {
+                var tasks = OnPrompt?.GetInvocationList().Cast<PromptHandler>().Select(h => Task.Run(() => h(notice)));
+                var response = await tasks.WhenAny().Result;
+
+                cts.Cancel();
+
+                return response;
+            }
+            else
+            {
+                _ = OnNotice?.GetInvocationList().Cast<NoticeHandler>().Select(h => Task.Run(() => h(notice)));
+            }
+        }
+        
+        return Notice.NoResponse;
     }
 
-    public static void Announce(string message, string? subject = null, NoticeType type = NoticeType.Information, CancellationToken cancellationToken = default) =>
-        Notice(OnInfo, new Notice(message, subject, type, cancellationToken));
+    /// <summary>
+    /// Send an alert to the remote audience.
+    /// </summary>
+    public static void Alert(string message) =>
+        _ = SendNotice(new Notice(message), Audience.Remote);
 
-    public static void MajorEvent(string message, string? subject = null, NoticeType type = NoticeType.MajorEvent, CancellationToken cancellationToken = default) =>
-        Notice(OnMajorEvent, new Notice(message, subject, type, cancellationToken));
+    /// <summary>
+    /// Send a notice to both the remote and local audiences.
+    /// </summary>
+    public static void Tell(string message, string details = "", NoticeType type = NoticeType.Information, CancellationToken cancellationToken = default) =>
+        _ = SendNotice(new Notice(message, details, type, cancellationToken), Audience.All);
 
-    public static Notice Ask(string message, string? subject = null, NoticeType type = NoticeType.Question, CancellationToken cancellationToken = default) =>
-        Prompt(OnQuestion, new Notice(message, subject, type, cancellationToken)).Result;
+    /// <summary>
+    /// Send a notice to the local audience.
+    /// </summary>
+    public static void Announce(string message, string details = "", NoticeType type = NoticeType.Information, CancellationToken cancellationToken = default) =>
+        _ = SendNotice(new Notice(message, details, type, cancellationToken), Audience.Local);
 
-    public static void PlaySound(string message = "chord", string? subject = null, NoticeType type = NoticeType.Sound, CancellationToken cancellationToken = default) =>
-        Notice(OnSound, new Notice(message, subject, type, cancellationToken));
+    /// <summary>
+    /// Send a notice requesting a response from the local audience.
+    /// </summary>
+    /// <param name="responses">A list of suggested responses.</param>
+    /// <returns>A notice containing the response.</returns>
+    public static Notice Prompt(string message, string details = "", NoticeType type = NoticeType.Question, CancellationToken cancellationToken = default, Audience audience = Audience.Local, params string[] responses) =>
+        SendNotice(new Notice(message, details, type, cancellationToken) { Responses = responses }, audience).Result;
 
-    public static Notice Warn(string message, string? subject = null, NoticeType type = NoticeType.Warning, CancellationToken cancellationToken = default) =>
-        Prompt(OnWarning, new Notice(message, subject, type, cancellationToken)).Result;
+    /// <summary>
+    /// Send a notice expecting a Yes or No response from the local audience.
+    /// </summary>
+    public static Notice YesNo(string message, string details = "", NoticeType type = NoticeType.Question, CancellationToken cancellationToken = default, Audience audience = Audience.Local) =>
+        Prompt(message, details, type, cancellationToken, audience, [ "Yes", "No" ]);
 
-    public static Notice Error(string message, string? subject = null, NoticeType type = NoticeType.Error, CancellationToken cancellationToken = default) =>
-        Prompt(OnError, new Notice(message, subject, type, cancellationToken)).Result;
+    /// <summary>
+    /// Send a notice expecting an Ok or Cancel response from the local audience.
+    /// </summary>
+    public static Notice OkCancel(string message, string details = "", NoticeType type = NoticeType.Information, CancellationToken cancellationToken = default, Audience audience = Audience.Local) =>
+        Prompt(message, details, type, cancellationToken, audience, [ "Ok", "Cancel" ]);
+
+    /// <summary>
+    /// Play a sound locally.
+    /// </summary>
+    /// <param name="message">The requested sound.</param>
+    public static void PlaySound(string message = "chord") =>
+        _ = SendNotice(new Notice(message, type: NoticeType.Sound), Audience.Local);
+
+    /// <summary>
+    /// Send a message to the local audience, and wait for it to be acknowledged.
+    /// </summary>
+    public static void Pause(string message, string details = "", NoticeType type = NoticeType.Alert, CancellationToken cancellationToken = default, Audience audience = Audience.All, string response = "Ok") =>
+        Prompt(message, details, type, cancellationToken, audience, [ response ]);
+
+    /// <summary>
+    /// Send an OkCancel notice with a warning icon.
+    /// </summary>
+    public static Notice Warn(string message, string details = "", CancellationToken cancellationToken = default, Audience audience = Audience.All) =>
+        OkCancel(message, details, NoticeType.Warning, cancellationToken, audience);
 
     #region Extension Methods
 
+    /// <param name="notice"></param>
+    /// <returns>True if the Message is "No Response"</returns>
+    public static bool NoResponse(this Notice notice) =>
+        notice.Message == "No Response";
+
+    /// <param name="notice"></param>
+    /// <returns>True if the Message is "Ok"</returns>
     public static bool Ok(this Notice notice) =>
         notice.Message == "Ok";
 
     /// <param name="notice"></param>
-    /// <returns>True if the notice is null or its Message is "Cancel"</returns>
+    /// <returns>True if the Message is "Cancel"</returns>
     public static bool Cancelled(this Notice notice) =>
-        notice.Equals(AeonHacs.Notice.NoResponse) || notice.Message.Equals("Cancel");
+        notice.Message == "Cancel";
 
     #endregion Extension Methods
 }
