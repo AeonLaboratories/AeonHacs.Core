@@ -2,6 +2,8 @@
 using System.ComponentModel;
 using AeonHacs.Utilities;
 using System.Collections.Generic;
+using System;
+using System.Runtime.Serialization;
 
 namespace AeonHacs.Components
 {
@@ -208,10 +210,18 @@ namespace AeonHacs.Components
         [JsonProperty]
         public List<Parameter> DefaultParameters
         {
-            get => defaultParameters;
-            set => Ensure(ref defaultParameters, value);
+            get => defaultParameters ??= new List<Parameter>();
+            set => Ensure(ref defaultParameters, value ?? new List<Parameter>());
         }
-        List<Parameter> defaultParameters = [];
+
+        List<Parameter> defaultParameters;
+
+        // Called automatically after deserialization
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            DefaultParameters.Sort((p1, p2) => string.Compare(p1.ParameterName, p2.ParameterName, StringComparison.Ordinal));
+        }
 
         public void SetParameter(Parameter parameter)
         {
