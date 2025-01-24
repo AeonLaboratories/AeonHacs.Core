@@ -1,6 +1,5 @@
 ﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
-using Org.BouncyCastle.Utilities;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -1126,9 +1125,9 @@ public class Cegs : ProcessManager, ICegs
     {
         if (s == null) return;
         if (s.InletPort?.Sample == s)       // if it's still in its inlet port,
-            s.InletPort.Sample = null;      //     remove it from there
+            s.InletPort.ClearContents();      //     remove it from there
         if (s.d13CPort?.Sample == s)        // if it's still in its d13C port,
-            s.d13CPort.Sample = null;       //     remove it from there
+            s.d13CPort.ClearContents();       //     remove it from there
 
         // Delete aliquots
         s.Aliquots.ForEach(a =>
@@ -1137,7 +1136,7 @@ public class Cegs : ProcessManager, ICegs
                 Find<GraphiteReactor>(a.GraphiteReactor) is GraphiteReactor gr &&
                 gr.Aliquot == a)
             {
-                gr.Aliquot = null;          // also sets gr.Sample to null
+                gr.ClearContents();          // also sets gr.Sample to null
             }
         });
         s.Aliquots.Clear();
@@ -1160,7 +1159,7 @@ public class Cegs : ProcessManager, ICegs
         if (s.InletPort?.Sample == s && s.InletPort.State != LinePort.States.Complete)
             return false;       // it still incomplete in its inlet port...
         if (s.State != Components.Sample.States.Complete)
-            return false;       // it's hasn't completed a process-sequence run
+            return false;       // it hasn't completed a process-sequence run
         return true;
     }
 

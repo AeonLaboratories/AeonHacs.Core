@@ -27,7 +27,7 @@ namespace AeonHacs.Components
             {
                 var priorState = state;
                 if (Ensure(ref state, value) &&  state == States.Empty)
-                    Aliquot = null;
+                    ClearContents();
             }
         }
         States state;

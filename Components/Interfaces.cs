@@ -1540,6 +1540,7 @@ namespace AeonHacs.Components
         double PriorPressure { get; set; }
         int PressurePeak { get; set; }
         string Contents { get; }
+        void ClearContents();
         bool Busy { get; }
         bool Prepared { get; }
         double HeaterTemperature { get; }

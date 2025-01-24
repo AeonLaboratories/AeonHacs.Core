@@ -3,7 +3,6 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using static AeonHacs.Notify;
 
@@ -104,6 +103,7 @@ namespace AeonHacs.Components
         }
 
         public string Contents => Aliquot?.Name ?? "";
+        public virtual void ClearContents() => Aliquot = null;
 
         [JsonProperty, DefaultValue(580)]
         public int GraphitizingTemperature
@@ -201,7 +201,7 @@ namespace AeonHacs.Components
             var s = new Sample() { AliquotIds = new List<string>() { contents } };
             Reserve(s.Aliquots[0]);
         }
-        public void ServiceComplete() { Aliquot = null; State = States.WaitPrep; }
+        public void ServiceComplete() { ClearContents(); State = States.WaitPrep; }
         public void PreparationComplete() => State = States.Prepared;
 
         public void TurnOn(double sampleSetpoint)
