@@ -121,6 +121,9 @@ namespace AeonHacs.Components
         private Parameter CegsParameter(string name) =>
             CegsParameters.Find(x => x.ParameterName == name);
 
+        /// <summary>
+        /// Returns the value of the named parameter.
+        /// </summary>
         public virtual double Parameter(string name) =>
             Parameters?.Find(x => x.ParameterName == name)?.Value ??
                 CegsParameter(name)?.Value ?? double.NaN;
@@ -136,13 +139,36 @@ namespace AeonHacs.Components
             return p.IsANumber() && p != 0;
         }
 
-        public void SetParameter(Parameter parameter)
+        /// <summary>
+        /// Keep a local parameter if and only if it's distinct from the default.
+        /// </summary>
+        public void SetParameter(Parameter p)
         {
-            RemoveParameter(parameter.ParameterName);
-            if (CegsParameter(parameter.ParameterName) is not Parameter cegsParameter || parameter.Value != cegsParameter.Value)
-                Parameters.Add(parameter);
+            if (p == null) return;  // nothing to do.
+            RemoveParameter(p.ParameterName);   // Remove existing
+
+            // find the default
+            var dp = CegsParameter(p.ParameterName);
+            if (dp == null)     // Always add it if there's no default.
+            {
+                Parameters.Add(p);
+                return;
+            }
+
+            // Comparing p and dp, they differ if
+            // (A) only one of them is a number, or
+            // (B) both are numbers, but their values differ.
+            var dnum = dp.Value.IsANumber();
+            var pnum = p.Value.IsANumber();
+            if ((dnum != pnum) || (dnum && pnum && dp.Value != p.Value))
+            {
+                Parameters.Add(p);
+            }
         }
 
+        /// <summary>
+        /// Remove all parameters with the given name.
+        /// </summary>
         public void RemoveParameter(string name) =>
             Parameters.RemoveAll(p => p.ParameterName == name);
 
