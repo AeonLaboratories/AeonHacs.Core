@@ -97,7 +97,7 @@ public static class Notify
     /// Send an alert to the remote audience.
     /// </summary>
     public static void Alert(string message, string details = "") =>
-        _ = SendNotice(new Notice(message), Audience.Remote);
+        _ = SendNotice(new Notice(message, details), Audience.Remote);
 
     /// <summary>
     /// Send a notice to the local audience.
