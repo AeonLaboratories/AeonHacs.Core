@@ -103,8 +103,14 @@ namespace AeonHacs.Components
         AnalogInput AnalogInput { get; set; }
 
         [JsonProperty("DigitalOutput")]
-        string DigitalOutputName { get => Switch?.Name; set => digitalOutputName = value; }
+        string DigitalOutputName { get => Switch?.Name ?? digitalOutputName; set => digitalOutputName = value; }
         string digitalOutputName;
+
+        public ISwitch Enable
+        {
+            get => Switch;
+            protected set => Switch = value;
+        }
 
         public override string Name
         {
