@@ -71,7 +71,7 @@ public static class Notify
         Hacs.SystemLog.Record(notice.Message);
 
         if (audience.HasFlag(Audience.Remote))
-            _ = OnAlert?.GetInvocationList().Cast<NoticeHandler>().Select(h => Task.Run(() => h(notice)));
+            OnAlert?.GetInvocationList().Cast<NoticeHandler>().Select(h => Task.Run(() => h(notice))).ToArray();
 
         if (audience.HasFlag(Audience.Local))
         {
@@ -86,7 +86,7 @@ public static class Notify
             }
             else
             {
-                _ = OnNotice?.GetInvocationList().Cast<NoticeHandler>().Select(h => Task.Run(() => h(notice)));
+                OnNotice?.GetInvocationList().Cast<NoticeHandler>().Select(h => Task.Run(() => h(notice))).ToArray();
             }
         }
         
