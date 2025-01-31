@@ -2488,7 +2488,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (grs.Count < 1)
         {
-            Tell("No graphite reactors are awaiting preparation.", 
+            Tell("No graphite reactors are awaiting preparation.",
                 "Nothing to do.");
             return;
         }
@@ -2538,26 +2538,26 @@ public class Cegs : ProcessManager, ICegs
         if (measureVolumes)
         { 
             grs.ForEach(gr => gr.Close());
-        foreach (var gr in grs)
-        {
-            ProcessStep.Start($"Measure {gr.Name} volume");
-            gsInert.Admit(PressureOverAtm);
-            gm.Isolate();
-            WaitSeconds(10);
-            var p0 = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
-            var gmMilliLiters = gm.CurrentVolume(true);
-            gr.Open();
-            WaitSeconds(5);
-            gr.Close();
-            WaitSeconds(5);
-            var p1 = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
+            foreach (var gr in grs)
+            {
+                ProcessStep.Start($"Measure {gr.Name} volume");
+                gsInert.Admit(PressureOverAtm);
+                gm.Isolate();
+                WaitSeconds(10);
+                var p0 = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
+                var gmMilliLiters = gm.CurrentVolume(true);
+                gr.Open();
+                WaitSeconds(5);
+                gr.Close();
+                WaitSeconds(5);
+                var p1 = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
 
-            gr.MilliLiters = gmMilliLiters * (p0 / p1 - 1);
-            gr.Size = EnableSmallReactors && gr.MilliLiters < 2.0 ? GraphiteReactor.Sizes.Small : GraphiteReactor.Sizes.Standard;
-            ProcessStep.End();
-        }
-        grs.ForEach(gr => gr.Open());
-        gm.OpenAndEvacuate(OkPressure);
+                gr.MilliLiters = gmMilliLiters * (p0 / p1 - 1);
+                gr.Size = EnableSmallReactors && gr.MilliLiters < 2.0 ? GraphiteReactor.Sizes.Small : GraphiteReactor.Sizes.Standard;
+                ProcessStep.End();
+            }
+            grs.ForEach(gr => gr.Open());
+            gm.OpenAndEvacuate(OkPressure);
         }
 
         ProcessStep.End();
@@ -3856,8 +3856,7 @@ public class Cegs : ProcessManager, ICegs
             Dilute();
             DivideAliquots();
             FreezeAliquots();
-            var holdSampleAtPorts = GetParameter("HoldSampleAtPorts");
-            if (!holdSampleAtPorts.IsANumber() || holdSampleAtPorts == 0)
+            if (!ParameterTrue("HoldSampleAtPorts"))
                 GraphitizeAliquots();
         }
         catch (Exception e)
@@ -3976,8 +3975,7 @@ public class Cegs : ProcessManager, ICegs
 
         var mc_gm = JoinedSection(MC, gm);
 
-        var nHoldSampleAtPorts = GetParameter("HoldSampleAtPorts");
-        var holdSampleAtPorts = nHoldSampleAtPorts.IsANumber() && nHoldSampleAtPorts != 0;
+        var holdSampleAtPorts = ParameterTrue("HoldSampleAtPorts");
 
         if (mc_gm == null)
         {
