@@ -2508,7 +2508,7 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        var gsFlush = flushWithH2 ? gsInert : gsH2;
+        var gsFlush = flushWithH2 ? gsH2 : gsInert;
 
         // close grs that aren't awaiting prep
         foreach (var gr in GraphiteReactors.Except(grs))
