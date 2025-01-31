@@ -2493,22 +2493,32 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        if (!GrGmInertGas(grs, out ISection gm, out IGasSupply gsInert)) return;
+        var measureVolumes = !ParameterTrue("SkipMeasuringGRs");
+        var flushWithH2 = ParameterTrue("UseH2ToFlushGRs");
+        var p = GetParameter("GRFlushes");
+        var flushes = p.IsNaN() ? 3 : (int)p;
 
+        if (!GrGmInertGas(grs, out ISection gm, out IGasSupply gsInert)) return;
         var gsH2 = GasSupply("H2", gm);
-        var gsH2Needed = IronPreconditionH2Pressure > 0;
+
+        var gsH2Needed = flushWithH2 || IronPreconditionH2Pressure > 0;
         if (gsH2 == null && gsH2Needed)
         {
             ConfigurationError($"Can't find H2 gas supply for {gm.Name}.");
             return;
         }
 
+        var gsFlush = flushWithH2 ? gsInert : gsH2;
+
         // close grs that aren't awaiting prep
         foreach (var gr in GraphiteReactors.Except(grs))
             gr.Close();
 
         var count = grs.Count;
-        ProcessStep.Start($"Calibrate GR {"manometer".Plurality(count)} and {"volume".Plurality(count)}");
+        ProcessStep.Start(measureVolumes ?
+            $"Calibrate GR {"manometer".Plurality(count)} and {"volume".Plurality(count)}" :
+            "Leak check GR".Plurality(count)
+        );
 
         // On the first flush, Check for leaks, measure the GR volumes, and calibrate their manometers
         ProcessSubStep.Start("Evacuate graphite reactors");
@@ -2523,9 +2533,11 @@ public class Cegs : ProcessManager, ICegs
         ProcessSubStep.Start($"Zero GR manometers.");
         grs.ForEach(gr => gr.Manometer.ZeroNow());
         WaitFor(() => !grs.Any(gr => gr.Manometer.Zeroing));    // TODO: add timeout to this wait?
-        grs.ForEach(gr => gr.Close());
         ProcessSubStep.End();
 
+        if (measureVolumes)
+        { 
+            grs.ForEach(gr => gr.Close());
         foreach (var gr in grs)
         {
             ProcessStep.Start($"Measure {gr.Name} volume");
@@ -2544,13 +2556,14 @@ public class Cegs : ProcessManager, ICegs
             gr.Size = EnableSmallReactors && gr.MilliLiters < 2.0 ? GraphiteReactor.Sizes.Small : GraphiteReactor.Sizes.Standard;
             ProcessStep.End();
         }
-
         grs.ForEach(gr => gr.Open());
         gm.OpenAndEvacuate(OkPressure);
+        }
+
         ProcessStep.End();
 
-        ProcessStep.Start("Evacuate & Flush GRs with inert gas");
-        Flush(gm, 2);
+        ProcessStep.Start($"Flush GRs with {gsFlush.GasName}");
+        gsFlush.Flush(PressureOverAtm, 0.1, measureVolumes ? flushes-1 : flushes);
         gm.VacuumSystem.WaitForPressure(OkPressure);
         ProcessStep.End();
 
@@ -2601,20 +2614,19 @@ public class Cegs : ProcessManager, ICegs
             WaitRemaining((int)IronPreconditioningMinutes);
             ProcessStep.End();
 
-
             if (KeepFeUnderH2 || IronPreconditionH2Pressure <= 0)
                 grs.ForEach(gr => gr.TurnOff());
             else
             {
                 ProcessStep.Start("Evacuate GRs");
                 gm.Isolate();
-                CloseAllGRs();
-                grs.ForEach(gr => { gr.Heater.TurnOff(); gr.Open(); });
+                CloseAllGRs();  // in case any (others) are open
+                grs.ForEach(gr => { gr.TurnOff(); gr.Open(); });
                 gm.OpenAndEvacuate(OkPressure);
                 ProcessStep.End();
 
-                ProcessStep.Start("Flush GRs with inert gas");
-                Flush(gm, 3);
+                ProcessStep.Start($"Flush GRs with {gsFlush.GasName}");
+                gsFlush.Flush(PressureOverAtm, 0.1, flushes);
                 ProcessStep.End();
             }
         }
