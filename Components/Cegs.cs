@@ -2878,8 +2878,6 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        CegsPreferences.DefaultParameters.ForEach(Sample.SetParameter);
-
         SampleLog.WriteLine("");
         Sample.DateTime = DateTime.Now;
         SampleLog.Record(
