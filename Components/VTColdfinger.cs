@@ -480,13 +480,11 @@ namespace AeonHacs.Components
             // override heater setpoint.
             setpoint = Math.Round(setpoint);
             Heater.Setpoint = setpoint;
-            while (!Utility.WaitFor(() => Heater.Setpoint == setpoint, 5 * 1000))
+            while (!WaitFor(() => Heater.Setpoint == setpoint, 5 * 1000))
             {
-                string subject = "System Alert";
-                string message = $"Unable to set {Heater.Name}'s temperature to {setpoint}.\r\n" +
-                                 $"Ok to retry, or Cancel to abort regulating {Name}.";
-
-                if (!Notify.Warn(message, subject).Ok())
+                if (!Warn($"{Name} can't control {Heater.Name}.",
+                    $"Unable to set {Heater.Name}'s temperature to {setpoint}.\r\n" +
+                    $"Ok to retry, or Cancel to abort regulating {Name}.").Ok())
                     return;
             }
             ChangeState(TargetStates.Regulate);

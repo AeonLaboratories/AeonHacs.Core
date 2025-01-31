@@ -230,12 +230,11 @@ namespace AeonHacs.Components
                 Ensure(ref actionSucceeded, value);
                 if (!actionSucceeded && !Active && !StopRequested)
                 {
-                    var subject = $"{Name} Failed";
-                    var message = $"\"{Operation?.Name ?? "Operation"}\" was unsuccessful.\r\n" +
-                                  $"Ok to continue in this state?\r\n" +
-                                  $"If not, restart the program to dismiss this message.";
-
-                    while (!Warn(message, subject).Ok()) ;
+                    while (!Warn($"{Name} Failed",
+                        $"\"{Operation?.Name ?? "Operation"}\" was unsuccessful.\r\n" +
+                        $"Ok to continue in this state?\r\n" +
+                        $"If not, restart the program to dismiss this message."
+                    ).Ok()) ;
                 }
             }
         }

@@ -389,8 +389,7 @@ namespace AeonHacs.Components
                 lock (responseTimeoutsLocker) ResponseTimeouts++;
                 if (!Responsive)
                 {
-                    if (Warn(
-                        $"{Name}: No response to command {ServiceCommand}.",
+                    if (Warn($"{Name}: No response to command {ServiceCommand}.",
                         $"Ok to discard this command?").Ok())
                     {
                         AwaitingResponses = 0;

@@ -300,8 +300,7 @@ namespace AeonHacs.Components
                 {
                     ShutOff();
 
-                    if (Warn(
-                        $"It's taking too long for {Meter.Name} to reach {pressure:0} Torr.",
+                    if (Warn($"It's taking too long for {Meter.Name} to reach {pressure:0} Torr.",
                         $"Ok to try again or Cancel to move on.\r\n" +
                         $"Restart the application to abort the process.").Ok())
                     {
@@ -386,8 +385,7 @@ namespace AeonHacs.Components
                                   $"Cancel to continue at {Meter.Value:0} {Meter.UnitSymbol}.\r\n" +
                                   $"Restart the application to abort the process.";
 
-                    if (!Warn(
-                        $"Couldn't admit {pressure:0} {Meter.UnitSymbol} of {GasName} into {Destination.Name}.",
+                    if (!Warn($"Couldn't admit {pressure:0} {Meter.UnitSymbol} of {GasName} into {Destination.Name}.",
                         $"Ok to try again.\r\n" +
                         $"Cancel to continue with only {Meter.Value:0} {Meter.UnitSymbol}.\r\n" +
                         $"Restart the application to abort the process.").Ok())
@@ -630,10 +628,7 @@ namespace AeonHacs.Components
 
             if (!(FlowManager is IFlowManager))
             {
-                subject = "Configuration Error";
-                message = $"GasSupply {Name}: FlowPressurize() requires a FlowManager.";
-
-                Warn(message, subject);
+                ConfigurationError($"GasSupply {Name}: FlowPressurize() requires a FlowManager.");
                 return;
             }
 

@@ -2348,8 +2348,7 @@ public class Cegs : ProcessManager, ICegs
         while (!WaitFor(() => Hacs.Stopping || gm.Pressure > preAdmitPressure + 5, 3000, 20))
         {
             gasSupply.ShutOff();
-            if (Warn(
-                $"{gasSupply.GasName} is not flowing into {gm.Name}.",
+            if (Warn($"{gasSupply.GasName} is not flowing into {gm.Name}.",
                 $"Ok to try again or Cancel to continue without gas.\r\n" +
                 $"Restart the application to abort the process.").Ok())
             {
@@ -2362,8 +2361,7 @@ public class Cegs : ProcessManager, ICegs
         while (!WaitFor(() => Hacs.Stopping || gm.Pressure >= pressure, (int)MaximumSecondsAdmitGas * 1000, 250))
         {
             gasSupply.ShutOff();
-            if (Warn(
-                $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.",
+            if (Warn($"It's taking too long for {gm.Name} to reach {pressure:0} Torr.",
                 $"Ok to keep waiting or Cancel to move on.\r\n" +
                 $"Restart the application to abort the process.").Ok())
             {
@@ -2384,8 +2382,7 @@ public class Cegs : ProcessManager, ICegs
         while (!WaitFor(() => Hacs.Stopping || gm.Pressure >= pressure, (int)MaximumSecondsAdmitGas * 1000 / 2, 250))
         {
             gasSupply.ShutOff();
-            if (Warn(
-                $"It's taking too long for {gm.Name} to reach {pressure:0} Torr.",
+            if (Warn($"It's taking too long for {gm.Name} to reach {pressure:0} Torr.",
                 $"Ok to keep waiting or Cancel to move on.\r\n" +
                 $"Restart the application to abort the process.").Ok())
             {
@@ -2470,8 +2467,7 @@ public class Cegs : ProcessManager, ICegs
         var leakRateLimit = 2 * LeakTightTorrLitersPerSecond;
         while (SectionLeakRate(section, leakRateLimit) > leakRateLimit)
         {
-            if (Warn(
-                $"{section.Name} is leaking.",
+            if (Warn($"{section.Name} is leaking.",
                 $"Something in the {section.Name} isn't holding vacuum well enough.\r\n" +
                 $"Ok to try again or Cancel to move on.\r\n" +
                 $"Restart the application to abort the process.").Ok())
@@ -2845,8 +2841,7 @@ public class Cegs : ProcessManager, ICegs
         {
             double liters = LNManifolds.Values.Sum(x => x.Liters.Value);
 
-            if (!Warn(
-                $"LN supply is low.",
+            if (!Warn($"LN supply is low.",
                 $"There might not be enough to finish the sample: ({liters:0.0} L)\r\n" +
                 "Ok to proceed anyway, or Cancel to abort.").Ok())
             {
@@ -3226,8 +3221,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (port.State != LinePort.States.Loaded)
         {
-            if (!Warn(
-                $"Port {port.Name} is not available.",
+            if (!Warn($"Port {port.Name} is not available.",
                 "It may contain a prior d13C sample.\r\n" +
                 "Ok to evacuate it anyway, or \r\n" +
                 "Cancel the procedure."
@@ -3318,8 +3312,7 @@ public class Cegs : ProcessManager, ICegs
         {
             ShutDownAllColdfingers();
 
-            if (Warn(
-                $"{vtc.Name} is taking too long to reach {targetTemp:0} °C.",
+            if (Warn($"{vtc.Name} is taking too long to reach {targetTemp:0} °C.",
                 "All coldfingers have have been set to Standby.\r\n" +
                 "Establish the desired Extraction conditions manually," +
                 "then Ok to try again,\r\n" +

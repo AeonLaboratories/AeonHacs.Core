@@ -532,11 +532,10 @@ namespace AeonHacs.Components
             }
             while (!WaitFor(shouldStop, 30 * 60000, 100)) // TODO magic number
             {
-                string subject = "System Warning";
-                string message = $"{Manometer.Name} has failed to stabilize below {pressure:0.0e0} Torr for {sw.Elapsed.TotalMinutes:0} minutes.\r\n" +
-                                 $"Ok to keep waiting or Cancel to move on.";
-
-                if (Warn(message, subject).Ok())
+                if (Warn($"{Name} has a problem",
+                    $"{Manometer.Name} still hasn't stabilized below {pressure:0.0e0} Torr\r\n" +
+                    $"despite trying for over {sw.Elapsed.TotalMinutes:0} minutes.\r\n" +
+                    $"Ok to keep waiting or Cancel to move on.").Ok())
                     continue;
                 break;
             }

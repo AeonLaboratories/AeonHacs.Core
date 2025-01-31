@@ -349,10 +349,8 @@ namespace AeonHacs.Components
                         // The valve is stuck trying to open. Calibrate() cannot continue
                         // because there is no way to tell whether it is stuck opened or closed
                         
-                        string subject = $"{Name} is stuck open or closed.";
-                        string message = "Manually free it, then click OK to continue.";
-
-                        Warn(message, subject);
+                        Warn($"{Name} is stuck open or closed.",
+                            "Manually free it, then click OK to continue.");
                     }
                 }
 
