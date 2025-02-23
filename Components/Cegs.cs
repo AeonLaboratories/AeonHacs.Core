@@ -1890,8 +1890,7 @@ public class Cegs : ProcessManager, ICegs
         if (!IpIm(out im)) return false;
         gs = InertGasSupply(im);
         if (gs != null) return true;
-
-        OkCancel($"Section {im.Name} has no inert GasSupply.", "Configuration Error?", NoticeType.Error);
+        ConfigurationError($"{im.Name} has no inert gas supply.");
         return false;
     }
 
@@ -1908,7 +1907,7 @@ public class Cegs : ProcessManager, ICegs
         var trap = FirstTrap;
         if (trap == null)
         {
-            OkCancel($"Can't find Section {trap.Name}.", "Configuration Error?", NoticeType.Error);
+            ConfigurationError($"Can't find Section {trap.Name}.");
             return false;
         }
 
@@ -1920,7 +1919,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (im_trap == null)
         {
-            OkCancel($"Can't find Section linking {im.Name} and {trap.Name}.", "Configuration Error?", NoticeType.Error);
+            ConfigurationError($"Can't find Section linking {im.Name} and {trap.Name}.");
             return false;
         }
         return true;
@@ -1935,9 +1934,8 @@ public class Cegs : ProcessManager, ICegs
         gm = Manifold(grs);
         if (gm == null)
         {
-            OkCancel("Can't find graphite manifold",
-                $"None contain [{string.Join(", ", grs.Select(gr => gr.Name))}]\r\n"+
-                "Configuration Error?", NoticeType.Error);
+            ConfigurationError($"Can't find graphite manifold.\r\n" +
+                $"None contain [{string.Join(", ", grs.Select(gr => gr.Name))}]");
             return false;
         }
         return true;
@@ -1965,7 +1963,7 @@ public class Cegs : ProcessManager, ICegs
         if (!GrGm(grs, out gm)) return false;
         gs = InertGasSupply(gm);
         if (gs != null) return true;
-        OkCancel($"Section {gm.Name} has no inert GasSupply.", "Configuration Error?", NoticeType.Error);
+        ConfigurationError($"{gm.Name} has no inert gas supply.");
         return false;
     }
 
@@ -3119,21 +3117,18 @@ public class Cegs : ProcessManager, ICegs
         var ports = FindAll<d13CPort>(p => p.State == LinePort.States.Complete);
         var count = ports.Count;
 
-        // TODO: allow ampoules, needs different words
-        //      how to know whether they are vials or ampoules?
-
         if (count == 0)
         {
             if (FirstOrDefault<d13CPort>(p => p.State == LinePort.States.Loaded) == null)
             {
-                Tell("No vial ports are Completed or Loaded.", 
+                Tell("No d13C ports are Completed or Loaded.", 
                     "Nothing to do.");
                 return;
             }
             else
             {
-                if (!OkCancel("No vial ports are Completed.",
-                    $"Ok to prepare previously Loaded vials, or\r\n" +
+                if (!OkCancel("No d13C ports are Completed.",
+                    $"Ok to prepare previously Loaded ports, or\r\n" +
                     $"Cancel the procedure").Ok())
                 {
                     return;
@@ -3144,10 +3139,10 @@ public class Cegs : ProcessManager, ICegs
         {
             // TODO: should this procedure do the loading under positive inertGas pressure?
             var list = string.Join(", ", ports.Select(p => p.Name));
-            if (!OkCancel("Ready for new vials",
-                $"Remove and replace the vials at Completed d13C {"port".Plurality(count)}\r\n" +
-                $"{list}.\r\n" +
-                $"Ok when ready to evacuate the new vials, or" +
+            if (!OkCancel("Ready for new d13C vessels (vials, ampules)",
+                $"Remove and replace the vessels at Completed d13C {"port".Plurality(count)}:\r\n" +
+                $"    [{list}].\r\n" +
+                $"Ok when ready to evacuate, or" +
                 $"Cancel the procedure.").Ok())
             {
                 return;
