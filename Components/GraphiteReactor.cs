@@ -177,16 +177,14 @@ namespace AeonHacs.Components
         public double HeaterTemperature => Heater.Temperature;
         public double ColdfingerTemperature => Coldfinger.Temperature;
 
-        // Error conditions (note magic numbers)
-        // Use AND'd error coding system? List<>? Throw exceptions?
         public bool FurnaceUnresponsive =>
-            state == States.WaitTemp && StateStopwatch.Elapsed.TotalMinutes > 15;
+            state == States.WaitTemp && StateStopwatch.Elapsed.TotalMinutes > Sample.Parameter("MaximumMinutesGrToReachTemperature");
 
         public bool ReactionNotStarting =>
-            state == States.WaitFalling && StateStopwatch.Elapsed.TotalMinutes > 30;
+            state == States.WaitFalling && StateStopwatch.Elapsed.TotalMinutes > Sample.Parameter("MaximumMinutesWaitFalling");
 
         public bool ReactionNotFinishing =>
-            state == States.WaitFinish && StateStopwatch.Elapsed.TotalMinutes > 4 * 60;
+            state == States.WaitFinish && StateStopwatch.Elapsed.TotalMinutes > Sample.Parameter("MaximumMinutesGraphitizing");
 
         public void Start() { if (Aliquot != null) Aliquot.Tries++; State = States.Start; }
         public void Stop() => State = States.Stop;
@@ -280,7 +278,7 @@ namespace AeonHacs.Components
                         PriorPressure = Pressure;
                         ProgressStopwatch.Restart();    // mark pMin updated
                     }
-                    else if (elapsed >= 3.0 && (Sample == null || GraphitizationStopwatch.Elapsed.TotalMinutes >= Sample.Parameter("MinimumGRMinutes")))        // if 3 minutes have passed without a pressure decline
+                    else if (elapsed >= 3.0 && (Sample == null || GraphitizationStopwatch.Elapsed.TotalMinutes >= Sample.Parameter("MinimumMinutesGraphitizing")))        // if 3 minutes have passed without a pressure decline
                         State = States.Stop;
                     else if (Sample != null && PriorPressure - Pressure > Sample.Parameter("GRCompleteTorrPerMinute") * elapsed)
                     {
@@ -311,7 +309,7 @@ namespace AeonHacs.Components
                 {
                     Announce($"{Heater.Name} is unresponsive.",
                         type: NoticeType.Warning);
-                    State = State;  // reset the timer
+                    StateStopwatch.Reset();       // reset the timer
                 }
 
                 if (ReactionNotStarting)
@@ -322,7 +320,7 @@ namespace AeonHacs.Components
                     {
                         Announce($"{Name} reaction hasn't started.",
                             $"Is {Heater.Name} in place?", NoticeType.Warning);
-                        State = State;  // reset the timer
+                        StateStopwatch.Reset();   // reset the timer
                     }
                 }
 
@@ -330,7 +328,7 @@ namespace AeonHacs.Components
                 {
                     Announce($"{Name} reaction hasn't finished.",
                         "Check reaction conditions.", NoticeType.Warning);
-                    State = State;  // reset the timer
+                    StateStopwatch.Reset();       // reset the timer
                 }
             }
         }
