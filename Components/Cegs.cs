@@ -1395,12 +1395,38 @@ public class Cegs : ProcessManager, ICegs
     /// <summary>
     /// Turn on the Inlet Port quartz furnace.
     /// </summary>
-    protected virtual void TurnOnIpQuartzFurnace() => InletPort.QuartzFurnace.TurnOn();
+    protected virtual void TurnOnIpQuartzFurnace() => InletPort?.QuartzFurnace?.TurnOn();
 
     /// <summary>
     /// Turn off the Inlet Port quartz furnace.
     /// </summary>
-    protected virtual void TurnOffIpQuartzFurnace() => InletPort.QuartzFurnace.TurnOff();
+    protected virtual void TurnOffIpQuartzFurnace() => InletPort?.QuartzFurnace?.TurnOff();
+
+    public virtual bool NoSample
+    {
+        get
+        {
+            if (Sample is null)
+            {
+                Tell("No Sample is selected.");
+                return false;
+            }
+            return true;
+        }
+    }
+
+    public virtual bool NoInletPort
+    {
+        get
+        {
+            if (InletPort is null)
+            {
+                Tell("No InletPort is active. Select a sample.");
+                return false;
+            }
+            return true;
+        }
+    }
 
     /// <summary>
     /// Adjust the Inlet Port sample furnace setpoint. If its
@@ -1412,7 +1438,7 @@ public class Cegs : ProcessManager, ICegs
         if (IpSetpoint.IsNaN()) return;
         if (IpOvenRamper?.Enabled ?? false)
             IpOvenRamper.Setpoint = IpSetpoint;
-        else
+        else if (InletPort?.SampleFurnace != null)
             InletPort.SampleFurnace.Setpoint = IpSetpoint;
     }
 
@@ -1421,16 +1447,19 @@ public class Cegs : ProcessManager, ICegs
     /// </summary>
     protected virtual void WaitIpFallToSetpoint()
     {
+        if (NoInletPort) return;
         AdjustIpSetpoint();
         ProcessStep.Start($"Waiting for {InletPort.Name} to reach {IpSetpoint:0} °C");
         while (!WaitFor(() => Stopping || InletPort.Temperature < IpSetpoint, (int)MaximumMinutesIpToReachTemperature * 60000, 1000))
         {
-            InletPort.SampleFurnace.TurnOff();
-            if (Warn($"{InletPort.SampleFurnace.Name} is taking too long to reach {IpSetpoint:0} °C.",
+            var furnaceWasOn = InletPort.SampleFurnace?.IsOn ?? false;
+            TurnOffIpSampleFurnace();
+            if (Warn($"{InletPort.Name} is taking too long to reach {IpSetpoint:0} °C.",
                 $"Ok to keep waiting or Cancel to move on.\r\n" +
                 $"Restart the application to abort the process.").Ok())
             {
-                InletPort.SampleFurnace.TurnOn(); ;
+                if (furnaceWasOn)
+                    TurnOnIpSampleFurnace();
                 continue;
             }
             break;
@@ -1444,7 +1473,7 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void TurnOnIpSampleFurnace()
     {
         AdjustIpSetpoint();
-        InletPort.SampleFurnace.TurnOn();
+        InletPort?.SampleFurnace?.TurnOn();
     }
 
     /// <summary>
@@ -1452,17 +1481,20 @@ public class Cegs : ProcessManager, ICegs
     /// </summary>
     protected virtual void WaitIpRiseToSetpoint()
     {
+        if (NoInletPort) return;
         AdjustIpSetpoint();
         var closeEnough = IpSetpoint - IpTemperatureCushion;
         ProcessStep.Start($"Waiting for {InletPort.Name} to reach {closeEnough:0} °C");
         while (!WaitFor(() => Stopping || InletPort.Temperature >= closeEnough, (int)MaximumMinutesIpToReachTemperature * 60000, 1000))
         {
-            InletPort.SampleFurnace.TurnOff();
-            if (Warn($"{InletPort.SampleFurnace.Name} is taking too long to reach {closeEnough:0} °C.",
+            var furnaceWasOn = InletPort.SampleFurnace?.IsOn ?? false;
+            TurnOffIpSampleFurnace();
+            if (Warn($"{InletPort.Name} is taking too long to reach {closeEnough:0} °C.",
                 $"Ok to keep waiting or Cancel to move on.\r\n" +
                 $"Restart the application to abort the process.").Ok())
             {
-                InletPort.SampleFurnace.TurnOn(); ;
+                if (furnaceWasOn)
+                    TurnOnIpSampleFurnace(); ;
                 continue;
             }
             break;
@@ -1473,18 +1505,28 @@ public class Cegs : ProcessManager, ICegs
     /// <summary>
     /// Turn off the Inlet Port sample furnace.
     /// </summary>
-    protected virtual void TurnOffIpSampleFurnace() => InletPort.SampleFurnace.TurnOff();
+    protected virtual void TurnOffIpSampleFurnace() => InletPort?.SampleFurnace?.TurnOff();
 
     /// <summary>
     /// Adjust the Inlet Port sample furnace ramp rate.
     /// </summary>
-    protected virtual void AdjustIpRampRate() => IpOvenRamper.RateDegreesPerMinute = IpRampRate;
+    protected virtual void AdjustIpRampRate()
+    {
+        if (IpOvenRamper is not null)
+            IpOvenRamper.RateDegreesPerMinute = IpRampRate;
+    }
 
     /// <summary>
     /// Enable the Inlet Port sample furnace setpoint ramp.
     /// </summary>
     protected virtual void EnableIpRamp()
     {
+        if (NoInletPort) return;
+        if (IpOvenRamper is null)
+        {
+            Tell("IpOvenRamper is undefined. Check configuration.");
+            return;
+        }
         IpOvenRamper.Oven = InletPort.SampleFurnace;
         IpOvenRamper.Enable();
     }
@@ -1492,7 +1534,7 @@ public class Cegs : ProcessManager, ICegs
     /// <summary>
     /// Disable the Inlet Port sample furnace setpoint ramp.
     /// </summary>
-    protected virtual void DisableIpRamp() => IpOvenRamper.Disable();
+    protected virtual void DisableIpRamp() => IpOvenRamper?.Disable();
 
     /// <summary>
     /// Start collecting sample into the first trap.
@@ -1502,7 +1544,9 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void StartSampleFlow(bool freezeTrap)
     {
         var collectionPath = IM_FirstTrap;
+        if (collectionPath is null) return;
         var trap = FirstTrap;
+        if (trap is null) return;
         var status = freezeTrap ?
             $"Start collecting sample in {trap.Name}" :
             $"Start gas flow through {trap.Name}";
@@ -1515,10 +1559,16 @@ public class Cegs : ProcessManager, ICegs
         collectionPath.FlowValve?.CloseWait();
         if (collectionPath.FlowManager != null)
             collectionPath.OpenAndEvacuate();
-        InletPort.Open();
-        InletPort.State = LinePort.States.InProcess;
-        if (Sample is Sample) Sample.State = Components.Sample.States.InProcess;
-        Sample.AddTrap(trap.Name);
+        if (InletPort is not null)
+        { 
+            InletPort.Open();
+            InletPort.State = LinePort.States.InProcess;
+        }
+        if (Sample is not null)
+        {
+            Sample.State = Components.Sample.States.InProcess;
+            Sample.AddTrap(trap.Name);
+        }
         CollectStopwatch.Restart();
         collectionPath.FlowManager?.Start(FirstTrapBleedPressure);
 
@@ -1547,9 +1597,10 @@ public class Cegs : ProcessManager, ICegs
         double p;
 
         var CollectionActions = new List<Action>();
+        if (FirstTrap is null) return CollectionActions;    // collection requires a trap
 
         p = GetParameter("FirstTrapOpenFlowPressure");
-        if (p.IsANumber() && im != null)
+        if (p.IsANumber() && im is not null)
         {
             var value = p;
             CollectionActions.Add(() =>
@@ -1560,7 +1611,7 @@ public class Cegs : ProcessManager, ICegs
         }
 
         p = GetParameter("FirstTrapFlowBypassPressure");
-        if (p.IsANumber() && im != null)
+        if (p.IsANumber() && im is not null)
         {
             var value = p;
             CollectionActions.Add(() =>
@@ -1571,7 +1622,7 @@ public class Cegs : ProcessManager, ICegs
         }
 
         p = GetParameter("CollectCloseIpAtPressure");
-        if (p.IsANumber())
+        if (p.IsANumber() && InletPort is not null)
         {
             var value = p;
             CollectionActions.Add(() =>
@@ -1580,13 +1631,13 @@ public class Cegs : ProcessManager, ICegs
                 if (InletPort.IsOpened && pressure <= value)
                 {
                     InletPort.Close();
-                    SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {im.Manometer.Name} = {pressure:0} Torr");
+                    SampleLog?.Record($"{Sample?.LabId}\tClosed {InletPort?.Name} at {im.Manometer?.Name} = {pressure:0} Torr");
                 }
             });
         }
 
         p = GetParameter("CollectCloseIpAtCtPressure");
-        if (p.IsANumber())
+        if (p.IsANumber() && InletPort is not null)
         {
             var value = p;
             CollectionActions.Add(() =>
@@ -1615,9 +1666,10 @@ public class Cegs : ProcessManager, ICegs
         {
             () => Stopping ? "CEGS is shutting down" : ""
         };
+        if (FirstTrap is null) return CollectionConditions;    // collection requires a trap
 
         p = GetParameter("CollectUntilTemperatureRises");
-        if (p.IsANumber())
+        if (p.IsANumber() && InletPort is not null)
         {
             var value = p;
             CollectionConditions.Add(() => InletPort.Temperature >= value ?
@@ -1625,7 +1677,7 @@ public class Cegs : ProcessManager, ICegs
         }
 
         p = GetParameter("CollectUntilTemperatureFalls");
-        if (p.IsANumber())
+        if (p.IsANumber() && InletPort is not null)
         {
             var value = p;
             CollectionConditions.Add(() => InletPort.Temperature <= value ?
@@ -1637,7 +1689,7 @@ public class Cegs : ProcessManager, ICegs
         {
             var value = p;
             CollectionConditions.Add(() => FirstTrap.Pressure <= value &&
-                (im == null || im.Pressure < Math.Ceiling(value) + 2) ?
+                (im is null || im.Pressure < Math.Ceiling(value) + 2) ?
                 $"{FirstTrap.Name}.Pressure fell to {value:0.00} Torr" : "");
         }
 
@@ -1646,7 +1698,7 @@ public class Cegs : ProcessManager, ICegs
         {
             var value = p;
             CollectionConditions.Add(() => FirstTrap.Pressure <= value &&
-                (im == null || im.Pressure < Math.Ceiling(value) + 2) ?
+                (im is null || im.Pressure < Math.Ceiling(value) + 2) ?
                 $"{FirstTrap.Name}.Pressure fell to {value:0.00} Torr" : "");
         }
 
@@ -1718,14 +1770,15 @@ public class Cegs : ProcessManager, ICegs
     {
         ProcessStep.Start("Stop Collecting");
 
-        IM_FirstTrap.FlowManager?.Stop();
-        InletPort.Close();
-        InletPort.State = LinePort.States.Complete;
+        IM_FirstTrap?.FlowManager?.Stop();
+        InletPort?.Close();
+        if (InletPort is not null)
+            InletPort.State = LinePort.States.Complete;
         if (!immediately)
             FinishCollecting();
-        IM_FirstTrap.Close();
-        FirstTrap.Isolate();
-        FirstTrap.FlowValve?.CloseWait();
+        IM_FirstTrap?.Close();
+        FirstTrap?.Isolate();
+        FirstTrap?.FlowValve?.CloseWait();
 
         ProcessStep.End();
     }
@@ -1742,7 +1795,7 @@ public class Cegs : ProcessManager, ICegs
         if ( p != null) // don't wait if there's no manometer
             WaitFor(() => 
             {
-                if (!flowValveIsOpened && im.Pressure <= FirstTrapEndPressure)
+                if (!flowValveIsOpened && im is not null && im.Pressure <= FirstTrapEndPressure)
                 {
                     IM_FirstTrap.FlowValve.OpenWait();
                     flowValveIsOpened = true;
@@ -1758,17 +1811,23 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void Collect()
     {
         var collectionPath = IM_FirstTrap;
-        collectionPath.VacuumSystem.MySection.Isolate();
+        if (collectionPath is null)
+        {
+            Tell("Aborting Collect() because collection path is undefined.");
+            return;
+        }
+        collectionPath.VacuumSystem?.MySection?.Isolate();
         collectionPath.Isolate();
         collectionPath.FlowValve?.OpenWait();
         collectionPath.OpenAndEvacuate(OkPressure);
-        if (collectionPath.FlowManager == null)
+        if (collectionPath.FlowManager is null)
             collectionPath.IsolateFromVacuum();
 
         StartCollecting();
         CollectUntilConditionMet();
         StopCollecting(false);
-        InletPort.State = LinePort.States.Complete;
+        if (InletPort is not null)
+            InletPort.State = LinePort.States.Complete;
 
         if (FirstTrap != VTT)
             TransferCO2FromCTToVTT();
@@ -1787,9 +1846,6 @@ public class Cegs : ProcessManager, ICegs
     {
         if (FirstOrDefault<GasSupply>((s) => s.GasName == gas && s.Destination == destination) is GasSupply gasSupply)
             return gasSupply;
-
-        //Warn("Process Alert!",
-        //    $"Cannot admit {gas} into {destination.Name}. There is no such GasSupply.");
         return null;
     }
 
@@ -1816,9 +1872,6 @@ public class Cegs : ProcessManager, ICegs
                 manifold = s;
         });
         return manifold;
-
-        // equivalent and simpler, but slower:
-        // protected virtual Section Manifold(IPort port) => Manifold([port]);
     }
 
     /// <summary>
@@ -1877,7 +1930,7 @@ public class Cegs : ProcessManager, ICegs
         gs = null;
         if (IpIm(out im))
             gs = GasSupply("O2", im);
-        return gs != null;
+        return gs is not null;
     }
 
     /// <summary>
@@ -1889,7 +1942,7 @@ public class Cegs : ProcessManager, ICegs
         gs = null;
         if (!IpIm(out im)) return false;
         gs = InertGasSupply(im);
-        if (gs != null) return true;
+        if (gs is not null) return true;
         ConfigurationError($"{im.Name} has no inert gas supply.");
         return false;
     }
@@ -2022,18 +2075,25 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.End();
     }
 
+    // This skips LN valves that aren't connected to a coldfinger
+    //    foreach (var valve in FindAll<Coldfinger>().Select(x => x.LNValve))
+    // so this hack...TODO change LNManifold to track its 'clients'
+    IEnumerable<CpwValve> AllLNValves => FindAll<CpwValve>().Where(x => x.Name.StartsWith("vLN_"));
+
     protected virtual void ExerciseLNValves()
     {
         ProcessStep.Start("Exercise all LN Manifold valves");
-        foreach (var valve in FindAll<IColdfinger>().Select(x => (x is VTColdfinger v ? v.Coldfinger : x as Coldfinger).LNValve))
+        foreach (var valve in AllLNValves)
             valve?.Exercise();
         ProcessStep.End();
     }
 
     protected virtual void CloseLNValves()
     {
-        foreach (var valve in FindAll<IColdfinger>().Select(x => (x is VTColdfinger v ? v.Coldfinger : x as Coldfinger).LNValve))
+        ProcessStep.Start("Close all LN Manifold valves");
+        foreach (var valve in AllLNValves)
             valve?.Close();
+        ProcessStep.End();
     }
 
     protected virtual void CalibrateRS232Valves()
@@ -2077,17 +2137,18 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void HeatQuartz(bool openLine)
     {
-        if (InletPort == null) return;
+        if (InletPort is null) return;
 
         ProcessStep.Start($"Heat Combustion Chamber Quartz ({QuartzFurnaceWarmupMinutes} minutes)");
-        InletPort.QuartzFurnace.TurnOn();
+        InletPort.QuartzFurnace?.TurnOn();
         if (InletPort.State == LinePort.States.Loaded ||
             InletPort.State == LinePort.States.Prepared)
             InletPort.State = LinePort.States.InProcess;
         if (Sample is Sample s && s.State < Components.Sample.States.InProcess)
             s.State = Components.Sample.States.InProcess;
         if (openLine) Manifold(InletPort).VacuumSystem.OpenLine();
-        WaitRemaining((int)QuartzFurnaceWarmupMinutes);
+        if (InletPort.QuartzFurnace is not null)
+            WaitRemaining((int)QuartzFurnaceWarmupMinutes);
 
         if (InletPort.NotifySampleFurnaceNeeded)
         {
@@ -2191,7 +2252,7 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void CloseIP()
     {
-        InletPort.Close();
+        InletPort?.Close();
     }
 
     #region GR operations
@@ -2827,20 +2888,17 @@ public class Cegs : ProcessManager, ICegs
     {
         //VacuumSystems.Values.ToList().ForEach(vs => vs.AutoManometer = true);
         //FindAll<GasSupply>().ForEach(gs => gs.ShutOff());
+        //Turn off all heaters (except GRs?)
+        //Turn off all coldfingers
     }
 
     protected virtual void RunSample()
     {
         Hacs.SystemLog.Record($"Run sample {Sample?.Name} ({Sample?.LabId})");
 
-        if (Sample == null)
-        {
-            Tell(InletPort == null ? "No sample to run." : $"{InletPort.Name} doesn't contain a sample.",
-                "Nothing to do.");
-            return;
-        }
-
-        if (InletPort != null && InletPort.State > LinePort.States.Prepared)
+        if (NoSample) return;
+        if (NoInletPort) return;
+        if (InletPort.State > LinePort.States.Prepared)
         {
             Tell($"{InletPort.Name} is not ready to run.", 
                 "Nothing to do.");
@@ -2857,9 +2915,6 @@ public class Cegs : ProcessManager, ICegs
             {
                 return;
             }
-
-
-
         }
 
         if (!EnoughGRs())
@@ -3021,6 +3076,8 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void AdmitSealedCO2IP()
     {
+        if (NoSample) return;
+        if (NoInletPort) return;
         if (InletPort.State == LinePort.States.Prepared) return;    // already done
         if (Sample is Sample && Sample.State >= Components.Sample.States.Prepared) return;    // already done
         if (!IpIm(out ISection im)) return;
@@ -3741,7 +3798,7 @@ public class Cegs : ProcessManager, ICegs
             aliquot.ExpectedResidualPressure = TorrPerKelvin(nExpectedResidual, mL_GR);
 
             SampleLog.Record(
-                $"GR hydrogen measurement:\r\n\t{Sample.LabId}\r\n\t" +
+                $"GR hydrogen measurement:\r\n\t{aliquot.Sample?.LabId}\r\n\t" +
                 $"Graphite {aliquot.Name}\t{aliquot.MicrogramsCarbon:0.0}\tµgC\t={aliquot.MicromolesCarbon:0.00}\tµmolC\t{aliquot.GraphiteReactor}\t" +
                 $"pH2:CO2\t{pH2ratio:0.00}\t" +
                 $"{aliquot.InitialGmH2Pressure:0} => {aliquot.FinalGmH2Pressure:0}\r\n\t" +
@@ -3779,7 +3836,9 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void Dilute()
     {
-        if (Sample == null || DilutedSampleMicrogramsCarbon <= SmallSampleMicrogramsCarbon || Sample.TotalMicrogramsCarbon > SmallSampleMicrogramsCarbon) return;
+        if (Sample == null || 
+            DilutedSampleMicrogramsCarbon <= SmallSampleMicrogramsCarbon || 
+            Sample.TotalMicrogramsCarbon > SmallSampleMicrogramsCarbon) return;
 
         ProcessStep.Start($"Dilute sample to {DilutedSampleMicrogramsCarbon}");
         //Clean(VTT);
@@ -3793,12 +3852,14 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void FreezeAliquots()
     {
+        if (NoSample) return;
         foreach (Aliquot aliquot in Sample.Aliquots)
             Freeze(aliquot);
     }
 
     protected virtual void GraphitizeAliquots()
     {
+        if (NoSample) return;
         var grs = Sample.Aliquots.Select(a => Find<IGraphiteReactor>(a.GraphiteReactor));
 
         var gm = Manifold(grs);
@@ -3886,8 +3947,10 @@ public class Cegs : ProcessManager, ICegs
     /// <returns></returns>
     protected virtual ISection JoinedSection(ISection fromSection, ISection toSection)
     {
-        var first = fromSection.Chambers.First();
-        var last = toSection.Chambers.Last();
+        if (fromSection is null || toSection is null) return null;
+        var first = fromSection.Chambers?.First();
+        var last = toSection.Chambers?.Last();
+        if (first is null || last is null) return null;
         return SectionSpanning(first, last) ?? SectionSpanning(last, first);
     }
 
@@ -3965,7 +4028,7 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void TransferCO2FromMCToGR(IGraphiteReactor gr, int aliquotIndex = 0, bool skip_d13C = false)
     {
-        if (gr == null) return;
+        if (gr is null) return;
         if (!GrGm([gr], out ISection gm)) return;
 
         var mc_gm = JoinedSection(MC, gm);
@@ -4155,9 +4218,13 @@ public class Cegs : ProcessManager, ICegs
         WaitFor(() => tgr.IsCompleted && td13.IsCompleted);
         ProcessSubStep.End();
 
+        var checkGrCO2Pressure = ParameterTrue("CheckGrCO2Pressure");
+        if (checkGrCO2Pressure)
+            grCF.ThawWait(); // It's in a log file now, do we need to record it?
         if (holdSampleAtPorts)
             grCF.Standby();
-
+        else if (checkGrCO2Pressure)
+            grCF.FreezeWait();
         ProcessStep.End();
     }
 
