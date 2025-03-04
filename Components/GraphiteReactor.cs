@@ -177,14 +177,16 @@ namespace AeonHacs.Components
         public double HeaterTemperature => Heater.Temperature;
         public double ColdfingerTemperature => Coldfinger.Temperature;
 
+        private CegsPreferences CegsPreferences => FirstOrDefault<Cegs>().CegsPreferences;
+        private double Parameter(string name) => Sample?.Parameter(name) ?? CegsPreferences.Parameter(name);
         public bool FurnaceUnresponsive =>
-            state == States.WaitTemp && StateStopwatch.Elapsed.TotalMinutes > Sample.Parameter("MaximumMinutesGrToReachTemperature");
+            state == States.WaitTemp && StateStopwatch.Elapsed.TotalMinutes > Parameter("MaximumMinutesGrToReachTemperature");
 
         public bool ReactionNotStarting =>
-            state == States.WaitFalling && StateStopwatch.Elapsed.TotalMinutes > Sample.Parameter("MaximumMinutesWaitFalling");
+            state == States.WaitFalling && StateStopwatch.Elapsed.TotalMinutes > Parameter("MaximumMinutesWaitFalling");
 
         public bool ReactionNotFinishing =>
-            state == States.WaitFinish && StateStopwatch.Elapsed.TotalMinutes > Sample.Parameter("MaximumMinutesGraphitizing");
+            state == States.WaitFinish && StateStopwatch.Elapsed.TotalMinutes > Parameter("MaximumMinutesGraphitizing");
 
         public void Start() { if (Aliquot != null) Aliquot.Tries++; State = States.Start; }
         public void Stop() => State = States.Stop;
@@ -237,10 +239,10 @@ namespace AeonHacs.Components
                 case States.InProcess:
                     break;
                 case States.Start:
-                    var thawBeforeGraphitizing = Sample.ParameterTrue("ThawBeforeGraphitizing");
+                    var thawBeforeGraphitizing = Sample?.ParameterTrue("ThawBeforeGraphitizing") ?? false;
                     if (!thawBeforeGraphitizing || Coldfinger.Thawed)
                     {
-                        if (Aliquot.GRStartPressure == 0)
+                        if (Aliquot is not null && Aliquot.GRStartPressure == 0)
                             Aliquot.GRStartPressure = Pressure;
                         TurnOn(GraphitizingTemperature);
                         State = States.WaitTemp;
@@ -278,9 +280,9 @@ namespace AeonHacs.Components
                         PriorPressure = Pressure;
                         ProgressStopwatch.Restart();    // mark pMin updated
                     }
-                    else if (elapsed >= 3.0 && (Sample == null || GraphitizationStopwatch.Elapsed.TotalMinutes >= Sample.Parameter("MinimumMinutesGraphitizing")))        // if 3 minutes have passed without a pressure decline
+                    else if (elapsed >= 3.0 && (Sample == null || GraphitizationStopwatch.Elapsed.TotalMinutes >= Parameter("MinimumMinutesGraphitizing")))        // if 3 minutes have passed without a pressure decline
                         State = States.Stop;
-                    else if (Sample != null && PriorPressure - Pressure > Sample.Parameter("GRCompleteTorrPerMinute") * elapsed)
+                    else if (Sample != null && PriorPressure - Pressure > Parameter("GRCompleteTorrPerMinute") * elapsed)
                     {
                         PriorPressure = Pressure;
                         ProgressStopwatch.Restart();
@@ -314,7 +316,7 @@ namespace AeonHacs.Components
 
                 if (ReactionNotStarting)
                 {
-                    if (Aliquot.Tries > 1)
+                    if (Aliquot is null || Aliquot.Tries > 1)
                         Stop();
                     else
                     {

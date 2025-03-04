@@ -1409,9 +1409,9 @@ public class Cegs : ProcessManager, ICegs
             if (Sample is null)
             {
                 Tell("No Sample is selected.");
-                return false;
+                return true; // there is no sample
             }
-            return true;
+            return false;
         }
     }
 
@@ -1422,9 +1422,9 @@ public class Cegs : ProcessManager, ICegs
             if (InletPort is null)
             {
                 Tell("No InletPort is active. Select a sample.");
-                return false;
+                return true;
             }
-            return true;
+            return false;
         }
     }
 
