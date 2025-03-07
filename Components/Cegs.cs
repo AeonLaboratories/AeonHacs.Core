@@ -764,7 +764,7 @@ public class Cegs : ProcessManager, ICegs
                 {
                     if (!exceptionAnnounced)
                     {
-                        Tell("Exception while updating logs", 
+                        Tell("Exception while updating logs",
                             e.ToString(), NoticeType.Error);
                         exceptionAnnounced = true;
                     }
@@ -774,7 +774,7 @@ public class Cegs : ProcessManager, ICegs
         }
         catch (Exception e)
         {
-            Tell("Logs will no longer be updated.", 
+            Tell("Logs will no longer be updated.",
                 e.ToString(), type: NoticeType.Error);
         }
         stoppedSignal1.Set();
@@ -841,7 +841,7 @@ public class Cegs : ProcessManager, ICegs
             Announce("Exception in CEGS Update loop",
                 $"{e}\r\n" +
                 $"System should be restarted.\r\n" +
-                $"This message will not be repeated.", 
+                $"This message will not be repeated.",
                 NoticeType.Error);
 
             updateExceptionOccurred = true;
@@ -929,7 +929,7 @@ public class Cegs : ProcessManager, ICegs
                     $"\tGraphite {gr.Contents}");
                 if (BusyGRCount() == 1 && !SampleIsRunning)  // the 1 is this GR; "Stop" is still 'Busy'
                 {
-                    Announce("Last graphite reactor finished.", 
+                    Announce("Last graphite reactor finished.",
                         (PreparedGRs() < 1) ? "Graphite reactors need service." : "");
                 }
             }
@@ -1014,7 +1014,7 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void OnOverflowDetected(ILNManifold manifold)
     {
-        Pause("LN containment failure.", 
+        Pause("LN containment failure.",
             $"{manifold?.Name ?? "LN Manifold"} service suspended.\r\n" +
             $"Correct the issue and Ok to continue.");
     }
@@ -1561,7 +1561,7 @@ public class Cegs : ProcessManager, ICegs
         if (collectionPath.FlowManager != null)
             collectionPath.OpenAndEvacuate();
         if (InletPort is not null)
-        { 
+        {
             InletPort.Open();
             InletPort.State = LinePort.States.InProcess;
         }
@@ -1595,6 +1595,22 @@ public class Cegs : ProcessManager, ICegs
         ClearParameter("CollectUntilMinutes");
     }
 
+    // The trap pressure is complicated by two potential conditions.
+    // 1. The trap itself may have no manometer, and
+    // 2. The trap may not be the first chamber in IM_FirstTrap with a manometer.
+    protected virtual double FirstTrapPressure 
+    {
+        get
+        {
+            if (FirstTrap.Manometer is not null)
+                return FirstTrap.Pressure;
+            if (IM_FirstTrap?.FlowManager?.Meter is IMeter m)
+                return m.Value;
+            return IM_FirstTrap.Pressure;
+        }
+    }
+
+
     // These are actions which are taken during collection when
     // a condition occurs. (Supersedes the old "DuringBleed()".
     // Override this method to add more actions.)
@@ -1604,7 +1620,7 @@ public class Cegs : ProcessManager, ICegs
         double p;
 
         var CollectionActions = new List<Action>();
-        if (FirstTrap is null) return CollectionActions;    // collection requires a trap
+        if (IM_FirstTrap is null) return CollectionActions;    // collection requires a trap
 
         p = GetParameter("FirstTrapOpenFlowPressure");
         if (p.IsANumber() && im is not null)
@@ -1612,8 +1628,8 @@ public class Cegs : ProcessManager, ICegs
             var value = p;
             CollectionActions.Add(() =>
             {
-                if (im.Pressure - FirstTrap.Pressure < value)
-                    FirstTrap.FlowValve?.OpenWait();   // Fully open flow valve
+                if (im.Pressure - FirstTrapPressure < value)
+                    IM_FirstTrap.FlowValve?.OpenWait();   // Fully open flow valve
             });
         }
 
@@ -1623,8 +1639,11 @@ public class Cegs : ProcessManager, ICegs
             var value = p;
             CollectionActions.Add(() =>
             {
-                if (im.Pressure - FirstTrap.Pressure < value)
-                    FirstTrap.Open();   // open bypass if available
+                if (im.Pressure - FirstTrapPressure < value)
+                {
+                    IM_FirstTrap.FlowValve?.OpenWait();   // open the flow valve and
+                    IM_FirstTrap.Open();        // the bypass if present
+                }
             });
         }
 
@@ -1649,11 +1668,11 @@ public class Cegs : ProcessManager, ICegs
             var value = p;
             CollectionActions.Add(() =>
             {
-                var pressure = FirstTrap.Pressure;
+                var pressure = FirstTrapPressure;
                 if (InletPort.IsOpened && pressure <= value)
                 {
                     InletPort.Close();
-                    SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {FirstTrap.Manometer.Name} = {pressure:0} Torr");
+                    SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {IM_FirstTrap.Manometer.Name} = {pressure:0} Torr");
                 }
             });
         }
@@ -1673,7 +1692,7 @@ public class Cegs : ProcessManager, ICegs
         {
             () => Stopping ? "CEGS is shutting down" : ""
         };
-        if (FirstTrap is null) return CollectionConditions;    // collection requires a trap
+        if (IM_FirstTrap is null) return CollectionConditions;    // collection requires a trap
 
         p = GetParameter("CollectUntilTemperatureRises");
         if (p.IsANumber() && InletPort is not null)
@@ -1695,7 +1714,7 @@ public class Cegs : ProcessManager, ICegs
         if (p.IsANumber())
         {
             var value = p;
-            CollectionConditions.Add(() => FirstTrap.Pressure <= value &&
+            CollectionConditions.Add(() => FirstTrapPressure <= value &&
                 (im is null || im.Pressure < Math.Ceiling(value) + 2) ?
                 $"{FirstTrap.Name}.Pressure fell to {value:0.00} Torr" : "");
         }
@@ -1704,9 +1723,9 @@ public class Cegs : ProcessManager, ICegs
         if (p.IsANumber())
         {
             var value = p;
-            CollectionConditions.Add(() => FirstTrap.Pressure <= value &&
-                (im is null || im.Pressure < Math.Ceiling(value) + 2) ?
-                $"{FirstTrap.Name}.Pressure fell to {value:0.00} Torr" : "");
+            CollectionConditions.Add(() => FirstTrapPressure <= value &&
+                    (im is null || im.Pressure < Math.Ceiling(value) + GetParameter("FirstTrapOpenFlowPressure")) ?
+                    $"{FirstTrap.Name}.Pressure fell to {value:0.00} Torr" : "");
         }
 
         p = GetParameter("CollectUntilMinutes");
@@ -1753,7 +1772,6 @@ public class Cegs : ProcessManager, ICegs
             WaitMilliseconds(1000, null);
         }
         SampleLog.Record($"{Sample.LabId}\tCollection stop condition met:\t{stoppedBecause}");
-
         ProcessStep.End();
     }
 
@@ -1803,15 +1821,15 @@ public class Cegs : ProcessManager, ICegs
         var im = Manifold(InletPort);
         var flowValveIsOpened = collectionPath.FlowValve?.IsOpened ?? true;
         ProcessStep.Start($"Wait for {collectionPath.Name} pressure to stop falling");
-        if ( p != null) // don't wait if there's no manometer
-            WaitFor(() => 
+        if (p != null) // don't wait if there's no manometer
+            WaitFor(() =>
             {
                 if (!flowValveIsOpened && im is not null && im.Pressure <= FirstTrapEndPressure)
                 {
                     collectionPath.FlowValve.OpenWait();
                     flowValveIsOpened = true;
                 }
-                return !p.IsFalling; 
+                return !p.IsFalling;
             });
         ProcessStep.End();
     }
@@ -2484,7 +2502,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (grs.Count < 1)
         {
-            Tell("No graphite reactors are awaiting service.", 
+            Tell("No graphite reactors are awaiting service.",
                 "Nothing to do.");
             return;
         }
@@ -2609,7 +2627,7 @@ public class Cegs : ProcessManager, ICegs
         ProcessSubStep.End();
 
         if (measureVolumes)
-        { 
+        {
             grs.ForEach(gr => gr.Close());
             foreach (var gr in grs)
             {
@@ -2636,7 +2654,7 @@ public class Cegs : ProcessManager, ICegs
         ProcessStep.End();
 
         ProcessStep.Start($"Flush GRs with {gsFlush.GasName}");
-        gsFlush.Flush(PressureOverAtm, 0.1, measureVolumes ? flushes-1 : flushes);
+        gsFlush.Flush(PressureOverAtm, 0.1, measureVolumes ? flushes - 1 : flushes);
         gm.VacuumSystem.WaitForPressure(OkPressure);
         ProcessStep.End();
 
@@ -2773,7 +2791,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (grs.Count < 1)
         {
-            Tell("No sulfur traps are awaiting service.", 
+            Tell("No sulfur traps are awaiting service.",
                 "Nothing to do.");
             return;
         }
@@ -2914,7 +2932,7 @@ public class Cegs : ProcessManager, ICegs
         if (NoInletPort) return;
         if (InletPort.State > LinePort.States.Prepared)
         {
-            Tell($"{InletPort.Name} is not ready to run.", 
+            Tell($"{InletPort.Name} is not ready to run.",
                 "Nothing to do.");
             return;
         }
@@ -3056,9 +3074,9 @@ public class Cegs : ProcessManager, ICegs
         if (Pressure(particles, MC.CurrentVolume(true), MC.Temperature) > MC.Manometer.MaxValue)
         {
             var ugcMax = Particles(MC.Manometer.MaxValue, MC.CurrentVolume(true), MC.Temperature) / CarbonAtomsPerMicrogram;
-            
+
             Warn("Dead CO2 sample is too big",
-                $"Requested amount ({ugc_targetSize} µgC) exceeds {MC.Name} limit ({ugcMax} µgC).\r\n"+
+                $"Requested amount ({ugc_targetSize} µgC) exceeds {MC.Name} limit ({ugcMax} µgC).\r\n" +
                 "Admit Dead CO2 process will abort.");
 
             ProcessStep.End();
@@ -3192,7 +3210,7 @@ public class Cegs : ProcessManager, ICegs
         {
             if (FirstOrDefault<d13CPort>(p => p.State == LinePort.States.Loaded) == null)
             {
-                Tell("No d13C ports are Completed or Loaded.", 
+                Tell("No d13C ports are Completed or Loaded.",
                     "Nothing to do.");
                 return;
             }
@@ -3277,9 +3295,9 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void PrepareLoaded_d13CPorts()
     {
         var ports = FindAll<d13CPort>(p => p.State == LinePort.States.Loaded);
-        if (ports.Count == 0) 
+        if (ports.Count == 0)
         {
-            Tell("No vial ports are Loaded.", 
+            Tell("No vial ports are Loaded.",
                 "Nothing to do.");
             return;
         }
@@ -3850,8 +3868,8 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void Dilute()
     {
-        if (Sample == null || 
-            DilutedSampleMicrogramsCarbon <= SmallSampleMicrogramsCarbon || 
+        if (Sample == null ||
+            DilutedSampleMicrogramsCarbon <= SmallSampleMicrogramsCarbon ||
             Sample.TotalMicrogramsCarbon > SmallSampleMicrogramsCarbon) return;
 
         ProcessStep.Start($"Dilute sample to {DilutedSampleMicrogramsCarbon}");
@@ -4077,7 +4095,7 @@ public class Cegs : ProcessManager, ICegs
             //    "Take the d13C split anyway, or skip d13C?",
             //    NoticeType.Error, responses: ["Take d13C split", "Skip d13C"]).Message != "Take d13C split")
             //{
-                take_d13C = false;
+            take_d13C = false;
             //}
 
         }
@@ -4642,7 +4660,7 @@ public class Cegs : ProcessManager, ICegs
         var port = FirstOrDefault<Id13CPort>(p => !p.ShouldBeClosed);
         if (port == null)
         {
-            Tell("No vial port available", 
+            Tell("No vial port available",
                 "One must be Loaded or Prepared to find VPInitialHePressure.", NoticeType.Error);
             return;
         }
@@ -4827,7 +4845,7 @@ public class Cegs : ProcessManager, ICegs
             error0 = error;
             error = pv - pvTarget;
 
-            if (dt > 1.5/60)    // need enough time to have received a new heater report
+            if (dt > 1.5 / 60)    // need enough time to have received a new heater report
             {
                 dPv_dt = dPv / dt;
                 ddPv_dt = ddPv / dt;
@@ -4839,14 +4857,14 @@ public class Cegs : ProcessManager, ICegs
 
         if (!h.Config.ManualMode)
         {
-            Tell($"{h.Name} is not in Manual mode.", 
+            Tell($"{h.Name} is not in Manual mode.",
                 "Cannot calibrate it in this state.", NoticeType.Error);
             return;
         }
 
         if (tc == null)
         {
-            Tell("Calibration thermocouple missing.", 
+            Tell("Calibration thermocouple missing.",
                 "Cannot calibrate heater without one.", NoticeType.Error);
             return;
         }
@@ -4870,13 +4888,13 @@ public class Cegs : ProcessManager, ICegs
             TestLog.Record($"{h.Name} calibration: {getState()}.");
             ProcessSubStep.Start(step);
             bool cooled()
-            {   
+            {
                 ProcessSubStep.CurrentStep.Description = getState();
                 return pv < pvTarget - 50;
             }
             if (!WaitFor(cooled, oneMinute, oneSecond))
             {
-                Announce("Calibration thermocouple is too hot.", 
+                Announce("Calibration thermocouple is too hot.",
                     "And it hasn't cooled sufficiently after over a minute.\r\n" +
                     $"Is it in {h.Name}?", NoticeType.Error);
                 ProcessStep.End();
@@ -4925,7 +4943,7 @@ public class Cegs : ProcessManager, ICegs
         step = $"Pre-heat: ";
         ProcessSubStep.Start(step);
         bool preheated()
-        {            
+        {
             ProcessSubStep.CurrentStep.Description = getState();
             return pv > pvTarget - 10;
         }
@@ -4940,7 +4958,7 @@ public class Cegs : ProcessManager, ICegs
         h.PowerLevel = startingCO;
         TestLog.Record($"{h.Name} calibration: {getState()}");
         bool stabilize()
-        {           
+        {
             ProcessSubStep.CurrentStep.Description = getState();
             return ProcessSubStep.Elapsed.TotalSeconds >= 60;
         }
@@ -4959,7 +4977,7 @@ public class Cegs : ProcessManager, ICegs
                 dCo = Math.Clamp(dCo, dCoMin, dCoMax);
 
             var powerLevel = Math.Round(Math.Min(h.MaximumPowerLevel, h.Config.PowerLevel + dCo), 2);
-            h.PowerLevel = powerLevel;            
+            h.PowerLevel = powerLevel;
 
             bool configured() => h.Config.PowerLevel == powerLevel;
             WaitFor(configured, -1, 1);
@@ -4969,7 +4987,7 @@ public class Cegs : ProcessManager, ICegs
             ProcessSubStep.Start(step);
             bool changeNeeded()
             {
-                if (tc.Temperature > pvLimit) return true;                
+                if (tc.Temperature > pvLimit) return true;
                 ProcessSubStep.CurrentStep.Description = getState();
                 return ProcessSubStep.Elapsed.TotalSeconds >= minSecondsAtCo &&
                     (expectedError < tooLow || expectedError > tooHigh);
@@ -5398,7 +5416,7 @@ public class Cegs : ProcessManager, ICegs
         }
     }
 
-     protected void TestUpstream(IValve v)
+    protected void TestUpstream(IValve v)
     {
         TestLog.Record($"Checking {v.Name}'s 10-minute bump");
         v.OpenWait();
@@ -5442,8 +5460,6 @@ public class Cegs : ProcessManager, ICegs
         TestLog.Record($"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}");
         gs?.Destination?.OpenAndEvacuate();
     }
-
-
 
     protected virtual void Test() { }
 
