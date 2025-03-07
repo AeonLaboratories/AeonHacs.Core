@@ -1580,11 +1580,17 @@ public class Cegs : ProcessManager, ICegs
     /// </summary>
     protected virtual void ClearCollectionConditions()
     {
-        ClearParameter("CollectUntilTemperatureRises");
-        ClearParameter("CollectUntilTemperatureFalls");
+        // Actions
+        ClearParameter("FirstTrapOpenFlowPressure");
+        ClearParameter("FirstTrapFlowBypassPressure");
         ClearParameter("CollectCloseIpAtPressure");
         ClearParameter("CollectCloseIpAtCtPressure");
+
+        // Stop conditions
+        ClearParameter("CollectUntilTemperatureRises");
+        ClearParameter("CollectUntilTemperatureFalls");
         ClearParameter("CollectUntilCtPressureFalls");
+        ClearParameter("FirstTrapEndPressure");
         ClearParameter("CollectUntilMinutes");
     }
 
@@ -1769,16 +1775,17 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void StopCollecting(bool immediately = true)
     {
         ProcessStep.Start("Stop Collecting");
+        var collectionPath = IM_FirstTrap;
 
-        IM_FirstTrap?.FlowManager?.Stop();
+        collectionPath?.FlowManager?.Stop();
         InletPort?.Close();
         if (InletPort is not null)
             InletPort.State = LinePort.States.Complete;
         if (!immediately)
             FinishCollecting();
-        IM_FirstTrap?.Close();
+        collectionPath?.Close();
         FirstTrap?.Isolate();
-        FirstTrap?.FlowValve?.CloseWait();
+        collectionPath?.FlowValve?.CloseWait();
 
         ProcessStep.End();
     }
@@ -1788,16 +1795,19 @@ public class Cegs : ProcessManager, ICegs
     /// </summary>
     protected virtual void FinishCollecting()
     {
-        var p = FirstTrap?.Manometer;
+        var collectionPath = IM_FirstTrap;
+        if (collectionPath is null) return;
+
+        var p = collectionPath.Manometer;
         var im = Manifold(InletPort);
-        var flowValveIsOpened = IM_FirstTrap.FlowValve?.IsOpened ?? true;
-        ProcessStep.Start($"Wait for {FirstTrap.Name} pressure to stop falling");
+        var flowValveIsOpened = collectionPath.FlowValve?.IsOpened ?? true;
+        ProcessStep.Start($"Wait for {collectionPath.Name} pressure to stop falling");
         if ( p != null) // don't wait if there's no manometer
             WaitFor(() => 
             {
                 if (!flowValveIsOpened && im is not null && im.Pressure <= FirstTrapEndPressure)
                 {
-                    IM_FirstTrap.FlowValve.OpenWait();
+                    collectionPath.FlowValve.OpenWait();
                     flowValveIsOpened = true;
                 }
                 return !p.IsFalling; 
