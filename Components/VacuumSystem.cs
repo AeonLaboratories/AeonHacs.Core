@@ -383,7 +383,7 @@ namespace AeonHacs.Components
                     return StateCode.Roughing;
                 if (HighVacuumValve.IsClosed && LowVacuumValve.IsClosed && BackingValve.IsClosed && (RoughingValve?.IsOpened ?? true))
                     return StateCode.RoughingForeline;
-                if (HighVacuumValve.IsOpened && LowVacuumValve.IsClosed && BackingValve.IsOpened && (RoughingValve?.IsOpened ?? true))
+                if (!HighVacuumValve.IsClosed && LowVacuumValve.IsClosed && BackingValve.IsOpened && (RoughingValve?.IsOpened ?? true))
                     return StateCode.HighVacuum;
                 return StateCode.Unknown;
             }
@@ -552,6 +552,24 @@ namespace AeonHacs.Components
         {
             if (State == StateCode.Stopped) Start();
             TargetState = TargetStateCode.Rough;
+        }
+
+        /// <summary>
+        /// Vent the high-vacuum valve to the given pressure.
+        /// Default timeout is 2 minutes.
+        /// </summary>
+        /// <param name="pressure">The desired ultimate pressure.</param>
+        /// <param name="timeout">How long to wait for the pressure to be achieved.</param>
+        /// <returns></returns>
+        public bool VentHV(double pressure, int timeout = 2 * 60 * 1000)
+        {
+            if (HighVacuumValve.IsClosed)
+                return false;
+            
+            HighVacuumValve.DoOperation("Open 45");
+            bool success = WaitFor(() => Pressure < pressure || Stopping, timeout, 1000);
+            HighVacuumValve.DoOperation("Open");
+            return success;
         }
 
         protected void SetTargetState(TargetStateCode targetState)
