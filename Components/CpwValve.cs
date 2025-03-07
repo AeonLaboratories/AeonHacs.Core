@@ -154,7 +154,7 @@ namespace AeonHacs.Components
         public override IActuatorOperation ValidateOperation(IActuatorOperation operation)
         {
             if (operation == null) return null;
-            var newPosition = operation.Incremental ? Position + operation.Value : Operation.Value;
+            var newPosition = operation.Incremental ? Position + operation.Value : operation.Value;
             var maxPosition = Math.Max(OpenedValue, ClosedValue);
             var minPosition = Math.Min(OpenedValue, ClosedValue);
             if (newPosition > maxPosition) newPosition = maxPosition;
