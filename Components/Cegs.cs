@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using static AeonHacs.Components.CegsPreferences;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
-using static System.Collections.Specialized.BitVector32;
 
 namespace AeonHacs.Components;
 
