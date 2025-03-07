@@ -1,5 +1,6 @@
 ﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
+using System;
 using System.ComponentModel;
 using System.Text;
 
@@ -150,8 +151,19 @@ namespace AeonHacs.Components
             get => base.ActionSucceeded || StopRequested;
             protected set => base.ActionSucceeded = value;
         }
-        public override IActuatorOperation ValidateOperation(IActuatorOperation operation) =>
-            (ValveState == ValveState.Unknown || Position != operation?.Value) ? operation : null;
+        public override IActuatorOperation ValidateOperation(IActuatorOperation operation)
+        {
+            if (operation == null) return null;
+            var newPosition = operation.Incremental ? Position + operation.Value : Operation.Value;
+            var maxPosition = Math.Max(OpenedValue, ClosedValue);
+            var minPosition = Math.Min(OpenedValue, ClosedValue);
+            if (newPosition > maxPosition) newPosition = maxPosition;
+            if (newPosition < minPosition) newPosition = minPosition;
+            if (newPosition == Position) return null;
+            var newValue = operation.Incremental ? newPosition - Position : newPosition;
+            operation.Value = newValue; // no point in checking whether they match here
+            return operation;
+        }
 
         // Called when the valve becomes "Active", whenever a report
         // is received while active, and finally, once when the valve
