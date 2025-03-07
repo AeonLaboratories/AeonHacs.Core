@@ -46,6 +46,7 @@ namespace AeonHacs.Components
         public virtual void OpenWait() { Open(); WaitForIdle(); }
         public virtual void CloseWait() { Close(); WaitForIdle(); }
         public virtual void DoWait(ActuatorOperation operation) { DoOperation(operation) ; WaitForIdle(); }
+        public virtual void DoWait(string operation) { DoOperation(operation); WaitForIdle(); }
 
         public virtual void Exercise()
         {

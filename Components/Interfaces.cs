@@ -1224,6 +1224,11 @@ namespace AeonHacs.Components
         void CloseWait();
 
         /// <summary>
+        /// Do the operation and wait for it to complete.
+        /// </summary>
+        void DoWait(string operation);
+
+        /// <summary>
         /// Wait until the valve has no pending operations.
         /// </summary>
         void WaitForIdle();
@@ -2076,6 +2081,15 @@ namespace AeonHacs.Components
         /// and pressure_LV_required
         /// </summary>
         void Rough();
+
+        /// <summary>
+        /// Vent the high-vacuum valve to the given pressure.
+        /// Default timeout is 2 minutes.
+        /// </summary>
+        /// <param name="pressure">The desired ultimate pressure.</param>
+        /// <param name="timeout">How long to wait for the pressure to be achieved.</param>
+        /// <returns></returns>
+        public bool VentHV(double pressure, int timeout = 2 * 60 * 1000);
         void DisableManometer();
         void EnableManometer();
     }

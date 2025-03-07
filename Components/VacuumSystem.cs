@@ -563,12 +563,11 @@ namespace AeonHacs.Components
         /// <returns></returns>
         public bool VentHV(double pressure, int timeout = 2 * 60 * 1000)
         {
-            if (HighVacuumValve.IsClosed)
-                return false;
+            if (HighVacuumValve.IsClosed) return false;
             
-            HighVacuumValve.DoOperation("Open 45");
+            HighVacuumValve.DoWait("Open 45");
             bool success = WaitFor(() => Pressure < pressure || Stopping, timeout, 1000);
-            HighVacuumValve.DoOperation("Open");
+            HighVacuumValve.OpenWait();
             return success;
         }
 

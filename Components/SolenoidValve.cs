@@ -70,6 +70,7 @@ namespace AeonHacs.Components
         public void Close() => DoOperation("Close");
         public void OpenWait() { Open(); WaitForIdle(); }
         public void CloseWait() { Close(); WaitForIdle(); }
+        public virtual void DoWait(string operation) { DoOperation(operation); WaitForIdle(); }
 
         public void WaitForIdle()
         {

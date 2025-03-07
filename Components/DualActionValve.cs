@@ -164,6 +164,7 @@ namespace AeonHacs.Components
             ValveState = ValveState.Closed;
             CloseValve.CloseWait();
         }
+        public virtual void DoWait(string operation) { DoOperation(operation); WaitForIdle(); }
 
         /// <summary>
         /// Does nothing; method is present to comply with IValve interface.

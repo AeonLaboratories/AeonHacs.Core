@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using static AeonHacs.Components.CegsPreferences;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
+using static System.Collections.Specialized.BitVector32;
 
 namespace AeonHacs.Components;
 
@@ -2531,6 +2532,8 @@ public class Cegs : ProcessManager, ICegs
         if (!basePressure.IsANumber())
             basePressure = OkPressure; // OkPressure is a convenient but high starting pressure;
                                        // ideally, ror tests start at ultimate pressure.
+        section.VacuumSystem.VentHV(basePressure * 10);
+        section.VacuumSystem.WaitForPressure(basePressure);
 
         // ports often have higher gas loads, usually due to water
         var leakRateLimit = 2 * LeakTightTorrLitersPerSecond;
@@ -2541,7 +2544,8 @@ public class Cegs : ProcessManager, ICegs
                 $"Ok to try again or Cancel to move on.\r\n" +
                 $"Restart the application to abort the process.").Ok())
             {
-                section.VacuumSystem.Evacuate(basePressure);
+                section.VacuumSystem.VentHV(basePressure * 10);
+                section.VacuumSystem.WaitForPressure(basePressure);
                 continue;
             }
             break;
@@ -4720,6 +4724,8 @@ public class Cegs : ProcessManager, ICegs
         manifold.Open();
         port.Open();
         manifold.Evacuate(basePressure);
+        manifold.VacuumSystem.VentHV(basePressure * 10);
+        manifold.VacuumSystem.WaitForPressure(basePressure);
         ProcessSubStep.End();
 
         ProcessStep.End();

@@ -66,6 +66,7 @@ namespace AeonHacs.Components
         public virtual void Stop() => DoOperation("Stop");
         public void OpenWait() { Open(); WaitForIdle(); }
         public void CloseWait() { Close(); WaitForIdle(); }
+        public virtual void DoWait(string operation) { DoOperation(operation); WaitForIdle(); }
         public virtual void WaitForIdle() => WaitFor(() => Idle, -1, 35);
         public virtual void Exercise() { }
         public Valve(IHacsDevice d = null) : base(d) { }
