@@ -484,9 +484,8 @@ namespace AeonHacs.Components
                         else if (v.TimeLimit > 0)
                             v.Device.Position = (int)Math.Round((operation.Value - v.Device.Position) * (Math.Min(v.Elapsed, v.TimeLimit) / v.TimeLimit) + v.Device.Position);
                     }
-
-                    a.Device.Active = false;
                 }
+                a.Device.Active = false;     // end the operation, even if nothing was done (for correct PendingOperations management)
                 State = OperationState.Free;
                 if (LogEverything) Log?.Record("Operation done.");
             }
