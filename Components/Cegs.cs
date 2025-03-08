@@ -3046,7 +3046,6 @@ public class Cegs : ProcessManager, ICegs
         }
 
         Alert(message);
-        base.ProcessEnded(message);
     }
 
     #endregion Running samples
