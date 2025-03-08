@@ -297,7 +297,7 @@ namespace AeonHacs.Components
             if (!EqualityComparer<TargetStates>.Default.Equals(targetState, oldTarget))
             {
                 OnTargetStateChanged(oldTarget, targetState);
-                if (Initialized) Hacs.SystemLog.Record($"{Name}.State = {State}");
+                if (Initialized) Hacs.SystemLog.Record($"{Name}.TargetState = {TargetState} (State = {State})");
             }
             return conditionMet;
         }
