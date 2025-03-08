@@ -174,6 +174,10 @@ namespace AeonHacs.Components
             /// </summary>
             Monitoring,
             /// <summary>
+            /// Maintaining the reservoir level regardless of device demands.
+            /// </summary>
+            StayingActive,
+            /// <summary>
             /// Adding LN to the supply reservoir.
             /// </summary>
             Filling,
@@ -195,8 +199,6 @@ namespace AeonHacs.Components
             /// </summary>
             Unknown
         }
-
-
 
         public bool StayingActive => TargetState == TargetStates.StayActive;
         public bool OverflowIsDetected =>
@@ -230,6 +232,8 @@ namespace AeonHacs.Components
         {
             get
             {
+                if (OverflowIsDetected || InhibitLN)
+                    return States.Inhibited;
                 if (TargetState == TargetStates.Standby)
                     return States.Standby;
                 if (IsOn)
@@ -238,12 +242,11 @@ namespace AeonHacs.Components
                     return States.Full;
                 if (TargetState == TargetStates.Monitor)
                     return States.Monitoring;
-                if (OverflowIsDetected || InhibitLN)
-                    return States.Inhibited;
+                if (TargetState == TargetStates.StayActive)
+                    return States.StayingActive;
                 return States.Unknown;
             }
         }
-
 
         /// <summary>
         /// Whether the LN valve is on or off.
