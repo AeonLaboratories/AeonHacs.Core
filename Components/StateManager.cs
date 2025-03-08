@@ -119,7 +119,10 @@ namespace AeonHacs.Components
                     // vary over multiple calls when it depends on changing
                     // conditions.
                     var timeout = StateLoopTimeout;
-                    if (timeout < 0) timeout = Stopping ? 0 : Timeout.Infinite;
+                    if (timeout < 0)
+                        timeout = Stopping ? 0 : Timeout.Infinite;
+                    else if (Stopping)
+                        timeout = Math.Min(timeout, 30);
 
                     if (LogEverything)
                         Log?.Record($"StateManager {Name}: StateLoop is waiting for StateSignal" +
