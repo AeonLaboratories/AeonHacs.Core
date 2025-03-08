@@ -499,9 +499,11 @@ namespace AeonHacs.Components
             SetServiceValues($"n{ChannelNumber} c");
             operation = a.ValidateOperation(a.FindOperation(ServiceRequest ?? ""));
             if (operation != null)
-            a.Device.Operation = operation;
-            stopping = false;
-            a.Device.Active = true;
+            {
+                a.Device.Operation = operation;
+                stopping = false;
+                a.Device.Active = true;
+            }
 
             if (LogEverything)
             {
