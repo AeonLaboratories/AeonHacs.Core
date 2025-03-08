@@ -3768,6 +3768,8 @@ public class Cegs : ProcessManager, ICegs
         port.Open();
         WaitSeconds(5);
         port.Close();
+        if (port.Coldfinger?.IsActivelyCooling ?? false)
+            port.Coldfinger.Freeze();
         ProcessSubStep.End();
         WaitSeconds(5);
         double pFinal = meter.WaitForAverage((int)MeasurementSeconds);
@@ -4032,10 +4034,11 @@ public class Cegs : ProcessManager, ICegs
         WaitMinutes((int)CO2TransferMinutes);
         ProcessSubStep.End();
 
-        toSection.Raise();
+        toSection.RaiseLN();
 
         ProcessSubStep.Start($"Isolate {toSection.Name}");
         toSection.Isolate();
+        toSection.Freeze();     // raise no longer needed
         ProcessSubStep.End();
 
         ProcessStep.End();
@@ -4231,6 +4234,7 @@ public class Cegs : ProcessManager, ICegs
         {
             grCF.RaiseLN();
             gr.Close();
+            grCF.Freeze();
             // Note: removed release incondensables
         }
         void jd13()
@@ -4238,6 +4242,7 @@ public class Cegs : ProcessManager, ICegs
             if (d13CPort == null) return;
             d13CPort.Coldfinger.RaiseLN();
             Close_d13CPort(d13CPort);
+            d13CPort.Coldfinger.Freeze();
             if (!holdSampleAtPorts)
                 AddCarrierTo_d13C();
             d13CPort.Coldfinger.Standby();
@@ -4343,7 +4348,9 @@ public class Cegs : ProcessManager, ICegs
 
         if (firstFreezeGR)
         {
+            ProcessSubStep.Start($"Raise {gr.Name} LN.");
             grCF.RaiseLN();
+            ProcessSubStep.End();
 
             ProcessSubStep.Start("Evacuate incondensables.");
             mc_gm.OpenAndEvacuate(CleanPressure);
@@ -4369,6 +4376,7 @@ public class Cegs : ProcessManager, ICegs
         WaitMinutes((int)CO2TransferMinutes);
         mcCF.RaiseLN();
         mc_gm.Close();
+        mcCF.Freeze();
         gr.Close();
         ProcessSubStep.End();
 
@@ -4588,7 +4596,7 @@ public class Cegs : ProcessManager, ICegs
         });
 
         ProcessStep.Start("Freeze graphite reactors");
-        grs.ForEach(gr => gr.Coldfinger.Raise());
+        grs.ForEach(gr => gr.Coldfinger.Freeze());
 
         WaitFor(() => grs.All(gr => gr.Coldfinger.Frozen), interval: 1000);
 
@@ -4624,7 +4632,7 @@ public class Cegs : ProcessManager, ICegs
             ProcessSubStep.End();
             grs.ForEach(gr =>
             {
-                WaitSeconds(30);
+                WaitSeconds(10);        // was 30 -- why?
                 var pInitial = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
 
                 ProcessSubStep.Start($"Admit H2 into {gr.Name}");
@@ -4632,7 +4640,8 @@ public class Cegs : ProcessManager, ICegs
                 gr.Open();
                 WaitSeconds(5);
                 gr.Close();
-                WaitSeconds(60);
+                gr.Coldfinger.Freeze();
+                WaitSeconds(10);        // was 60 -- why??
                 ProcessSubStep.End();
 
                 var pFinal = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
@@ -4677,7 +4686,7 @@ public class Cegs : ProcessManager, ICegs
         var totalMilliLiters = manifold.MilliLiters + port.MilliLiters;
 
         vacuumSystem.OpenLine();
-        ftc.RaiseLN();
+        ftc.Freeze();
 
         bool adjusted = false;
         do

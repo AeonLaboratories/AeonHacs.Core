@@ -613,7 +613,7 @@ namespace AeonHacs.Components
             {
                 Raise();
                 StepTracker.Start("Wait for coldfinger to freeze.");
-                WaitSeconds(30);
+                WaitSeconds(15);
                 StepTracker.End();
             }
         }

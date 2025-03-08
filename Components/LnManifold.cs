@@ -218,7 +218,6 @@ namespace AeonHacs.Components
         }
         public bool SupplyEmpty => Liters != null && MinimumLiters > 0 && Liters.Value < MinimumLiters;
 
-
         IThermometer AmbientThermometer;
         double ambient => AmbientThermometer?.Temperature ?? 22.0;
         double overflowTemperature => OverflowSensor?.Temperature ?? 25.0;
@@ -226,7 +225,6 @@ namespace AeonHacs.Components
         Stopwatch sw = new Stopwatch();
         bool full => LevelSensor.Temperature <= TargetTemperature;
         bool needed => TargetState == TargetStates.StayActive || Coldfinger.AnyNeed(this);
-
 
         public override States State
         {
@@ -278,11 +276,9 @@ namespace AeonHacs.Components
         //[JsonProperty]
         public StopAction StopAction { get; set; } = StopAction.TurnOff;
 
-
         public void Monitor() => ChangeState(TargetStates.Monitor);
         public void StayActive() => ChangeState(TargetStates.StayActive);
         public void Standby() => ChangeState(TargetStates.Standby);
-
 
         /// <summary>
         /// Starts a fill cycle immediately, even if it's not needed. It will still turn off normally.

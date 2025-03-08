@@ -4,9 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AeonHacs.Components
 {
@@ -631,6 +633,11 @@ namespace AeonHacs.Components
 
         /// <summary>
         /// Raises the LN level, and once it has reached its peak, waits a few seconds for equilibrium.
+        /// Uses:
+        ///     * in anticipation of opening chamber to release incondensables
+        ///     * before introducing H2 to GR or He to d13C port
+        ///     * before closing the destination chamber during transfer
+        /// To avoid waste, switch back to Freeze when Raise is no longer necessary.
         /// </summary>
         public virtual void RaiseLN()
         {
