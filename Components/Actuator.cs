@@ -99,13 +99,13 @@ namespace AeonHacs.Components
             get => Active;
             set
             {
-                if (active == value) return;
+                // Allow ending operations that were invalidated, so PendingOperations will decrement
+                // (in which case Active will be set false consecutively).
                 Active = value;
                 if (active)
                     OperationStarting();
                 else
                     OperationEnding();
-
             }
         }
 
