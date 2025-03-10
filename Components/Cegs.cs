@@ -2731,6 +2731,29 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void PrepareIPsForCollection() =>
         PrepareIPsForCollection(null);
 
+    protected virtual void EvacuateAndCheckIPs(ISection im, IEnumerable<IPort> ips)
+    {
+        if (im == null) return;
+        if (ips.Count() < 1) return;
+        var portNames = string.Join(", ", ips.Select(p => p.Name));
+
+        ProcessStep.Start($"Evacuate & Flush with inert gas: [{portNames}]");
+
+        im.ClosePortsExcept(ips);
+        im.VacuumSystem.MySection.Isolate();
+        im.Isolate();
+        foreach (var ip in ips) ip.Open();
+        im.Evacuate(OkPressure);
+        WaitForStablePressure(im.VacuumSystem, OkPressure);
+        WaitForStablePressure(im.VacuumSystem, CleanPressure);
+        HoldForLeakTightness(im);
+        Flush(im, 3);
+        im.VacuumSystem.WaitForPressure(CleanPressure);
+        foreach (var ip in ips) ip.Close();
+
+        ProcessStep.End();
+    }
+
     protected virtual void PrepareIPsForCollection(List<IInletPort> ips = null)
     {
         bool targeted(IInletPort ip) =>
@@ -2745,10 +2768,6 @@ public class Cegs : ProcessManager, ICegs
         if (ips.Count < 1) return;
         var portNames = string.Join(", ", ips.Select(cf => cf.Name));
 
-        // close ips that aren't awaiting prep
-        foreach (var ip in InletPorts.Except(ips))
-            ip.Close();
-
         var im = Manifold(ips);
         if (im == null)
         {
@@ -2756,20 +2775,7 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        ProcessStep.Start("Evacuate & Flush IPs with inert gas");
-        im.VacuumSystem.MySection.Isolate();
-        im.Isolate();
-        ips.ForEach(ip => ip.Open());
-        im.Evacuate(OkPressure);
-        WaitForStablePressure(im.VacuumSystem, CleanPressure);
-        HoldForLeakTightness(im);
-
-        Flush(im, 3);
-        im.VacuumSystem.WaitForPressure(CleanPressure);
-
-        ProcessStep.End();
-
-        ips.ForEach(ip => ip.Close());
+        EvacuateAndCheckIPs(im, ips);
 
         ProcessStep.Start("Release the samples");
         WaitForOperator(
@@ -3112,17 +3118,7 @@ public class Cegs : ProcessManager, ICegs
         if (Sample is Sample && Sample.State >= Components.Sample.States.Prepared) return;    // already done
         if (!IpIm(out ISection im)) return;
 
-        ProcessStep.Start($"Evacuate and flush {InletPort.Name}");
-        im.ClosePortsExcept(InletPort);
-        im.Isolate();
-        InletPort.Open();
-        im.Evacuate(OkPressure);
-        WaitForStablePressure(im.VacuumSystem, OkPressure);
-        Flush(im, 3);
-        im.VacuumSystem.WaitForPressure(CleanPressure);
-        ProcessStep.End();
-
-        InletPort.Close();
+        EvacuateAndCheckIPs(im, [InletPort]);
 
         ProcessStep.Start("Release the sample");
         WaitForOperator($"Release the sealed sample '{Sample.LabId}' at {InletPort.Name}.");
