@@ -566,6 +566,7 @@ namespace AeonHacs.Components
             if (HighVacuumValve.IsClosed) return false;
             
             HighVacuumValve.DoWait("Open 45");
+            WaitSeconds(3);     // Make sure the vented gas is detected at pVM before continuing.
             bool success = WaitFor(() => Pressure < pressure || Stopping, timeout, 1000);
             HighVacuumValve.OpenWait();
             return success;
