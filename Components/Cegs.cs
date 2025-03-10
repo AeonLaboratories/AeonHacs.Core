@@ -1597,7 +1597,7 @@ public class Cegs : ProcessManager, ICegs
     // The trap pressure is complicated by two potential conditions.
     // 1. The trap itself may have no manometer, and
     // 2. The trap may not be the first chamber in IM_FirstTrap with a manometer.
-    protected virtual double FirstTrapPressure 
+    protected virtual double FirstTrapPressure
     {
         get
         {
@@ -2549,9 +2549,21 @@ public class Cegs : ProcessManager, ICegs
         if (!basePressure.IsANumber())
             basePressure = OkPressure; // OkPressure is a convenient but high starting pressure;
                                        // ideally, ror tests start at ultimate pressure.
-        section.VacuumSystem.VentHV(basePressure * 10);
-        section.VacuumSystem.WaitForPressure(basePressure);
+        var vs = section.VacuumSystem;
 
+        void getToStartingPressure()
+        {
+            ProcessSubStep.Start($"Venting high vacuum valve {vs.HighVacuumValve.Name}.");
+            vs.VentHV(basePressure * 3);      // magic number: what should it be?
+            ProcessSubStep.End();
+            ProcessSubStep.Start($"Wait for {vs.Manometer.Name} < {basePressure: 0.00e0} Torr.");
+            vs.WaitForStablePressure(basePressure);
+            ProcessSubStep.End();
+        }
+
+        ProcessStep.Start($"Leak-check {section.Name}.");
+
+        getToStartingPressure();
         // ports often have higher gas loads, usually due to water
         var leakRateLimit = 2 * LeakTightTorrLitersPerSecond;
         while (SectionLeakRate(section, leakRateLimit) > leakRateLimit)
@@ -2561,12 +2573,12 @@ public class Cegs : ProcessManager, ICegs
                 $"Ok to try again or Cancel to move on.\r\n" +
                 $"Restart the application to abort the process.").Ok())
             {
-                section.VacuumSystem.VentHV(basePressure * 10);
-                section.VacuumSystem.WaitForPressure(basePressure);
+                getToStartingPressure();
                 continue;
             }
             break;
         }
+        ProcessStep.End();
     }
 
 
@@ -2615,7 +2627,6 @@ public class Cegs : ProcessManager, ICegs
         gm.Isolate();
         grs.ForEach(gr => gr.Open());
         gm.OpenAndEvacuate();
-        WaitForStablePressure(gm.VacuumSystem, CleanPressure);
         WaitMinutes((int)GRFirstEvacuationMinutes);     // some time to reduce the gas load due to water in the desiccant.
         HoldForLeakTightness(gm);
         ProcessSubStep.End();
@@ -2744,8 +2755,6 @@ public class Cegs : ProcessManager, ICegs
         im.Isolate();
         foreach (var ip in ips) ip.Open();
         im.Evacuate(OkPressure);
-        WaitForStablePressure(im.VacuumSystem, OkPressure);
-        WaitForStablePressure(im.VacuumSystem, CleanPressure);
         HoldForLeakTightness(im);
         Flush(im, 3);
         im.VacuumSystem.WaitForPressure(CleanPressure);
@@ -3267,10 +3276,6 @@ public class Cegs : ProcessManager, ICegs
 
         ProcessSubStep.Start($"Evacuate {manifold.Name} to {CleanPressure:0.0e0} Torr");
         manifold.OpenAndEvacuate();
-        manifold.VacuumSystem.WaitForStablePressure(CleanPressure, 5);
-        ProcessSubStep.End();
-
-        ProcessStep.Start("Check d13C ports for leaks");
         HoldForLeakTightness(manifold);
         ProcessStep.End();
 
