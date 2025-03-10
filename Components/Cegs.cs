@@ -3424,7 +3424,7 @@ public class Cegs : ProcessManager, ICegs
 
         MC.Manometer.WaitForStable(5);
         MC.Isolate();
-        vtc.Standby();
+        vtc.Thaw(); // speeds final OpenLine in process sequences
 
         ProcessStep.End();
     }
