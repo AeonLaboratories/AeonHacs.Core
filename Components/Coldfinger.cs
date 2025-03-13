@@ -4,11 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Runtime.Intrinsics.X86;
 using System.Text;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AeonHacs.Components
 {

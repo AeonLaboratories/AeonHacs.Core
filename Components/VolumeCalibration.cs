@@ -1,13 +1,10 @@
-﻿using AeonHacs;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
-using AeonHacs.Utilities;
-using static AeonHacs.Utilities.Utility;
 using static AeonHacs.Components.CegsPreferences;
+using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
 {

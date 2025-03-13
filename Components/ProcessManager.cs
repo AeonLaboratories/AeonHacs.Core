@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components
