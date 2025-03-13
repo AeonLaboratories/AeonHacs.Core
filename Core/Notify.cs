@@ -68,7 +68,7 @@ public static class Notify
         if (cts.Token.IsCancellationRequested)
             return Notice.NoResponse;
 
-        Hacs.SystemLog.Record(notice.Message);
+        Hacs.SystemLog.Record(notice.Message + "\r\n\t" + notice.Details);
 
         if (audience.HasFlag(Audience.Remote))
             OnAlert?.GetInvocationList().Cast<NoticeHandler>().Select(h => Task.Run(() => h(notice))).ToArray();
