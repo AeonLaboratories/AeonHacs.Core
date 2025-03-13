@@ -2897,12 +2897,16 @@ public class Cegs : ProcessManager, ICegs
             s.VacuumSystem == vacuumSystem &&
             s.Coldfinger is IColdfinger c &&
             c.Temperature < 5).ToList();
-        coldSections.ForEach(s => s.Thaw(10));
-        if (!WaitFor(() => coldSections.All(s => s.Temperature > 5), 600 * 1000, 1000))
+        int minutesToWait = 0;
+        coldSections.ForEach(s =>
         {
-            Announce("A coldfinger is taking too long to thaw.",
-                "Compressed air problem?", NoticeType.Warning);
-        }
+            s.Thaw(10);
+            var mtt = (s.Coldfinger as Coldfinger)?.MaximumMinutesToThaw ??
+                (s.Coldfinger as VTColdfinger)?.MaximumMinutesToThaw ?? 0;
+            if (mtt > minutesToWait)
+                minutesToWait = mtt;
+        });
+        WaitFor(() => coldSections.All(s => s.Temperature > 5), minutesToWait * 60000, 1000);
         ProcessStep.End();
 
         vacuumSystem.OpenLine();
