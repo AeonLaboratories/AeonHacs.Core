@@ -222,6 +222,15 @@ namespace AeonHacs.Components
 
         #endregion Retrieved device values
 
+        /// <summary>
+        /// Data has been received from the Device.
+        /// </summary>
+        public bool DataAcquired
+        {
+            get => dataAcquired;
+            protected set => Ensure(ref dataAcquired, value);
+        }
+        bool dataAcquired = false;
 
         public override string ToString()
         {
@@ -468,6 +477,7 @@ namespace AeonHacs.Components
                     // Update this controller's data
                     Device.ReadingCounter = int.Parse(values[0]);
                     Device.UpdatesReceived++;
+                    DataAcquired = true;
                 }
                 else if (SerialController.CommandMessage[0] == 'h')       // heater report
                 {

@@ -862,6 +862,7 @@ namespace AeonHacs.Components
         double ColdJunctionTemperature { get; }
         double ReadingRate { get; }
         HC6ErrorCodes Errors { get; }
+        bool DataAcquired { get; }
     }
 
     /// <summary>

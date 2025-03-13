@@ -755,9 +755,17 @@ public class Cegs : ProcessManager, ICegs
         try
         {
             bool exceptionAnnounced = false;
+            bool dataAcquired = false;
             while (!StopLogging)
             {
-                if (!Started) continue;
+                if (!dataAcquired)
+                {
+                    dataAcquired = 
+                        daqs.All(d => d.DataAcquired) &&
+                        FindAll<IHC6Controller>().All(hc => hc.DataAcquired);
+                }
+
+                if (!Started || !dataAcquired) continue;
                 try { HacsLog.UpdateAll(); }
                 catch (Exception e)
                 {

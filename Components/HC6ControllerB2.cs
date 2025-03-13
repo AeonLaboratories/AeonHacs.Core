@@ -208,6 +208,7 @@ namespace AeonHacs.Components
                     // Update this controller's data
                     Device.ReadingCounter = int.Parse(values[0]);
                     Device.UpdatesReceived++;
+                    DataAcquired = true;
                 }
                 else if (SerialController.CommandMessage[0] == ControllerDataCommand[0])       // Controller data
                 {
