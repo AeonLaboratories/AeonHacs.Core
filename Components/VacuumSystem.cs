@@ -748,7 +748,7 @@ namespace AeonHacs.Components
         {
             if (!AutoManometer) return;
 
-            var ionOk = HighVacuumValve.IsOpened && BackingValve.IsOpened;
+            var ionOk = !HighVacuumValve.IsClosed && BackingValve.IsOpened;
             if (!ionOk)
                 DisableManometer();
             else

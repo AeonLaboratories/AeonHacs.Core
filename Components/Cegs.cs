@@ -2551,7 +2551,7 @@ public class Cegs : ProcessManager, ICegs
     ///
     /// </summary>
     /// <param name="section"></param>
-    protected virtual void HoldForLeakTightness(ISection section)
+    protected virtual double HoldForLeakTightness(ISection section)
     {
         var basePressure = GetParameter("LeakTestBasePressure");
         if (!basePressure.IsANumber())
@@ -2574,7 +2574,8 @@ public class Cegs : ProcessManager, ICegs
         getToStartingPressure();
         // ports often have higher gas loads, usually due to water
         var leakRateLimit = 2 * LeakTightTorrLitersPerSecond;
-        while (SectionLeakRate(section, leakRateLimit) > leakRateLimit)
+        double finalLeakRate;
+        while ((finalLeakRate = SectionLeakRate(section, leakRateLimit)) > leakRateLimit)
         {
             if (Warn($"{section.Name} is leaking.",
                 $"Something in the {section.Name} isn't holding vacuum well enough.\r\n" +
@@ -2587,6 +2588,7 @@ public class Cegs : ProcessManager, ICegs
             break;
         }
         ProcessStep.End();
+        return finalLeakRate;
     }
 
 
@@ -4793,22 +4795,27 @@ public class Cegs : ProcessManager, ICegs
     protected double SectionLeakRate(ISection section, double leakRateLimit)
     {
         var testSeconds = 120;      // Aeon's standard rate-of-rise test duration
+        var vs = section.VacuumSystem;
 
         ProcessStep.Start($"Leak checking {section.Name}.");
 
         // For completeness, PathToVacuum's equivalent set of chambers should be included, too. It's
         // neglected for now (it would add little because all Manifold(port)'s reach their VM except for MCP1 and MCP2).
-        var liters = (section.CurrentVolume(true) + section.VacuumSystem.VacuumManifold.MilliLiters) / 1000;  // volume in Liters
+        var liters = (section.CurrentVolume(true) + vs.VacuumManifold.MilliLiters) / 1000;  // volume in Liters
         var torr = testSeconds * leakRateLimit / liters;    // change in pressure at leakRateLimit for testSeconds
         var torrLiters = torr * liters;
 
-        var p0 = section.VacuumSystem.Pressure;
-        section.VacuumSystem.Isolate();
+        var p0 = vs.Pressure;
+        bool autoManometer = vs.AutoManometer;
+        vs.AutoManometer = false;
+        vs.Isolate();
         var torrLimit = p0 + torr;
         ProcessSubStep.Start($"Wait up to {testSeconds:0} seconds for {torrLimit:0.0e0} Torr");
-        var leaky = WaitFor(() => section.VacuumSystem.Pressure > torrLimit, testSeconds * 1000, 1000);
+        var leaky = WaitFor(() => vs.Pressure > torrLimit, testSeconds * 1000, 1000);
+        vs.Evacuate();
+        vs.AutoManometer = autoManometer;
         var elapsed = ProcessSubStep.Elapsed.TotalSeconds;
-        torr = section.VacuumSystem.Pressure - p0;     // actual change in pressure
+        torr = vs.Pressure - p0;     // actual change in pressure
         ProcessSubStep.End();
 
         ProcessStep.End();
