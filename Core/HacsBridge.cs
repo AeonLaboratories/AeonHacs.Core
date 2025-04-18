@@ -132,6 +132,7 @@ public class HacsBridge
             HacsImplementation = default;
             return false;
         }
+        if (HacsImplementation == null) return false;
         HacsImplementation.SaveSettings = SaveSettings;
         HacsImplementation.SaveSettingsToFile = SaveSettings;
         return true;
