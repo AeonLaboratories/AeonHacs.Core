@@ -657,6 +657,13 @@ namespace AeonHacs.Components
             Destination?.Isolate();
             FlowValve.CloseWait();
 
+            var absError = Math.Abs(Meter.Value - targetValue);
+            if (absError > 15)   // TODO: magic number
+            {
+                Warn($"{Name} Excessive pressure error (pressure is:{Meter.Value}, should be: {targetValue})." +
+                    $"Ok or Cancel to accept this and move on.\r\n" +
+                    $"Restart the application to abort the process.");
+            }
             MajorStep?.End();
         }
     }

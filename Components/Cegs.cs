@@ -2562,7 +2562,7 @@ public class Cegs : ProcessManager, ICegs
         void getToStartingPressure()
         {
             ProcessSubStep.Start($"Venting high vacuum valve {vs.HighVacuumValve.Name}.");
-            vs.VentHV(basePressure * 3);      // magic number: what should it be?
+            vs.VentHV(basePressure * 10);      // magic number: what should it be?
             ProcessSubStep.End();
             ProcessSubStep.Start($"Wait for {vs.Manometer.Name} < {basePressure: 0.00e0} Torr.");
             vs.WaitForStablePressure(basePressure);
