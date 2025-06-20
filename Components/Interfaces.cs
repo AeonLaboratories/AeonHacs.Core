@@ -2084,13 +2084,10 @@ namespace AeonHacs.Components
         void Rough();
 
         /// <summary>
-        /// Vent the high-vacuum valve to the given pressure.
-        /// Default timeout is 2 minutes.
+        /// Vent the vHV port O-ring by opening vHV to 45 degrees.
         /// </summary>
-        /// <param name="pressure">The desired ultimate pressure.</param>
-        /// <param name="timeout">How long to wait for the pressure to be achieved.</param>
-        /// <returns></returns>
-        public bool VentHV(double pressure, int timeout = 2 * 60 * 1000);
+        public void VentHV();
+
         void DisableManometer();
         void EnableManometer();
     }

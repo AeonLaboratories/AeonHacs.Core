@@ -2548,7 +2548,7 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    ///
+    /// Performs a leak test on the section. This procedure assumes the section to be tested is already being evacuated.
     /// </summary>
     /// <param name="section"></param>
     protected virtual double HoldForLeakTightness(ISection section)
@@ -2556,14 +2556,11 @@ public class Cegs : ProcessManager, ICegs
         var basePressure = GetParameter("LeakTestBasePressure");
         if (!basePressure.IsANumber())
             basePressure = OkPressure; // OkPressure is a convenient but high starting pressure;
-                                       // ideally, ror tests start at ultimate pressure.
+                                       // ideally, RoR tests start at ultimate pressure.
         var vs = section.VacuumSystem;
 
         void getToStartingPressure()
         {
-            ProcessSubStep.Start($"Venting high vacuum valve {vs.HighVacuumValve.Name}.");
-            vs.VentHV(basePressure * 10);      // magic number: what should it be?
-            ProcessSubStep.End();
             ProcessSubStep.Start($"Wait for {vs.Manometer.Name} < {basePressure: 0.00e0} Torr.");
             vs.WaitForStablePressure(basePressure);
             ProcessSubStep.End();
@@ -4750,13 +4747,14 @@ public class Cegs : ProcessManager, ICegs
     {
         var manifold = Manifold(port);
         if (manifold == null) return 0;     // can't check; assume ok
+        var vs = manifold.VacuumSystem;
 
         ProcessStep.Start($"Leak checking {port.Name}.");
 
         var basePressure = GetParameter("LeakTestBasePressure");
         if (!basePressure.IsANumber())
             basePressure = OkPressure; // OkPressure is a convenient but high starting pressure;
-                                       // ideally, ror tests start at ultimate pressure.
+                                       // ideally, RoR tests start at ultimate pressure.
 
         ProcessSubStep.Start($"Evacuate {manifold.Name}+{port.Name} to below {basePressure:0.0e0} Torr");
         manifold.Isolate();
@@ -4764,13 +4762,13 @@ public class Cegs : ProcessManager, ICegs
         manifold.Open();
         port.Open();
         manifold.Evacuate(basePressure);
-        manifold.VacuumSystem.VentHV(basePressure * 10);
-        manifold.VacuumSystem.WaitForPressure(basePressure);
         ProcessSubStep.End();
+
+        var leakRate = SectionLeakRate(manifold, LeakTightTorrLitersPerSecond);
 
         ProcessStep.End();
 
-        return SectionLeakRate(manifold, LeakTightTorrLitersPerSecond);
+        return leakRate;
     }
 
     protected void LeakCheckAllPorts()
@@ -4805,11 +4803,17 @@ public class Cegs : ProcessManager, ICegs
         var torr = testSeconds * leakRateLimit / liters;    // change in pressure at leakRateLimit for testSeconds
         var torrLiters = torr * liters;
 
-        var p0 = vs.Pressure;
         bool autoManometer = vs.AutoManometer;
         vs.AutoManometer = false;
-        vs.Isolate();
+
+        ProcessSubStep.Start($"Venting high vacuum valve {vs.HighVacuumValve.Name}.");
+        vs.VentHV();
+        WaitSeconds(30);
+        ProcessSubStep.End();
+
+        var p0 = vs.Pressure;
         var torrLimit = p0 + torr;
+        vs.Isolate();
         ProcessSubStep.Start($"Wait up to {testSeconds:0} seconds for {torrLimit:0.0e0} Torr");
         var leaky = WaitFor(() => vs.Pressure > torrLimit, testSeconds * 1000, 1000);
         vs.Evacuate();
