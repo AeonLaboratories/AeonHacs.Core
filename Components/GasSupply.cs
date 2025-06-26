@@ -650,7 +650,15 @@ namespace AeonHacs.Components
             SourceValve.OpenWait();
 
             FlowManager.Start(targetValue);
-            WaitFor(() => !FlowManager.Busy || Meter.Value + Meter.RateOfChange * SecondsSettlingTime > targetValue);
+            double anticipatedValue = 0;
+            bool overshootAnticipated()
+            {
+                anticipatedValue = Meter.Value + Meter.RateOfChange * SecondsSettlingTime;
+                return anticipatedValue > targetValue;
+            }
+            WaitFor(() => !FlowManager.Busy || overshootAnticipated());
+            if (anticipatedValue > targetValue)
+                Hacs.SystemLog.Record($"{Name} Stop to avoid overshoot ({anticipatedValue:0.0} > {targetValue:0.0})");
             SourceValve.CloseWait();
             FlowManager.Stop();
 
@@ -660,7 +668,7 @@ namespace AeonHacs.Components
             var absError = Math.Abs(Meter.Value - targetValue);
             if (absError > 15)   // TODO: magic number
             {
-                Warn($"{Name} Excessive pressure error (pressure is:{Meter.Value}, should be: {targetValue})." +
+                Warn($"{Name} Excessive error (value is:{Meter.Value:0.0} {Meter.UnitSymbol}, should be: {targetValue:0.0})." +
                     $"Ok or Cancel to accept this and move on.\r\n" +
                     $"Restart the application to abort the process.");
             }

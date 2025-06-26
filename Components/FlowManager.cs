@@ -279,7 +279,7 @@ namespace AeonHacs.Components
             stopSignal.Reset();
             bool stopRequested = false;
 
-            ProcessStep.Start($"{Name}: starting");
+            ProcessStep.Start($"{Name}: starting {Meter.Value:0.0}=>{TargetValue:0.0}{(StopOnFullyOpened ? " StopOnFullyOpened" : "")}{(StopOnFullyClosed ? " StopOnFullyClosed" : "")}");
 
             var operationName = "_Move";   // temporary
             var operation = FlowValve.FindOperation(operationName) as ActuatorOperation;
@@ -386,6 +386,7 @@ namespace AeonHacs.Components
                     {
                         if (movement < 0) amountToMove = -amountToMove;
                         operation.Value = amountToMove;
+                        Hacs.SystemLog.Record($"{FlowValve.Name} Pos={FlowValve.Position:0} Move {amountToMove:0}");
                         FlowValve.DoWait(operation);
                     }
                     actionStopwatch.Restart();
@@ -397,6 +398,13 @@ namespace AeonHacs.Components
 
                 stopRequested = stopSignal.WaitOne(MillisecondsTimeout);
             }
+            var stoppedBecause =
+                stopRequested ? "stop requested" :
+                StopOnFullyOpened && FlowValve.IsOpened ? "flow valve fully opened" :
+                StopOnFullyClosed && FlowValve.IsClosed ? "flow valve fully closed" :
+                "unknown";
+            Hacs.SystemLog.Record($"{Name} stopped because {stoppedBecause}");
+
             FlowValve.ActuatorOperations.Remove(operation);
 
             ProcessStep.End();
