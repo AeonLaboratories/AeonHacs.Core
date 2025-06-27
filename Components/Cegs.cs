@@ -1787,7 +1787,7 @@ public class Cegs : ProcessManager, ICegs
     /// </summary>
     protected virtual void StopCollectingImmediately() => StopCollecting(true);
 
-    protected virtual void StopCollecting() => StopCollecting(ParameterTrue("FinishCollecting"));
+    protected virtual void StopCollecting() => StopCollecting(!ParameterTrue("FinishCollecting"));
 
     /// <summary>
     /// Close the IP and wait for CT pressure to bleed down until it stops falling.
