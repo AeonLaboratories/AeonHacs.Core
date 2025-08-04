@@ -6,6 +6,7 @@ using System.Threading;
 using AeonHacs.Utilities;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
+using Org.BouncyCastle.Asn1.X509;
 
 namespace AeonHacs.Components
 {
@@ -480,9 +481,9 @@ namespace AeonHacs.Components
                     if (a is CpwValve v && a is not RS232Valve && operation != null)
                     {
                         if (v.TimeLimitDetected)
-                            v.Device.Position = operation.Value;
+                            v.Device.Position = v.Device.Settings.Cpw;
                         else if (v.TimeLimit > 0)
-                            v.Device.Position = (int)Math.Round((operation.Value - v.Device.Position) * (Math.Min(v.Elapsed, v.TimeLimit) / v.TimeLimit) + v.Device.Position);
+                            v.Device.Position = (int)Math.Round((v.Device.Settings.Cpw - v.Device.Position) * (Math.Min(v.Elapsed, v.TimeLimit) / v.TimeLimit) + v.Device.Position);
                     }
                 }
                 a.Device.Active = false;     // end the operation, even if nothing was done (for correct PendingOperations management)
@@ -522,7 +523,7 @@ namespace AeonHacs.Components
 
             var config = $"{a.Config.Settings}";
             if (!(a is IRS232Valve))
-                config = $"p{a.Operation.Value} " + config;
+                config = $"p{a.Config.Settings.Cpw} " + config;
 
             SetServiceValues(config);
             return OperationState.Confirming;

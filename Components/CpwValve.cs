@@ -198,7 +198,7 @@ namespace AeonHacs.Components
         }
 
         protected override bool ReviewOperation() =>
-            !OperationFailed && (Operation == null || Position == Operation.Value);
+            !OperationFailed && (Operation == null || Position == Config.Settings.Cpw);
 
         public override long UpdatesReceived
         {

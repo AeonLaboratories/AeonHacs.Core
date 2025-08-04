@@ -134,7 +134,12 @@ namespace AeonHacs.Components
             {
                 Operation = value;
                 if (Operation != null)
-                    targetSettings = new OperationSettings(Operation.Value, Operation.Configuration);
+                {
+                    var opValue = Operation.Value;
+                    if (this is CpwValve v && Operation.Incremental)
+                        opValue += v.Position; 
+                    targetSettings = new OperationSettings(opValue, Operation.Configuration);
+                }
             }
         }
 
