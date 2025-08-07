@@ -484,8 +484,10 @@ namespace AeonHacs.Components
         /// </summary>
         void manageLNLevel()
         {
-            if (valveOpenStopwatch.IsRunning)
+            if (!LNValve.IsClosed)
             {
+                if (!valveOpenStopwatch.IsRunning) // in case it wsn't (re)started by LNOn().
+                    valveOpenStopwatch.Restart();
                 if (valveOpenStopwatch.Elapsed.TotalSeconds > MaximumSecondsLNFlowing)
                     LNOff();
                 else if (Temperature <= Target)
@@ -510,7 +512,7 @@ namespace AeonHacs.Components
             if (trickling && Temperature < Target + RaiseTrigger)
                 LNValve.DoOperation(Trickle);
             else
-                LNValve.Open();
+                LNValve.OpenWait();
             valveOpenStopwatch.Restart();
         }
 
