@@ -490,7 +490,7 @@ namespace AeonHacs.Components
                 State = OperationState.Free;
                 if (LogEverything) Log?.Record("Operation done.");
             }
-            if (LogEverything && State != priorState) Log?.Record($"State = {priorState = State}");
+            if (LogEverything && State != priorState) Log?.Record($"State = {State}");
         }
 
         // OperationState == Free
