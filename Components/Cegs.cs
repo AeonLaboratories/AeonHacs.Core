@@ -1457,12 +1457,12 @@ public class Cegs : ProcessManager, ICegs
     {
         if (NoInletPort) return;
         AdjustIpSetpoint();
-        double longEnough = MaximumMinutesIpToReachTemperature * 60000;
+        double longEnough = MaximumMinutesIpToReachTemperature;
         if (IpOvenRamper is OvenRamper ramper && ramper.Enabled)
         {
             var degrees = Math.Abs(ramper.Setpoint - ramper.Oven.Temperature);
             var expectedMinutes = (int)(degrees / ramper.RateDegreesPerMinute);
-            longEnough = Math.Max(MaximumMinutesIpToReachTemperature, 1.5 * expectedMinutes);
+            longEnough = Math.Max(longEnough, 1.5 * expectedMinutes);
         }
         ProcessStep.Start($"Waiting for {InletPort.Name} to reach {IpSetpoint:0} °C");
         while (!WaitFor(() => Stopping || InletPort.Temperature < IpSetpoint, (int)(longEnough * 60000), 1000))
@@ -1499,12 +1499,12 @@ public class Cegs : ProcessManager, ICegs
         if (NoInletPort) return;
         AdjustIpSetpoint();
         var closeEnough = IpSetpoint - IpTemperatureCushion;
-        double longEnough = MaximumMinutesIpToReachTemperature * 60000;
+        double longEnough = MaximumMinutesIpToReachTemperature;
         if (IpOvenRamper is OvenRamper ramper && ramper.Enabled)
         {
             var degrees = Math.Abs(ramper.Setpoint - ramper.Oven.Temperature);
             var expectedMinutes = (int)(degrees / ramper.RateDegreesPerMinute);
-            longEnough = Math.Max(MaximumMinutesIpToReachTemperature, 1.5 * expectedMinutes);
+            longEnough = Math.Max(longEnough, 1.5 * expectedMinutes);
         }
         // 2. The trap may not be the first chamber in IM_FirstTrap with a manometer.
 
