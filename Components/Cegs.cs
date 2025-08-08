@@ -1457,8 +1457,15 @@ public class Cegs : ProcessManager, ICegs
     {
         if (NoInletPort) return;
         AdjustIpSetpoint();
+        double longEnough = MaximumMinutesIpToReachTemperature * 60000;
+        if (IpOvenRamper is OvenRamper ramper && ramper.Enabled)
+        {
+            var degrees = Math.Abs(ramper.Setpoint - ramper.Oven.Temperature);
+            var expectedMinutes = (int)(degrees / ramper.RateDegreesPerMinute);
+            longEnough = Math.Max(MaximumMinutesIpToReachTemperature, 1.5 * expectedMinutes);
+        }
         ProcessStep.Start($"Waiting for {InletPort.Name} to reach {IpSetpoint:0} °C");
-        while (!WaitFor(() => Stopping || InletPort.Temperature < IpSetpoint, (int)MaximumMinutesIpToReachTemperature * 60000, 1000))
+        while (!WaitFor(() => Stopping || InletPort.Temperature < IpSetpoint, (int)(longEnough * 60000), 1000))
         {
             var furnaceWasOn = InletPort.SampleFurnace?.IsOn ?? false;
             TurnOffIpSampleFurnace();
@@ -1492,8 +1499,17 @@ public class Cegs : ProcessManager, ICegs
         if (NoInletPort) return;
         AdjustIpSetpoint();
         var closeEnough = IpSetpoint - IpTemperatureCushion;
+        double longEnough = MaximumMinutesIpToReachTemperature * 60000;
+        if (IpOvenRamper is OvenRamper ramper && ramper.Enabled)
+        {
+            var degrees = Math.Abs(ramper.Setpoint - ramper.Oven.Temperature);
+            var expectedMinutes = (int)(degrees / ramper.RateDegreesPerMinute);
+            longEnough = Math.Max(MaximumMinutesIpToReachTemperature, 1.5 * expectedMinutes);
+        }
+        // 2. The trap may not be the first chamber in IM_FirstTrap with a manometer.
+
         ProcessStep.Start($"Waiting for {InletPort.Name} to reach {closeEnough:0} °C");
-        while (!WaitFor(() => Stopping || InletPort.Temperature >= closeEnough, (int)MaximumMinutesIpToReachTemperature * 60000, 1000))
+        while (!WaitFor(() => Stopping || InletPort.Temperature >= closeEnough, (int)(longEnough * 60000), 1000))
         {
             var furnaceWasOn = InletPort.SampleFurnace?.IsOn ?? false;
             TurnOffIpSampleFurnace();
@@ -1604,7 +1620,7 @@ public class Cegs : ProcessManager, ICegs
 
     // The trap pressure is complicated by two potential conditions.
     // 1. The trap itself may have no manometer, and
-    // 2. The trap may not be the first chamber in IM_FirstTrap with a manometer.
+    // 2. The trap may not be the first chamber in the collectionPath (IM_FirstTrap) with a manometer.
     protected virtual double FirstTrapPressure
     {
         get
@@ -1614,6 +1630,18 @@ public class Cegs : ProcessManager, ICegs
             if (IM_FirstTrap?.FlowManager?.Meter is IMeter m)
                 return m.Value;
             return IM_FirstTrap.Pressure;
+        }
+    }
+
+    protected IManometer CollectionPathManometer
+    {
+        get
+        {
+            if (FirstTrap.Manometer is not null)
+                return FirstTrap.Manometer;
+            if (IM_FirstTrap?.FlowManager?.Meter is IManometer m)
+                return m;
+            return IM_FirstTrap.Manometer;
         }
     }
 
@@ -1824,7 +1852,7 @@ public class Cegs : ProcessManager, ICegs
         var collectionPath = IM_FirstTrap;
         if (collectionPath is null) return;
 
-        var p = collectionPath.Manometer;
+        var p = CollectionPathManometer;
         var im = Manifold(InletPort);
         var flowValveIsOpened = collectionPath.FlowValve?.IsOpened ?? true;
         ProcessStep.Start($"Wait for {collectionPath.Name} pressure to stop falling");
