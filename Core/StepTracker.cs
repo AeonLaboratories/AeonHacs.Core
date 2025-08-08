@@ -58,14 +58,16 @@ public class StepTracker : INotifyPropertyChanged
 
     public void End()
     {
-        Hacs.SystemLog.Record($"{Name}: End {CurrentStep.Description}");
         LastElapsed = Elapsed;
-        if (Stack.Count > 0)
-            CurrentStep = Stack.Pop();
-        else if (CurrentStep == null)
+        if (CurrentStep == null)
         {
-            Notify.Announce($"{Name} Push/Pop mismatch", 
+            Notify.Announce($"{Name} Push/Pop mismatch",
                 type: NoticeType.Error);
+        }
+        else if (Stack.Count > 0)
+        {
+            Hacs.SystemLog.Record($"{Name}: End {CurrentStep.Description}");
+            CurrentStep = Stack.Pop();
         }
         else
             CurrentStep = null;
