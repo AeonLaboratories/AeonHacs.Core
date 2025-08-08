@@ -279,7 +279,7 @@ namespace AeonHacs.Components
             stopSignal.Reset();
             bool stopRequested = false;
 
-            ProcessStep.Start($"{Name}: starting {Meter.Value:0.0}=>{TargetValue:0.0}{(StopOnFullyOpened ? " StopOnFullyOpened" : "")}{(StopOnFullyClosed ? " StopOnFullyClosed" : "")}");
+            // ProcessStep.Start($"{Name}: starting {Meter.Value:0.0}=>{TargetValue:0.0}{(StopOnFullyOpened ? " StopOnFullyOpened" : "")}{(StopOnFullyClosed ? " StopOnFullyClosed" : "")}");
 
             var operationName = "_Move";   // temporary
             var operation = FlowValve.FindOperation(operationName) as ActuatorOperation;
@@ -372,11 +372,11 @@ namespace AeonHacs.Components
                         rateBasedMovement :  // manage roc
                         errorBasedMovement;  // manage value
 
-                    ProcessStep.End();
-                    if (manageRate)
-                        ProcessStep.Start($"{Name}: e={error:0} r={roc:0.00}/{targetRate:0.00} ppr={ppr:0.0} m={movement:0.00}");
-                    else
-                        ProcessStep.Start($"{Name}: e={error:0.000} r={roc:0.000}/{targetRate:0.000} g={g:0.0} m={movement:0.0}");
+                    //ProcessStep.End();
+                    //if (manageRate)
+                    //    ProcessStep.Start($"{Name}: e={error:0} r={roc:0.00}/{targetRate:0.00} ppr={ppr:0.0} m={movement:0.00}");
+                    //else
+                    //    ProcessStep.Start($"{Name}: e={error:0.000} r={roc:0.000}/{targetRate:0.000} g={g:0.0} m={movement:0.0}");
 
                     int amountToMove = Math.Min(Math.Abs(MaximumMovement), Math.Abs(movement)).ToInt();
                     if (amountToMove == 0 && (manageRate || outOfDeadband) && anticipatedTimeToTarget > Math.Max(2 * Lag, 10 * secondsCycle))
@@ -407,7 +407,7 @@ namespace AeonHacs.Components
 
             FlowValve.ActuatorOperations.Remove(operation);
 
-            ProcessStep.End();
+            //ProcessStep.End();
         }
     }
 }
