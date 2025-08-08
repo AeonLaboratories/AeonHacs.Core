@@ -188,6 +188,19 @@ namespace AeonHacs.Components
         int secondsToPurge = 20;   // max
 
         /// <summary>
+        /// Limits the amount of time FlowPressurize() will wait for the 
+        /// target pressure to be reached.
+        /// </summary>
+        [JsonProperty, DefaultValue(20)]
+        public int SecondsToPressurize
+        {
+            get => secondsToPressurize;
+            set => Ensure(ref secondsToPressurize, value);
+        }
+        int secondsToPressurize = 20;   // max
+
+
+        /// <summary>
         /// Isolate Destination and Path, then Open the Destination and Path,
         /// joined together.
         /// </summary>
@@ -656,7 +669,8 @@ namespace AeonHacs.Components
                 anticipatedValue = Meter.Value + Meter.RateOfChange * SecondsSettlingTime;
                 return anticipatedValue > targetValue;
             }
-            WaitFor(() => !FlowManager.Busy || overshootAnticipated());
+            var mstimeout = SecondsToPressurize * 1000;
+            WaitFor(() => !FlowManager.Busy || overshootAnticipated(), mstimeout, 1000);
             if (anticipatedValue > targetValue)
                 Hacs.SystemLog.Record($"{Name} Stop to avoid overshoot ({anticipatedValue:0.0} > {targetValue:0.0})");
             SourceValve.CloseWait();
