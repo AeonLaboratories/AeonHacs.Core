@@ -197,7 +197,7 @@ namespace AeonHacs.Components
             get => secondsToPressurize;
             set => Ensure(ref secondsToPressurize, value);
         }
-        int secondsToPressurize = 20;   // max
+        int secondsToPressurize =240;   // max
 
 
         /// <summary>
@@ -663,16 +663,27 @@ namespace AeonHacs.Components
             SourceValve.OpenWait();
 
             FlowManager.Start(targetValue);
-            double anticipatedValue = 0;
-            bool overshootAnticipated()
-            {
-                anticipatedValue = Meter.Value + Meter.RateOfChange * SecondsSettlingTime;
-                return anticipatedValue > targetValue;
-            }
+
             var mstimeout = SecondsToPressurize * 1000;
-            WaitFor(() => !FlowManager.Busy || overshootAnticipated(), mstimeout, 1000);
-            if (anticipatedValue > targetValue)
-                Hacs.SystemLog.Record($"{Name} Stop to avoid overshoot ({anticipatedValue:0.0} > {targetValue:0.0})");
+            string reason = $"{Name} Pressurize() is taking too long (>{secondsToPressurize} seconds).";  // default reason: timeout
+            bool reasonToStop()
+            {
+                if (!FlowManager.Busy)
+                {
+                    reason = $"{Name} {FlowManager.Name} finished.";
+                    return true;
+                }
+                double anticipatedValue = Meter.Value + Meter.RateOfChange * SecondsSettlingTime;
+                if (anticipatedValue > targetValue)
+                {
+                    reason = $"{Name} Stopped to avoid overshoot ({anticipatedValue:0.0} > {targetValue:0.0}).";
+                    return true;
+                }
+                return false;
+            }
+
+            WaitFor(() => reasonToStop(), mstimeout, 1000);
+            Hacs.SystemLog.Record(reason);
             SourceValve.CloseWait();
             FlowManager.Stop();
 
