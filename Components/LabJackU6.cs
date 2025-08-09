@@ -1,4 +1,4 @@
-﻿using AeonHacs;
+﻿using AeonHacs.Utilities;
 using LabJack.LabJackUD;
 using Newtonsoft.Json;
 using System;
@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
-using AeonHacs.Utilities;
 
 namespace AeonHacs.Components
 {
