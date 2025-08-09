@@ -104,9 +104,13 @@ namespace AeonHacs
         {
             if (o?.GetType() is Type t)
             {
-                if (!cachedLists.ContainsKey(t))
-                    return;
-                cachedLists[t].Add(o);
+                foreach (var cachedType in cachedLists.Keys)
+                {
+                    if (t.IsAssignableTo(cachedType))
+                    {
+                        cachedLists[cachedType].Add(o);
+                    }
+                }
             }
         }
 
@@ -114,9 +118,13 @@ namespace AeonHacs
         {
             if (o?.GetType() is Type t)
             {
-                if (!cachedLists.ContainsKey(t))
-                    return;
-                cachedLists[t].Remove(o);
+                foreach (var cachedType in cachedLists.Keys)
+                {
+                    if (t.IsAssignableTo(cachedType))
+                    {
+                        cachedLists[cachedType].Add(o);
+                    }
+                }
             }
         }
 
