@@ -197,7 +197,7 @@ namespace AeonHacs.Components
             get => secondsToPressurize;
             set => Ensure(ref secondsToPressurize, value);
         }
-        int secondsToPressurize =240;   // max
+        int secondsToPressurize = 240;   // max
 
 
         /// <summary>
