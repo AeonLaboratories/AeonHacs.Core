@@ -755,27 +755,39 @@ public class Cegs : ProcessManager, ICegs
         try
         {
             bool exceptionAnnounced = false;
-            bool dataAcquired = false;
+
+            bool loggingStarted = false;
+            var sourcesUp = DateTime.MinValue;
+
             while (!StopLogging)
             {
-                if (!dataAcquired)
+                if (loggingStarted)
                 {
-                    dataAcquired = 
-                        daqs.All(d => d.DataAcquired) &&
-                        FindAll<IHC6Controller>().All(hc => hc.DataAcquired);
-                }
-
-                if (!Started || !dataAcquired) continue;
-                try { HacsLog.UpdateAll(); }
-                catch (Exception e)
-                {
-                    if (!exceptionAnnounced)
+                    try { HacsLog.UpdateAll(); }
+                    catch (Exception e)
                     {
-                        Tell("Exception while updating logs",
-                            e.ToString(), NoticeType.Error);
-                        exceptionAnnounced = true;
+                        if (!exceptionAnnounced)
+                        {
+                            Tell("Exception while updating logs",
+                                e.ToString(), NoticeType.Error);
+                            exceptionAnnounced = true;
+                        }
                     }
                 }
+                else if (sourcesUp == DateTime.MinValue)
+                {
+                    if (/* this Cegs */ Started &&
+                        daqs.All(d => d.IsUp) &&
+                        FindAll<IHC6Controller>().All(hc => hc.DataAcquired))
+                    {
+                        sourcesUp = DateTime.Now;
+                    }
+                }
+                else if ((DateTime.Now - sourcesUp).TotalMilliseconds > 250)
+                {
+                    loggingStarted = true;
+                }
+
                 SystemLogSignal.WaitOne(500);
             }
         }
@@ -1888,6 +1900,8 @@ public class Cegs : ProcessManager, ICegs
             collectionPath.IsolateFromVacuum();
 
         StartCollecting();
+        if (VTT is ISection vtt && FirstTrap != vtt)    // process streamlining; start freezing VTT early
+            vtt.Freeze();
         CollectUntilConditionMet();
         StopCollecting(false);
         if (InletPort is not null)
@@ -3373,6 +3387,11 @@ public class Cegs : ProcessManager, ICegs
     #region Collect
 
     protected virtual void FreezeVtt() => VTT.EmptyAndFreeze(CleanPressure);
+    protected virtual void FreezeFirstTrap()
+    {
+        FirstTrap.OpenAndEvacuate();
+        FirstTrap.Freeze();
+    }
 
     protected virtual void IpFreezeToTrap(ISection trap)
     {
@@ -3565,16 +3584,35 @@ public class Cegs : ProcessManager, ICegs
                 Sample.TotalMicrogramsCarbon = ugC;
             }
 
-            SampleLog.Record("Sample measurement:\r\n" +
-                $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
-                $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
-            );
+            if (!MC.Manometer.OverRange)
+            {
+                SampleLog.Record("Sample measurement:\r\n" +
+                    $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
+                    $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
+                );
+            }
+            else
+            {
+                SampleLog.Record($"Sample measurement ({MC.Manometer} is overrange):\r\n" +
+                    $"\t{Sample.LabId}\t>{Sample.Milligrams:0.0000}\tmg\r\n" +
+                    $"\tCarbon:\t>{ugC:0.0} µgC (>{ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
+                );
+            }
         }
         else
         {
-            TestLog.Record("CO2 measurement:\r\n" +
-                $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC)"
-            );
+            if (!MC.Manometer.OverRange)
+            {
+                TestLog.Record("CO2 measurement:\r\n" +
+                    $"\tCarbon:\t{ugC:0.0} µgC (={ugC / GramsCarbonPerMole:0.00} µmolC)"
+                );
+            }
+            else
+            {
+                TestLog.Record($"CO2 measurement ({MC.Manometer} is overrange):\r\n" +
+                    $"\tCarbon:\t>{ugC:0.0} µgC (>{ugC / GramsCarbonPerMole:0.00} µmolC)"
+                );
+            }
         }
         ProcessStep.End();
     }
@@ -4842,16 +4880,22 @@ public class Cegs : ProcessManager, ICegs
         var p0 = vs.Pressure;
         var torrLimit = p0 + torr;
         vs.Isolate();
+
         ProcessSubStep.Start($"Wait up to {testSeconds:0} seconds for {torrLimit:0.0e0} Torr");
         var leaky = WaitFor(() => vs.Pressure > torrLimit, testSeconds * 1000, 1000);
-        vs.Evacuate();
-        vs.AutoManometer = autoManometer;
         var elapsed = ProcessSubStep.Elapsed.TotalSeconds;
         torr = vs.Pressure - p0;     // actual change in pressure
+        var gasLoad = torr * liters / elapsed;
         ProcessSubStep.End();
 
+        vs.Evacuate();
+        vs.AutoManometer = autoManometer;
+
         ProcessStep.End();
-        return torr * liters / elapsed;
+        Hacs.SystemLog.Record(
+            $"Gas load ({section.VacuumSystem.VacuumManifold.Name}+{section.Name}): {gasLoad:0.0e0} Torr L / sec{(leaky ? " (leaky)" : "")}"
+        );
+        return gasLoad;
     }
 
     protected void CalibrateManualHeater(IHeater h, IThermocouple tc)
