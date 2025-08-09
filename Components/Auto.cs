@@ -38,7 +38,7 @@ namespace AeonHacs.Components
                 if (value < MinimumSetpoint)
                     value = MinimumSetpoint;
                 if (Ensure(ref TargetSetpoint, value, NotifyConfigChanged, nameof(TargetSetpoint)) && Initialized)
-                    Hacs.SystemLog.Record($"{Name}.Setpoint = {value}");
+                    Hacs.SystemLog.Record($"{Name}.Setpoint = {value:0.00}");
             }
         }
         [JsonProperty("Setpoint")]
