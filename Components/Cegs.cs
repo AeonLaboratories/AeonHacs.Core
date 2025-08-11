@@ -1573,6 +1573,21 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void DisableIpRamp() => IpOvenRamper?.Disable();
 
     /// <summary>
+    /// Establish collection path and conditions.
+    /// </summary>
+    protected virtual void PrepareForCollection()
+    {
+        var collectionPath = IM_FirstTrap;
+        if (collectionPath is null) return;
+        collectionPath.VacuumSystem?.MySection?.Isolate();
+        collectionPath.Isolate();
+        collectionPath.FlowValve?.OpenWait();
+        collectionPath.OpenAndEvacuate(OkPressure);
+        if (collectionPath.FlowManager is null)
+            collectionPath.IsolateFromVacuum();
+    }
+
+    /// <summary>
     /// Start collecting sample into the first trap.
     /// </summary>
     protected virtual void StartCollecting() => StartSampleFlow(true);
@@ -1852,8 +1867,11 @@ public class Cegs : ProcessManager, ICegs
         collectionPath?.Close();
         FirstTrap?.Isolate();
         collectionPath?.FlowValve?.CloseWait();
-
+        if (InletPort is not null)
+            InletPort.State = LinePort.States.Complete;
         ProcessStep.End();
+        if (FirstTrap != VTT)
+            TransferCO2FromCTToVTT();
     }
 
     /// <summary>
@@ -1886,29 +1904,10 @@ public class Cegs : ProcessManager, ICegs
     /// </summary>
     protected virtual void Collect()
     {
-        var collectionPath = IM_FirstTrap;
-        if (collectionPath is null)
-        {
-            Tell("Aborting Collect() because collection path is undefined.");
-            return;
-        }
-        collectionPath.VacuumSystem?.MySection?.Isolate();
-        collectionPath.Isolate();
-        collectionPath.FlowValve?.OpenWait();
-        collectionPath.OpenAndEvacuate(OkPressure);
-        if (collectionPath.FlowManager is null)
-            collectionPath.IsolateFromVacuum();
-
+        PrepareForCollection();
         StartCollecting();
-        if (VTT is ISection vtt && FirstTrap != vtt)    // process streamlining; start freezing VTT early
-            vtt.Freeze();
         CollectUntilConditionMet();
-        StopCollecting(false);
-        if (InletPort is not null)
-            InletPort.State = LinePort.States.Complete;
-
-        if (FirstTrap != VTT)
-            TransferCO2FromCTToVTT();
+        StopCollectingAfterBleedDown();
     }
 
     #endregion Process Steps
@@ -3593,7 +3592,7 @@ public class Cegs : ProcessManager, ICegs
             }
             else
             {
-                SampleLog.Record($"Sample measurement ({MC.Manometer} is overrange):\r\n" +
+                SampleLog.Record($"Sample measurement ({MC.Manometer.Name} is overrange):\r\n" +
                     $"\t{Sample.LabId}\t>{Sample.Milligrams:0.0000}\tmg\r\n" +
                     $"\tCarbon:\t>{ugC:0.0} µgC (>{ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
                 );
@@ -3609,7 +3608,7 @@ public class Cegs : ProcessManager, ICegs
             }
             else
             {
-                TestLog.Record($"CO2 measurement ({MC.Manometer} is overrange):\r\n" +
+                TestLog.Record($"CO2 measurement ({MC.Manometer.Name} is overrange):\r\n" +
                     $"\tCarbon:\t>{ugC:0.0} µgC (>{ugC / GramsCarbonPerMole:0.00} µmolC)"
                 );
             }
@@ -3989,7 +3988,7 @@ public class Cegs : ProcessManager, ICegs
             ProcessStep.End();
         }
         gm.ClosePorts();
-        gm.OpenAndEvacuate();
+        gm.OpenAndEvacuate(OkPressure);
     }
 
 
@@ -4108,9 +4107,7 @@ public class Cegs : ProcessManager, ICegs
         combinedSection.Open();
         ProcessSubStep.End();
 
-        ProcessSubStep.Start("Wait for CO2 transfer complete.");
-        WaitMinutes((int)CO2TransferMinutes);
-        ProcessSubStep.End();
+        WaitSeconds((int)CO2TransferMinutes * 60, $"Wait {SecondsString((int)CO2TransferMinutes * 60)} for CO2 transfer to complete");
 
         toSection.RaiseLN();
 
@@ -4305,7 +4302,7 @@ public class Cegs : ProcessManager, ICegs
         WaitFor(bothFrozen, interval: 1000);
         ProcessSubStep.End();
 
-        WaitMinutes((int)CO2TransferMinutes);
+        WaitSeconds((int)CO2TransferMinutes * 60, $"Wait {SecondsString((int)CO2TransferMinutes * 60)} for CO2 transfer to complete");
 
         ProcessSubStep.Start("Raise LN");
         void jgr()
@@ -4451,7 +4448,7 @@ public class Cegs : ProcessManager, ICegs
         mcCF.FreezeWait();
 
         ProcessSubStep.Start($"Wait for sample to freeze into {MC.Name}");
-        WaitMinutes((int)CO2TransferMinutes);
+        WaitSeconds((int)(CO2TransferMinutes * 60));
         mcCF.RaiseLN();
         mc_gm.Close();
         mcCF.Freeze();
@@ -4512,7 +4509,7 @@ public class Cegs : ProcessManager, ICegs
 
         im.VacuumSystem.Isolate();
         MC_Split.Open();
-        WaitMinutes((int)CO2TransferMinutes, $"Wait {MinutesString((int)CO2TransferMinutes)} for CO2 to freeze into {InletPort.Name}");
+        WaitSeconds((int)CO2TransferMinutes * 60, $"Wait {SecondsString((int)CO2TransferMinutes*60)} for CO2 to freeze into {InletPort.Name}");
 
         WaitForOperator($"Raise {InletPort.Name} LN one inch.");
 
@@ -4871,6 +4868,7 @@ public class Cegs : ProcessManager, ICegs
 
         bool autoManometer = vs.AutoManometer;
         vs.AutoManometer = false;
+        vs.DisableManometer();      // use pVM_LP to measure leak rate as pVM_IG may not have sufficient headroom.
 
         ProcessSubStep.Start($"Venting high vacuum valve {vs.HighVacuumValve.Name}.");
         vs.VentHV();
