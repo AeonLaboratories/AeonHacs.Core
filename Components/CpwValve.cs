@@ -119,6 +119,34 @@ namespace AeonHacs.Components
         }
         int? closedValue;
 
+        public virtual int MinValue
+        {
+            get
+            {
+                var max = int.MaxValue;
+                foreach (var op in ActuatorOperations)
+                {
+                    if (!op.Incremental && op.Value < max)
+                        max = op.Value;
+                }
+                return max;
+            }
+        }
+
+        public virtual int MaxValue
+        {
+            get
+            {
+                var max = int.MinValue;
+                foreach (var op in ActuatorOperations)
+                {
+                    if (!op.Incremental && op.Value > max)
+                        max = op.Value;
+                }
+                return max;
+            }
+        }
+
         public virtual int CenterValue => (OpenedValue + ClosedValue) / 2;
 
         public virtual bool OpenIsPositive => OpenedValue >= ClosedValue;
@@ -155,14 +183,21 @@ namespace AeonHacs.Components
         {
             if (operation == null) return null;
             var newPosition = operation.Incremental ? Position + operation.Value : operation.Value;
-            var maxPosition = Math.Max(OpenedValue, ClosedValue);
-            var minPosition = Math.Min(OpenedValue, ClosedValue);
-            if (newPosition > maxPosition) newPosition = maxPosition;
-            if (newPosition < minPosition) newPosition = minPosition;
-            if (newPosition == Position) return null;
+            newPosition = Math.Min(newPosition, MaxValue);
+            newPosition = Math.Max(newPosition, MinValue);
+            if (newPosition == Position) return null;       // nothing to do
+
             var newValue = operation.Incremental ? newPosition - Position : newPosition;
-            operation.Value = newValue; // no point in checking whether they match here
-            return operation;
+            if (operation.Value == newValue)
+                return operation;
+
+            // Avoid overwriting the provided operation
+            var newOperation = new ActuatorOperation();
+            newOperation.Value = newValue;
+            newOperation.Name = "_" + operation.Name;       // "_" meaning 'modified'
+            newOperation.Incremental = operation.Incremental;
+            newOperation.Configuration = operation.Configuration;
+            return newOperation;
         }
 
         // Called when the valve becomes "Active", whenever a report
