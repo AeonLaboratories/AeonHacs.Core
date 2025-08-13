@@ -1885,17 +1885,18 @@ public class Cegs : ProcessManager, ICegs
         var p = CollectionPathManometer;
         var im = Manifold(InletPort);
         var flowValveIsOpened = collectionPath.FlowValve?.IsOpened ?? true;
-        ProcessStep.Start($"Wait for {collectionPath.Name} pressure to stop falling");
+        ProcessStep.Start($"Wait 5 to 30 seconds for {collectionPath.Name} pressure to stop falling");
+        WaitSeconds(5);
         if (p != null) // don't wait if there's no manometer
             WaitFor(() =>
             {
-                if (!flowValveIsOpened && im is not null && im.Pressure <= FirstTrapEndPressure)
+                if (!flowValveIsOpened && im is not null && im.Pressure <= Math.Max(1, FirstTrapEndPressure))
                 {
                     collectionPath.FlowValve.OpenWait();
                     flowValveIsOpened = true;
                 }
                 return !p.IsFalling;
-            });
+            }, 30000, 1000);
         ProcessStep.End();
     }
 
@@ -3593,7 +3594,7 @@ public class Cegs : ProcessManager, ICegs
             else
             {
                 SampleLog.Record($"Sample measurement ({MC.Manometer.Name} is overrange):\r\n" +
-                    $"\t{Sample.LabId}\t>{Sample.Milligrams:0.0000}\tmg\r\n" +
+                    $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
                     $"\tCarbon:\t>{ugC:0.0} µgC (>{ugC / GramsCarbonPerMole:0.00} µmolC){yield}"
                 );
             }
@@ -4107,7 +4108,7 @@ public class Cegs : ProcessManager, ICegs
         combinedSection.Open();
         ProcessSubStep.End();
 
-        WaitSeconds((int)CO2TransferMinutes * 60, $"Wait {SecondsString((int)CO2TransferMinutes * 60)} for CO2 transfer to complete");
+        WaitSeconds((int)(CO2TransferMinutes * 60), $"Wait {SecondsString((int)(CO2TransferMinutes * 60))} for CO2 transfer to complete");
 
         toSection.RaiseLN();
 
@@ -4302,7 +4303,7 @@ public class Cegs : ProcessManager, ICegs
         WaitFor(bothFrozen, interval: 1000);
         ProcessSubStep.End();
 
-        WaitSeconds((int)CO2TransferMinutes * 60, $"Wait {SecondsString((int)CO2TransferMinutes * 60)} for CO2 transfer to complete");
+        WaitSeconds((int)(CO2TransferMinutes * 60), $"Wait {SecondsString((int)(CO2TransferMinutes * 60))} for CO2 transfer to complete");
 
         ProcessSubStep.Start("Raise LN");
         void jgr()
@@ -4509,7 +4510,7 @@ public class Cegs : ProcessManager, ICegs
 
         im.VacuumSystem.Isolate();
         MC_Split.Open();
-        WaitSeconds((int)CO2TransferMinutes * 60, $"Wait {SecondsString((int)CO2TransferMinutes*60)} for CO2 to freeze into {InletPort.Name}");
+        WaitSeconds((int)(CO2TransferMinutes * 60), $"Wait {SecondsString((int)(CO2TransferMinutes * 60))} for CO2 to freeze into {InletPort.Name}");
 
         WaitForOperator($"Raise {InletPort.Name} LN one inch.");
 
