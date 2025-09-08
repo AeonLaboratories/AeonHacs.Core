@@ -377,6 +377,15 @@ namespace AeonHacs.Components
         public int ResponseTimeouts { get; private set; } = 0;
         object responseTimeoutsLocker = new object();
 
+        /// <summary>
+        /// Reset the SerialDevice, if it exists, and set ResponseTimeouts to 0.
+        /// </summary>
+        public void Reset()
+        {
+            SerialDevice?.Reset();
+            lock (responseTimeoutsLocker) ResponseTimeouts = 0;
+        }
+
         private int priorAwaitingResponses = -1;
 
         /// <summary>
