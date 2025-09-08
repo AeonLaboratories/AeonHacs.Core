@@ -2491,24 +2491,14 @@ namespace AeonHacs.Components
     public interface IExtractionLine : IProcessManager
     {
         Cegs CEGS { get; set; }
-        SerialTubeFurnace TubeFurnace { get; set; }
-        VacuumSystem VacuumSystem { get; set; }
-        IManometer TubeFurnaceManometer { get; set; }
-        MassFlowController MFC { get; set; }
+        ITubeFurnace TubeFurnace { get; set; }
+        ISection TFSection { get; set; }
+        //MassFlowController MFC { get; set; }
+        ILinePort TFPort { get; set; }
         GasSupply O2GasSupply { get; set; }
         GasSupply HeGasSupply { get; set; }
-        IValve CegsValve { get; set; }
-        IValve v_TF_VM { get; set; }
-        IRS232Valve v_TF_flow { get; set; }
-        IValve v_TF_flow_shutoff { get; set; }
-        ISection TubeFurnaceSection { get; set; }
-        ILinePort TubeFurnacePort { get; set; }
-        IFlowManager TubeFurnaceRateManager { get; set; }
-        IFlowManager TubeFurnacePressureManager { get; set; }
-        double OkPressure { get; set; }
-        double CleanPressure { get; set; }
-        IManometer AmbientManometer { get; set; }
-        HacsLog SampleLog { get; set; }
+        FlowManager TFRateManager { get; set; }
+        FlowManager TFPressureManager { get; set; }
     }
 
 

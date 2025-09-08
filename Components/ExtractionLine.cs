@@ -1,5 +1,5 @@
-﻿using MimeKit;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+using System.Linq;
 using System.Threading;
 using static AeonHacs.Notify;
 using static AeonHacs.Utilities.Utility;
@@ -7,8 +7,7 @@ using static AeonHacs.Utilities.Utility;
 namespace AeonHacs.Components
 {
     /// <summary>
-    /// A CO2-liberator for quartz. ExtractionLine is not a good name,
-    /// but it's familiar. So, for now...
+    /// In situ extraction line: A CO2-liberator for quartz.
     /// </summary>
     public class ExtractionLine : ProcessManager, IExtractionLine
     {
@@ -17,7 +16,14 @@ namespace AeonHacs.Components
         [HacsConnect]
         protected virtual void Connect()
         {
-            //TODO
+            CEGS = Find<Cegs>(cegsName);
+            TubeFurnace = Find<ITubeFurnace>(tubeFurnaceName);
+            TFSection = Find<ISection>(tfSectionName);
+            TFPort = Find<IInletPort>(tfPortName);
+            O2GasSupply = Find<GasSupply>(o2GasSupplyName);
+            HeGasSupply = Find<GasSupply>(heGasSupplyName);
+            TFPressureManager = Find<FlowManager>(tfPressureManagerName);
+            TFRateManager = Find<FlowManager>(tfRateManagerName);
         }
 
         [HacsPostConnect]
@@ -27,179 +33,219 @@ namespace AeonHacs.Components
             O2GasSupply.ProcessStep = ProcessStep;
             HeGasSupply.ProcessStep = ProcessStep;
 
-
-            purgeFlowManager = new gasFlowManager()
+            PurgeFlowManager = new gasFlowManager()
             {
                 GasSupply = HeGasSupply,
-                Pressure = TubeFurnaceManometer,
-                Reference = AmbientManometer
+                Pressure = TFSection.Manometer,
+                Reference = CEGS.Ambient.Manometer
             };
-
-            // TODO: delete this code after it appears in the settings file
-            TubeFurnaceRateManager.MillisecondsTimeout = 35;
-            TubeFurnaceRateManager.SecondsCycle = 0.75;
-            TubeFurnaceRateManager.FlowValve = v_TF_flow;
-            TubeFurnaceRateManager.Meter = TubeFurnaceManometer;
-            TubeFurnaceRateManager.Lag = 60;
-            TubeFurnaceRateManager.Deadband = 0.02;
-            TubeFurnaceRateManager.DeadbandIsFractionOfTarget = true;
-            TubeFurnaceRateManager.Gain = 15;
-            TubeFurnaceRateManager.DivideGainByDeadband = false;
-            TubeFurnaceRateManager.UseRateOfChange = true;
-
-            // TODO: delete this code after it appears in the settings file
-            TubeFurnacePressureManager.MillisecondsTimeout = 35;
-            TubeFurnacePressureManager.SecondsCycle = 0.75;
-            TubeFurnacePressureManager.FlowValve = v_TF_flow;
-            TubeFurnacePressureManager.Meter = TubeFurnaceManometer;
-            TubeFurnacePressureManager.Lag = 60;
-            TubeFurnacePressureManager.Gain = -1;
-            TubeFurnacePressureManager.DivideGainByDeadband = true;
-            TubeFurnacePressureManager.UseRateOfChange = false;
         }
 
         #endregion HacsComponent
 
-        [JsonProperty] public Cegs CEGS { get; set; }
-        [JsonProperty] public SerialTubeFurnace TubeFurnace { get; set; }
-        [JsonProperty] public VacuumSystem VacuumSystem { get; set; }
-        [JsonProperty] public IManometer TubeFurnaceManometer { get; set; }
-        [JsonProperty] public MassFlowController MFC { get; set; }
-        [JsonProperty] public GasSupply O2GasSupply { get; set; }
-        [JsonProperty] public GasSupply HeGasSupply { get; set; }
-        [JsonProperty] public IValve CegsValve { get; set; }
-        [JsonProperty] public IValve v_TF_VM { get; set; }
-        [JsonProperty] public IRS232Valve v_TF_flow { get; set; }
-        [JsonProperty] public IValve v_TF_flow_shutoff { get; set; }
-        [JsonProperty] public ISection TubeFurnaceSection { get; set; }
-        [JsonProperty] public ILinePort TubeFurnacePort { get; set; }
-        [JsonProperty] public IFlowManager TubeFurnaceRateManager { get; set; }
-        [JsonProperty] public IFlowManager TubeFurnacePressureManager { get; set; }
-
-        gasFlowManager purgeFlowManager = new gasFlowManager();
-
-        public double OkPressure { get; set; }
-        public double CleanPressure { get; set; }          // clean enough to start a new sample
-        public IManometer AmbientManometer { get; set; }
-        public HacsLog SampleLog { get; set; }
-
-        #region process management
-
-        public override void AbortRunningProcess()
+        [JsonProperty("CEGS")]
+        string CEGSName { get => CEGS?.Name; set => cegsName = value; }
+        string cegsName;
+        /// <summary>
+        /// The CEGS that the ISEL connects to.
+        /// </summary>
+        public Cegs CEGS
         {
-            if (purgeFlowManager.Busy)
-                purgeFlowManager.Stop();
-            if (TubeFurnaceRateManager.Busy)
-                TubeFurnaceRateManager.Stop();
-            if (TubeFurnacePressureManager.Busy)
-                TubeFurnacePressureManager.Stop();
-            base.AbortRunningProcess();
+            get => cegs;
+            set => Ensure(ref cegs, value);
         }
+        Cegs cegs;
 
 
-        #region parameterized processes
-        protected override void Combust(int temperature, int minutes, bool admitO2, bool waitForSetpoint)
+        [JsonProperty("TubeFurnace")]
+        string TubeFurnaceName { get => TubeFurnace?.Name; set => tubeFurnaceName = value; }
+        string tubeFurnaceName;
+        /// <summary>
+        /// The tube furnace.
+        /// </summary>
+        public ITubeFurnace TubeFurnace
         {
-            TubeFurnace.TurnOn(temperature);
-            ProcessStep.Start($"Waiting for temperature to reach {temperature} °C");
-            WaitFor(() => TubeFurnace.Temperature > temperature - 10, -1, 1000);
-            ProcessStep.End();
-
+            get => tubeFurnace;
+            set => Ensure(ref tubeFurnace, value);
         }
-        #endregion parameterized processes
+        ITubeFurnace tubeFurnace;
+
+        [JsonProperty("O2GasSupply")]
+        string O2GasSupplyName { get => O2GasSupply?.Name; set => o2GasSupplyName = value; }
+        string o2GasSupplyName;
+        /// <summary>
+        /// The O2 gas supply for the tube furnace chamber.
+        /// </summary>
+        public GasSupply O2GasSupply
+        {
+            get => o2GasSupply;
+            set => Ensure(ref o2GasSupply, value);
+        }
+        GasSupply o2GasSupply;
+
+
+        [JsonProperty("HeGasSupply")]
+        string HeGasSupplyName { get => HeGasSupply?.Name; set => heGasSupplyName = value; }
+        string heGasSupplyName;
+        /// <summary>
+        /// The He gas supply for the tube furnace chamber.
+        /// </summary>
+        public GasSupply HeGasSupply
+        {
+            get => heGasSupply;
+            set => Ensure(ref heGasSupply, value);
+        }
+        GasSupply heGasSupply;
+
+
+        [JsonProperty("TFSection")]
+        string TFSectionName { get => TFSection?.Name; set => tfSectionName = value; }
+        string tfSectionName;
+        /// <summary>
+        /// The tube furnace Section.
+        /// </summary>
+        public ISection TFSection
+        {
+            get => tfSection;
+            set => Ensure(ref tfSection, value);
+        }
+        ISection tfSection;
+
+
+        [JsonProperty("TFPort")]
+        string TFPortName { get => TFPort?.Name; set => tfPortName = value; }
+        string tfPortName;
+        /// <summary>
+        /// The CEGS inlet port to which this ISEL is connected.
+        /// </summary>
+        public ILinePort TFPort
+        {
+            get => tfPort;
+            set => Ensure(ref tfPort, value);
+        }
+        ILinePort tfPort;
+
+        [JsonProperty("TFRateManager")]
+        string TFRateManagerName { get => TFRateManager?.Name; set => tfRateManagerName = value; }
+        string tfRateManagerName;
+        /// <summary>
+        /// The CEGS inlet port to which this ISEL is connected.
+        /// </summary>
+        public FlowManager TFRateManager
+        {
+            get => tfRateManager;
+            set => Ensure(ref tfRateManager, value);
+        }
+        FlowManager tfRateManager;
+
+
+        [JsonProperty("TFPressureManager")]
+        string TFPressureManagerName { get => TFPressureManager?.Name; set => tfPressureManagerName = value; }
+        string tfPressureManagerName;
+        /// <summary>
+        /// The CEGS inlet port to which this ISEL is connected.
+        /// </summary>
+        public FlowManager TFPressureManager
+        {
+            get => tfPressureManager;
+            set => Ensure(ref tfPressureManager, value);
+        }
+        FlowManager tfPressureManager;
+
+
+
+
+        gasFlowManager PurgeFlowManager = new gasFlowManager();
+        public HacsLog SampleLog => CEGS.SampleLog;
+        public double pAmbient => CEGS.Ambient.Pressure;
+        public double OkPressure => CEGS.OkPressure;
+
+        public VacuumSystem VacuumSystem => TFSection.VacuumSystem as VacuumSystem;
+        public IManometer TFManometer => TFSection.Manometer;
+        //public IValve vTFFlow => TFPressureManager.FlowValve;
+
+
+
+        #region process manager
 
         #region ProcessDictionary
         protected override void BuildProcessDictionary()
         {
-            ProcessDictionary.Add("Open and evacuate line", openLine);
-            ProcessDictionary.Add("Isolate tube furnace", isolateTF);
-            ProcessDictionary.Add("Pressurize tube furnace to 50 torr O2", pressurizeO2);
-            ProcessDictionary.Add("Evacuate tube furnace", evacuateTF);
-            ProcessDictionary.Add("Evacuate tube furnace over 10 minutes", pacedEvacuate);
-            ProcessDictionary.Add("TurnOff tube furnace", turnOffTF);
-            ProcessDictionary.Add("Prepare tube furnace for opening", prepareForOpening);
-            ProcessDictionary.Add("Bake out tube furnace", bakeout);
-            ProcessDictionary.Add("Degas LiBO2", degas);
-            ProcessDictionary.Add("Begin extract", beginExtract);
-            ProcessDictionary.Add("Finish extract", finishExtract);
-            ProcessDictionary.Add("Bleed", bleed);
-            ProcessDictionary.Add("Remaining P in TF", remaining_P);
-            ProcessDictionary.Add("Suspend IG", suspendVSManometer);
-            ProcessDictionary.Add("Restore IG", restoreVSManometer);
-
-            base.BuildProcessDictionary();
+            ProcessDictionary["Open and evacuate line"] = () => VacuumSystem?.OpenLine();
+            ProcessDictionary["Isolate tube furnace"] = () => TFSection.Isolate();
+            ProcessDictionary["Pressurize tube furnace to 50 torr O2"] = () => PressurizeO2(50);
+            ProcessDictionary["Evacuate tube furnace"] = EvacuateTF;
+            ProcessDictionary["Evacuate tube furnace over 10 minutes"] = PacedEvacuate;
+            ProcessDictionary["TurnOff tube furnace"] = () => TubeFurnace.TurnOff();
+            ProcessDictionary["Prepare tube furnace for opening"] = PrepareForOpening;
+            ProcessDictionary["Bake out tube furnace"] = Bakeout;
+            ProcessDictionary["Degas LiBO2"] = Degas;
+            ProcessDictionary["Begin extract"] = () => BeginExtract(50, 600, 10, 1100, 10);
+            ProcessDictionary["Finish extract"] = FinishExtract;
+            ProcessDictionary["Bleed"] = Bleed;
+            ProcessDictionary["Remaining P in TF"] = Remaining_P;
+            ProcessDictionary["Suspend IG"] = DisableVSManometer;
+            ProcessDictionary["Restore IG"] = RestoreVSManometer;
         }
         #endregion ProcessDictionary
 
 
         #region TubeFurnace processes
 
-        void isolateTF()
+        void IsolateTF()
         {
-            VacuumSystem.IsolateManifold();
-            // TODO replace this functionality: VacuumSystem.IsolateSections();
+            TFSection.Isolate();
             O2GasSupply.ShutOff();
             HeGasSupply.ShutOff();
-            CegsValve.Close();
         }
 
-        void pacedEvacuate()
+        void PacedEvacuate()
         {
-            isolateTF();
-            v_TF_flow.Close();
-            v_TF_flow.Calibrate();
-            v_TF_flow_shutoff.Open();
+            var vTFFlow = TFRateManager.FlowValve;
+            var vTFFlowShutoff = TFSection.PathToVacuum.LastOrDefault();
+
+            IsolateTF();
+            vTFFlow.CloseWait();
+            vTFFlowShutoff.OpenWait();
             VacuumSystem.Evacuate();
 
             // evacuate TF over ~10 minutes
             //TFFlowManager.Start(-p_TF / (10 * 60));     // negative to target a falling pressure
-            TubeFurnaceRateManager.Start(-1.5);     // 1.5 Torr / sec
-            waitForPressureBelow(50);
-            TubeFurnaceRateManager.Stop();
+            TFRateManager.Start(-1.5);     // 1.5 Torr / sec
+            WaitForPressureBelow(50);
+            TFRateManager.Stop();
 
-            v_TF_flow.Open();
+            vTFFlow.OpenWait();
 
-            waitForPressureBelow(20);
-            v_TF_VM.Open();
-            v_TF_flow_shutoff.Close();
+            WaitForPressureBelow(20);
+            EvacuateTF();
+            vTFFlow.CloseWait();
         }
 
-        void evacuateTF()
-        {
-            TubeFurnaceSection.OpenAndEvacuate();
-        }
-
-        void openLine()
-        {
-            isolateTF();
-            evacuateTF();
-        }
-
-        void turnOffTF() { TubeFurnace.TurnOff(); }
-
-        void evacuateTF(double pressure)
+        void TurnOffTF() => TubeFurnace.TurnOff();
+        void EvacuateTF() => TFSection.OpenAndEvacuate();
+        void EvacuateTF(double pressure)
         {
             ProcessStep.Start($"Evacuate to {pressure:0.0e0} Torr");
-            TubeFurnaceSection.OpenAndEvacuate(pressure);
+            TFSection.OpenAndEvacuate(pressure);
             ProcessStep.End();
         }
 
-        void waitForPressureBelow(double pressure)
+        void WaitForPressureBelow(double pressure)
         {
             ProcessStep.Start($"Wait for tube pressure < {pressure} Torr");
-            WaitFor(() => TubeFurnaceManometer.Pressure < pressure);
+            WaitFor(() => TFManometer.Pressure < pressure);
             ProcessStep.End();
         }
 
-
-        void waitForPressureAbove(double pressure)
+        void WaitForPressureAbove(double pressure)
         {
             ProcessStep.Start($"Wait for tube pressure > {pressure} Torr");
-            WaitFor(() => TubeFurnaceManometer.Pressure > pressure);
+            WaitFor(() => TFManometer.Pressure > pressure);
             ProcessStep.End();
         }
 
-        void waitForTemperatureAbove(int temperature)
+        void WaitForTemperatureAbove(int temperature)
         {
             ProcessStep.Start($"Wait for tube temperature > {temperature} °C");
             WaitFor(() => TubeFurnace.Temperature > temperature);
@@ -213,49 +259,49 @@ namespace AeonHacs.Components
             ProcessStep.End();
         }
 
-        void pressurizeO2() => pressurizeO2(50);
-
-        void pressurizeO2(double pressure)
+        void PressurizeO2(double pressure)
         {
             ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {O2GasSupply.GasName}");
-            MFC.TurnOn(MFC.MaximumSetpoint);
-            O2GasSupply.Admit(pressure);
-            MFC.TurnOff();
+            O2GasSupply.Pressurize(pressure);
+            //MFC?.TurnOn(MFC.MaximumSetpoint);
+            //O2GasSupply.Admit(pressure);
+            //MFC.TurnOff();
             ProcessStep.End();
         }
 
-        void pressurizeHe(double pressure)
+        void PressurizeHe(double pressure)
         {
             ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {HeGasSupply.GasName}");
-            HeGasSupply.Admit(pressure);
+            HeGasSupply.Pressurize(pressure);
             ProcessStep.End();
         }
 
-        void prepareForOpening()
+
+        void PrepareForOpening()
         {
-            TubeFurnacePort.State = LinePort.States.InProcess;
+            TFPort.State = LinePort.States.InProcess;
             ProcessStep.Start("Prepare tube furnace for opening");
 
-            pressurizeHe(AmbientManometer.Pressure + 20);
-            purgeFlowManager.Start();
+            PressurizeHe(pAmbient + 20);
+            PurgeFlowManager.Start();
 
             ProcessStep.CurrentStep.Description = "Tube furnace ready to be opened";
-           
+
             WaitForOperator(
                 "Tube furnace ready to be opened." +
                 "Purge flow is active.\r\n" +
                 "Dismiss this window when furnace is closed again.");
-            purgeFlowManager.Stop();
+            PurgeFlowManager.Stop();
 
             ProcessStep.End();
-            TubeFurnacePort.State = LinePort.States.Complete;
+            TFPort.State = LinePort.States.Complete;
         }
 
         // Bake furnace tube
-        void bakeout()
+        void Bakeout()
         {
             ProcessStep.Start($"{Name}: Bakeout tube furnace");
-            isolateTF();
+            IsolateTF();
 
             if (!OkCancel("Confirm prior sample is removed",
                 "Has the prior sample been removed?!\r\n" +
@@ -265,7 +311,7 @@ namespace AeonHacs.Components
                 return;
             }
 
-            TubeFurnacePort.State = LinePort.States.InProcess;
+            TFPort.State = LinePort.States.InProcess;
 
             SampleLog.WriteLine();
             SampleLog.Record($"{Name}: Start Process: Bakeout tube furnace");
@@ -275,36 +321,39 @@ namespace AeonHacs.Components
             int bakeMinutes = 60;
             int bakeCycles = 4;
 
-            evacuateTF(0.01);
-            pressurizeO2(O2Pressure);
+            EvacuateTF(0.01);
+            PressurizeO2(O2Pressure);
 
             TubeFurnace.TurnOn(bakeTemperature);
-            waitForTemperatureAbove(bakeTemperature-10);
+            WaitForTemperatureAbove(bakeTemperature - 10);
 
             for (int i = 0; i < bakeCycles; ++i)
             {
-                pressurizeO2(O2Pressure);
+                PressurizeO2(O2Pressure);
 
-                ProcessStep.Start($"Bake at {bakeTemperature} °C for {MinutesString(bakeMinutes)} min, cycle {i+1} of {bakeCycles}");
+                ProcessStep.Start($"Bake at {bakeTemperature} °C for {MinutesString(bakeMinutes)} min, cycle {i + 1} of {bakeCycles}");
                 WaitMinutes(bakeMinutes);
                 ProcessStep.End();
-                evacuateTF(0.1);
+                EvacuateTF(0.1);
             }
 
             TubeFurnace.TurnOff();
-            evacuateTF(OkPressure);
+            EvacuateTF(OkPressure);
             var msg = $"{Name}: Tube bakeout process complete";
             SampleLog.Record(msg);
             Alert(msg);
             ProcessStep.End();
-            TubeFurnacePort.State = LinePort.States.Complete;
+            TFPort.State = LinePort.States.Complete;
         }
 
 
         // Degas LiBO2, boat, and quartz sleeve on Day 1 Process
-        void degas()
+        void Degas()
         {
-            TubeFurnacePort.State = LinePort.States.InProcess;
+            var vTFFlow = TFPressureManager.FlowValve;
+            var vTFFlowShutoff = TFSection.PathToVacuum.LastOrDefault();
+
+            TFPort.State = LinePort.States.InProcess;
 
             SampleLog.WriteLine();
             SampleLog.Record($"{Name}: Start Process: Degas LiBO2, boat, and sleeve");
@@ -314,26 +363,27 @@ namespace AeonHacs.Components
             int bleedMinutes = 60;
             int t_LiBO2_frozen = 800;
 
-            pacedEvacuate();
-            evacuateTF(0.01);
-            isolateTF();
-            MFC.ResetTrackedFlow();
-            pressurizeO2(ptarget);
+            PacedEvacuate();
+            EvacuateTF(0.01);
+            IsolateTF();
+            //MFC.ResetTrackedFlow();
+            PressurizeO2(ptarget);
 
             TubeFurnace.TurnOn(bleedTemperature);
-            waitForTemperatureAbove(bleedTemperature - 10);
+            WaitForTemperatureAbove(bleedTemperature - 10);
 
-            v_TF_flow.Close();
+            vTFFlow.CloseWait();
 
             ProcessStep.Start($"Bleed O2 over sample for {MinutesString(bleedMinutes)}");
-            MFC.TurnOn(5);
+            //MFC.TurnOn(5);
+            // Set FTG flow valve here and open the O2 gas supply valve
             O2GasSupply.Admit();
 
             VacuumSystem.Isolate();
-            v_TF_flow_shutoff.Open();
+            vTFFlowShutoff.OpenWait();
             VacuumSystem.Evacuate();
 
-            TubeFurnacePressureManager.Start(ptarget);
+            TFPressureManager.Start(ptarget);
 
             WaitRemaining(bleedMinutes);
             ProcessStep.End();
@@ -343,173 +393,186 @@ namespace AeonHacs.Components
             TubeFurnace.Setpoint = 100;
             WaitForTemperatureBelow(t_LiBO2_frozen);
 
-            TubeFurnacePressureManager.Stop();
+            TFPressureManager.Stop();
 
             ProcessStep.End();
 
             TubeFurnace.TurnOff();
-            MFC.TurnOff();
+            //MFC.TurnOff();
             O2GasSupply.ShutOff();
 
-            evacuateTF();
+            EvacuateTF();
 
             var msg = $"{Name}: Degas LiBO2, boat, and sleeve process complete";
             Alert(msg);
             SampleLog.Record(msg);
-            SampleLog.Record($"Degas O2 bleed volume\t{MFC.TrackedFlow}\tcc");
+            //SampleLog.Record($"Degas O2 bleed volume\t{MFC.TrackedFlow}\tcc");
 
-            TubeFurnacePort.State = LinePort.States.Prepared;
+            TFPort.State = LinePort.States.Prepared;
         }
 
-        //void beginExtract() { beginExtract(50, 600, 60, 1100, 110); }
-        void beginExtract() { beginExtract(50, 600, 10, 1100, 10); }
-
-        void beginExtract(double targetPressure, int bleedTemperature, int bleedMinutes, int extractTemperature, int extractMinutes)
+        /// <summary>
+        /// </summary>
+        /// <param name="targetPressure"></param>
+        /// <param name="bleedTemperature"></param>
+        /// <param name="bleedMinutes"></param>
+        /// <param name="extractTemperature"></param>
+        /// <param name="extractMinutes"></param>
+        void BeginExtract(double targetPressure, int bleedTemperature, int bleedMinutes, int extractTemperature, int extractMinutes)
         {
-            TubeFurnacePort.State = LinePort.States.InProcess;
+            TFPort.State = LinePort.States.InProcess;
 
             SampleLog.WriteLine();
             SampleLog.Record($"{Name}: Start Process: Sample extraction");
 
-            pacedEvacuate();
-            evacuateTF(OkPressure);
-            isolateTF();
-            MFC.ResetTrackedFlow();
-            pressurizeO2(targetPressure);
+            PacedEvacuate();
+            EvacuateTF(OkPressure);
+            IsolateTF();
+            //MFC.ResetTrackedFlow();
+            PressurizeO2(targetPressure);
 
             ProcessStep.Start("Low-T sample combustion");
             {
-                TubeFurnace.TurnOn(bleedTemperature);
-                waitForTemperatureAbove(bleedTemperature - 10);
+                var vTFFlow = TFPressureManager.FlowValve;
+                var vTFFlowShutoff = TFSection.PathToVacuum.LastOrDefault();
 
-                v_TF_flow.Close();
-                v_TF_flow.Calibrate();
+                TubeFurnace.TurnOn(bleedTemperature);
+                WaitForTemperatureAbove(bleedTemperature - 10);
+
+                TFPressureManager.FlowValve.CloseWait();
 
                 ProcessStep.Start($"Bleed O2 over sample for {MinutesString(bleedMinutes)}");
                 {
-                    MFC.TurnOn(5);
+                    //MFC.TurnOn(5);
                     O2GasSupply.Admit();
 
                     VacuumSystem.Isolate();
-                    v_TF_flow_shutoff.Open();
+                    vTFFlowShutoff.OpenWait();
                     VacuumSystem.Evacuate();
 
-                    TubeFurnacePressureManager.Start(targetPressure);
+                    TFPressureManager.Start(targetPressure);
 
                     WaitRemaining(bleedMinutes);
-                    TubeFurnacePressureManager.Stop();
+                    TFPressureManager.Stop();
 
-                    MFC.TurnOff();
+                    //MFC.TurnOff();
                     O2GasSupply.ShutOff();
 
-                    evacuateTF(OkPressure);
+                    EvacuateTF(OkPressure);
                 }
                 ProcessStep.End();
 
                 ProcessStep.Start("Flush & evacuate TF");
                 {
-                    pressurizeO2(targetPressure);
-                    evacuateTF(1e-3);
+                    PressurizeO2(targetPressure);
+                    EvacuateTF(1e-3);
                 }
                 ProcessStep.End();
             }
             ProcessStep.End();
 
             SampleLog.Record($"{Name}: Finish low-T sample combustion");
-            SampleLog.Record($"{Name}: Low-T O2 bleed volume\t{MFC.TrackedFlow}\tcc");
+            // SampleLog.Record($"{Name}: Low-T O2 bleed volume\t{MFC.TrackedFlow}\tcc");
 
-            isolateTF();
-            MFC.ResetTrackedFlow();
-            pressurizeO2(targetPressure);
+            IsolateTF();
+            //MFC.ResetTrackedFlow();
+            PressurizeO2(targetPressure);
 
             TubeFurnace.Setpoint = extractTemperature;
 
             ProcessStep.Start($"Combust sample at {extractTemperature} °C for {MinutesString(extractMinutes)}");
             {
-                waitForTemperatureAbove(extractTemperature - 10);
+                WaitForTemperatureAbove(extractTemperature - 10);
                 WaitRemaining(extractMinutes);
             }
             ProcessStep.End();
         }
 
-        void finishExtract()
+        void FinishExtract()
         {
+            var vTFFlow = TFPressureManager.FlowValve;
+            var vTFFlowShutoff = TFSection.PathToVacuum.LastOrDefault();
+
             int bakeMinutes = 10;
 
             ProcessStep.Start($"Continue bake for {MinutesString(bakeMinutes)} more");
             WaitMinutes(bakeMinutes);
             ProcessStep.End();
 
-            MFC.TurnOn(5);
+            //MFC.TurnOn(5);
             O2GasSupply.Admit();
 
             VacuumSystem.Isolate();
-            v_TF_flow.Close();
-            v_TF_flow_shutoff.OpenWait(); //doesn't proceed until in state requested
+            vTFFlow.CloseWait();
+            vTFFlowShutoff.OpenWait(); //doesn't proceed until in state requested
 
         }
 
         bool vsManometerWasAuto;
-        void suspendVSManometer()
+        void DisableVSManometer()
         {
             vsManometerWasAuto = VacuumSystem.AutoManometer;
             VacuumSystem.AutoManometer = false;
             VacuumSystem.DisableManometer();
         }
 
-        void restoreVSManometer()
+        void RestoreVSManometer()
         {
             VacuumSystem.AutoManometer = vsManometerWasAuto;
         }
 
         // Bleed O2 through tube furnace to CEGS
-        void bleed()
+        void Bleed()
         {
+            // handled by caller?
+            //var vTFFlow = TFPressureManager.FlowValve;
+            //var vTFFlowShutoff = TFSection.PathToVacuum.LastOrDefault();
+
             int t_LiBO2_frozen = 800;
             int bleedMinutes = 10; //60;
             int targetPressure = 50;
 
             // disable ion gauge while low vacuum flow is expected
-            suspendVSManometer();
+            DisableVSManometer();
 
             ProcessStep.Start($"Bleed O2 over sample for {MinutesString(bleedMinutes)} + cool down");
             {
 
-                TubeFurnacePressureManager.Start(targetPressure);
+                TFPressureManager.Start(targetPressure);
 
                 WaitRemaining(bleedMinutes);
 
                 TubeFurnace.Setpoint = 100;
                 WaitForTemperatureBelow(t_LiBO2_frozen);
 
-                TubeFurnacePressureManager.Stop();
+                TFPressureManager.Stop();
 
                 TubeFurnace.TurnOff();
-                MFC.TurnOff();
+                //MFC?.TurnOff();
                 O2GasSupply.ShutOff();
-                v_TF_VM.Open();
+                // v_TF_VM.OpenWait();     // WHY???
             }
-
             ProcessStep.End();
 
-            restoreVSManometer();
+            RestoreVSManometer();
 
             SampleLog.Record($"{Name}: Finish high-T sample combustion and bleed");
-            SampleLog.Record($"{Name}: High T O2 bleed volume\t{MFC.TrackedFlow}\tcc");
+            //if (MFC != null)
+            //    SampleLog.Record($"{Name}: High T O2 bleed volume\t{MFC.TrackedFlow}\tcc");
 
-            TubeFurnacePort.State = LinePort.States.Complete;
+            TFPort.State = LinePort.States.Complete;
 
         }
 
-        void remaining_P()
+        void Remaining_P()
         {
-            SampleLog.Record($"{Name}: Pressure remaining after bleed\t{TubeFurnaceManometer.Value}\ttorr");
+            SampleLog.Record($"{Name}: Pressure remaining after bleed\t{TFManometer.Value}\ttorr");
         }
 
 
-            #endregion TubeFurnace processes
+        #endregion TubeFurnace processes
 
-            #endregion process manager
+        #endregion process manager
 
 
 
@@ -550,12 +613,12 @@ namespace AeonHacs.Components
                 while (!stopRequested)
                 {
                     if (Pressure.Value < pressure_min && !GasSupply.SourceValve.IsOpened)
-                        GasSupply.SourceValve.Open();
+                        GasSupply.SourceValve.OpenWait();
                     else if (Pressure.Value > pressure_max && GasSupply.SourceValve.IsOpened)
-                        GasSupply.SourceValve.Close();
+                        GasSupply.SourceValve.CloseWait();
                     stopRequested = stopSignal.WaitOne(timeout);
                 }
-                GasSupply.SourceValve.Close();
+                GasSupply.SourceValve.CloseWait();
             }
         }
     }
