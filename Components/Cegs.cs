@@ -2908,16 +2908,18 @@ public class Cegs : ProcessManager, ICegs
     #endregion Vacuum System
 
     #region OpenLine
-    protected virtual void CloseGasSupplies()
+    // TODO: Consider moving this fuction to VacuumSystem. Although gas supplies aren't
+    // VacuumSystem elements, the point of this method is to close all of the gas
+    // supplies on a vacuum system when opening the line.
+    protected virtual void CloseGasSupplies() => CloseGasSupplies(MC.VacuumSystem);
+    protected virtual void CloseGasSupplies(IVacuumSystem vs) => CloseGasSupplies([vs]);
+    protected virtual void CloseGasSupplies(IEnumerable<IVacuumSystem> vs)
     {
         ProcessSubStep.Start("Close gas supplies");
-
-        // Look only in CEGS vacuum systems; ignore other process managers
-        var cegsGasSupplies = GasSupplies.Values.Where(gs => VacuumSystems.ContainsValue(gs.Destination.VacuumSystem)).ToList();
-        cegsGasSupplies.ForEach(gs => gs.ShutOff());
-        // close gas flow valves after all shutoff valves are closed
-        cegsGasSupplies.ForEach(gs => gs.FlowValve?.CloseWait());
-
+        var gasSupplies = GasSupplies.Values.Where(gs => vs.Contains(gs.Destination.VacuumSystem));
+        foreach(GasSupply gs in gasSupplies) gs.ShutOff();
+        // close flow valves after all shutoff valves are closed
+        foreach (GasSupply gs in gasSupplies) gs.FlowValve?.CloseWait();
         ProcessSubStep.End();
     }
 
@@ -3119,6 +3121,12 @@ public class Cegs : ProcessManager, ICegs
     #endregion Running samples
 
     #region Sample loading and preparation
+    [Description("Reset the current InletPort and Sample to Loaded.")]
+    protected virtual void ResetIpToLoaded()
+    {
+        Sample.State = Components.Sample.States.Loaded;
+        InletPort.State = LinePort.States.Loaded;
+    }
 
     /// <summary>
     /// Admit a quantity of dead CO2 into the MC.
