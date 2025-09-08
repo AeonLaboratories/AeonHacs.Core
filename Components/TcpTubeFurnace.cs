@@ -13,6 +13,7 @@ namespace AeonHacs.Components
         [HacsConnect]
         protected virtual void Connect()
         {
+            if (logEverything) Log = default;
             TcpController.SelectService = SelectService;
             TcpController.ValidateResponse = ValidateResponse;
         }
@@ -22,14 +23,25 @@ namespace AeonHacs.Components
         #region Device constants
 
         public enum FunctionCode { Read = 3, Write = 16 }
-        public enum ErrorResponseCode { IllegalDataAddress = 2, IllegalDataValue = 03 }
+        public enum ErrorResponseCode
+        {
+            InvalidFunctionCode = 1,
+            InvalidDataAddress = 2,
+            InvalidDataValue = 3,
+            UnrecoverableError = 4,
+            StillTryingKeepWaiting = 5,
+            StillBusyTryAgainLater = 6,
+            ErrorTrying13or14 = 7,
+            ParityError = 8
+        }
         public enum ParameterCode
         {
             ProcessVariable = 1,
             TargetSetpoint = 2,
             WorkingSetpoint = 5,
             WorkingOutput = 4,
-            AutoManual = 273,
+            AutoManual = 273,       // readonly by default; must be changed to read/write (requires Carbolite Gero iTools passphrase)
+            SetpointSource = 276,
             ControlOutput = 3,      // ManualOP Output value while in Manual Mode
 
             SetpointRateLimit = 35, // SPRateUp Setpoint up rate limit
@@ -45,6 +57,7 @@ namespace AeonHacs.Components
             SummaryStatus = 75
         }
         public enum AutoManualCode { Auto = 0, Manual = 1, Unknown = -1 }
+        public enum SetpointSourceCode { Remote = 0, Local = 1, Unknown = -1 }
         public enum SetpointRateLimitUnitsCode { Seconds = 0, Minutes = 1, Hours = 2, Unknown = -1 }
         public enum SummaryStatusBitsCode { AL1 = 1, Manual = 16, SensorBroken = 32 }
 
@@ -57,7 +70,9 @@ namespace AeonHacs.Components
         public new interface IDevice : TubeFurnace.IDevice
         {
             double ProcessVariable { get; set; }
-//            double Setpoint { get; set; }              // WorkingSetpoint, not TargetSetpoint
+
+            //double Setpoint { get; set; }             // programmed Setpoint, not TargetSetpoint
+            int WorkingSetpoint { get; set; }           // working setpoint
             int WorkingOutput { get; set; }
             int ControlOutput { get; set; }
 
@@ -65,11 +80,11 @@ namespace AeonHacs.Components
             bool AlarmRelayActivated { get; set; }
             bool SensorBroken { get; set; }
 
-            int ParameterValue { get; set; }
+            //int ParameterValue { get; set; }
         }
         public new interface IConfig : TubeFurnace.IConfig
         {
-//            double Setpoint { get; set; }              // TargetSetpoint, not WorkingSetpoint
+            // double Setpoint { get; set; }              // TargetSetpoint, not WorkingSetpoint
             AutoManualCode OperatingMode { get; }
             int ControlOutput { get; }
         }
@@ -156,6 +171,9 @@ namespace AeonHacs.Components
         }
         double processVariable = -1;
 
+        int IDevice.WorkingSetpoint { get => workingSetpoint; set => Ensure(ref workingSetpoint, value); }
+        int workingSetpoint = -1;
+
         int IDevice.WorkingOutput { get => workingOutput; set => Ensure(ref workingOutput, value); }
         int workingOutput = -1;
 
@@ -165,8 +183,8 @@ namespace AeonHacs.Components
         bool IDevice.SensorBroken { get => sensorBroken; set => Ensure(ref sensorBroken, value); }
         bool sensorBroken = false;
 
-        int IDevice.ParameterValue { get => parameterValue; set => Ensure(ref parameterValue, value); }
-        int parameterValue = -1;
+        //int IDevice.ParameterValue { get => parameterValue; set => Ensure(ref parameterValue, value); }
+        //int parameterValue = -1;
 
         #region IOnOff
 
@@ -184,10 +202,21 @@ namespace AeonHacs.Components
             base.TurnOn(setpoint);
         }
 
+        public override bool TurnOff()
+        {
+            Setpoint = 0;
+            return base.TurnOff();
+        }
+
         #endregion IOnOff
 
         [JsonProperty]
         public virtual TcpController TcpController { get; set; }
+
+        /// <summary>
+        /// Returns the current furnace working setpoint (degC).
+        /// </summary>
+        public int WorkingSetpoint => Device.WorkingSetpoint;
 
 
         /// <summary>
@@ -201,6 +230,7 @@ namespace AeonHacs.Components
                 Utility.IndentLines(
                     $"\r\nSP: {Device.Setpoint:0}" +
                         $" PV: {Device.ProcessVariable:0}" +
+                        $" WSP: {Device.WorkingSetpoint:0}" +
                         $" CO: {Device.WorkingOutput:0}" +
                         $" ({Device.OperatingMode})"
                 );
@@ -352,7 +382,7 @@ namespace AeonHacs.Components
             int byteCount = data.Length * 2;
             var tid = getTransactionId;
             var frame = new byte[13 + byteCount];
-            frame[0] = (byte)MSB(tid);              // transaction id
+            frame[0] = (byte)MSB(tid);              // transaction ID
             frame[1] = (byte)LSB(tid);
             frame[2] = 0;                           // protocol ID MSB
             frame[3] = 0;                           // protocol ID LSB
@@ -400,18 +430,22 @@ namespace AeonHacs.Components
 
         protected byte[] SelectService()
         {
-            if (Device.Setpoint != Config.Setpoint)
+            if (Device.OperatingMode == AutoManualCode.Unknown)
+            {
+                Command = CheckStatus();
+            }
+            else if (Device.Setpoint != Config.Setpoint)
             {
                 Command = SetSetpoint();
             }
-            else if (Device.OperatingMode != Config.OperatingMode)
-            {
-                Command = SetOperatingMode();
-            }
-            else if (Device.OperatingMode == AutoManualCode.Manual && Device.ControlOutput != Config.ControlOutput)
-            {
-                Command = SetControlOutput();
-            }
+            //else if (Device.OperatingMode != Config.OperatingMode)
+            //{
+            //    Command = SetOperatingMode();
+            //}
+            //else if (Device.OperatingMode == AutoManualCode.Manual && Device.ControlOutput != Config.ControlOutput)
+            //{
+            //    Command = SetControlOutput();
+            //}
             else
             {
                 Command = CheckStatus();
@@ -419,28 +453,50 @@ namespace AeonHacs.Components
             return Command;
         }
 
+
+        // Interpret and validate a MODBUS TCP response. 
         protected bool ValidateResponse(byte[] response)
         {
             try
             {
                 Response = response;
-                var cmd = Command;       // TODO potential thread safety issue
-                //if (LogEverything) Log.Record("Response to command: " + cmd);
+                var cmd = Command;       // TODO potential thread safety issue; lock?
+                if (LogEverything)
+                {
+                    LogMessage("Command:  " + cmd.ToStringToo().ToByteString());
+                    LogMessage("Response: " + response.ToStringToo().ToByteString());
+                }
 
                 // Transaction IDs should match
-                if (response[0] != cmd[0] || response[1] != cmd[1])
+                var tid = toInt(cmd[0], cmd[1]);
+                var rTid = toInt(response[0], response[1]);
+                if (rTid != tid)
+                {
+                    if (logEverything) LogMessage($"Transaction ID mismatch: {rTid} (response) != {tid} (command)");
                     return false;
+                }
+
+                var functionCode = (FunctionCode)cmd[7];
+                var responseFunctionCode = (FunctionCode)response[7];
 
                 // Function codes should match
-                if (response[7] != cmd[7])
+                if (responseFunctionCode != functionCode)
+                {
+                    if (logEverything) LogMessage($"Function codes don't match: {responseFunctionCode} (response) != {functionCode} (command)");
+                    if ((int)responseFunctionCode - (int)functionCode == 128)
+                    {
+                        // high order bit is set == controller error
+                        var errorCode = (ErrorResponseCode)response[8];
+                        if (logEverything) LogMessage($"Controller error: {errorCode}");
+                    }
                     return false;
+                }
 
-                // The following information is not present in Eurotherm controller responses
-                // to parameter queries, so it must be retrieved from the issued command.
-                var firstParam = (cmd[8] << 8) + cmd[9];
+                // The first parameter is not repeated in the Eurotherm controller responses. Instead,
+                // the byte after the function code is the number of data bytes returned.
+                var firstParam = toInt(cmd[8], cmd[9]);
 
-                var responseFunctionCode = (FunctionCode)response[7];
-                if (responseFunctionCode == FunctionCode.Read)
+                if (functionCode == FunctionCode.Read)
                 {
                     int wordsRequested = cmd[11];    // cmd[10] should be 0, so cmd[11] should be sufficient
                     int bytesIn = response[8];
@@ -453,46 +509,69 @@ namespace AeonHacs.Components
                         values[i] = (response[j++] << 8) + response[j++];
                     int firstValue = values[0];
 
-                    Device.ParameterValue = firstValue;
-                    //if (LogEverything) Log.Record($"Device.ParameterValue = {firstValue}");
-
                     //if (LogEverything)
-                    //    Log.Record(ParamToString(firstParam) + " param read: [" + firstParam.ToString() + "==" + firstValue.ToString() + "]");
+                    //    LogMessage($"Read {(ParameterCode)firstParam} == {firstValue}");
+
+                    //Device.ParameterValue = firstValue;
+                    //if (LogEverything) LogMessage($"Device.ParameterValue = {firstValue}");
 
                     bool wasOn = IsOn;
 
                     if (firstParam == (int)ParameterCode.ProcessVariable)
                     {
                         Device.ProcessVariable = firstValue;
-                        //if (LogEverything) Log.Record($"{(ParameterCode)firstParam} = {firstValue}");
+                        if (LogEverything) LogMessage($"Device.ProcessVariable = {firstValue}");
                     }
                     else if (firstParam == (int)ParameterCode.AutoManual)
                     {
                         Device.OperatingMode = (AutoManualCode)firstValue;
-                        //if (LogEverything) Log.Record($"{(ParameterCode)firstParam} = {(AutoManualCode)firstValue}");
+                        if (LogEverything) LogMessage($"Device.OperatingMode = {(AutoManualCode)firstValue}");
                     }
                     else if (firstParam == (int)ParameterCode.ControlOutput)
                     {
                         Device.ControlOutput = firstValue;
-                        //if (LogEverything) Log.Record($"{(ParameterCode)firstParam} = {firstValue}");
+                        if (LogEverything) LogMessage($"Device.ControlOutput = {firstValue}");
                     }
                     else if (firstParam == (int)ParameterCode.TargetSetpoint)
                     {
                         Device.Setpoint = firstValue;
-                        //if (LogEverything) Log.Record($"{(ParameterCode)firstParam} = {firstValue}");
+                        if (LogEverything) LogMessage($"Device.Setpoint = {firstValue}");
+                    }
+                    else if (firstParam == (int)ParameterCode.WorkingSetpoint)
+                    {
+                        Device.WorkingSetpoint = firstValue;
+                        if (LogEverything) LogMessage($"Device.WorkingSetpoint = {firstValue}");
                     }
                     else if (firstParam == (int)ParameterCode.WorkingOutput)
                     {
                         Device.WorkingOutput = firstValue;
-                        //if (LogEverything) Log.Record($"{(ParameterCode)firstParam} = {firstValue}");
+                        if (LogEverything) LogMessage($"Device.WorkingOutput = {firstValue}");
                     }
                     else if (firstParam == (int)ParameterCode.SummaryStatus)
                     {
-                        Device.AlarmRelayActivated = (firstValue & (int)SummaryStatusBitsCode.AL1) != 0;
-                        Device.SensorBroken = (firstValue & (int)SummaryStatusBitsCode.SensorBroken) != 0;
-                        Device.OperatingMode = ((firstValue & (int)SummaryStatusBitsCode.Manual) != 0) ? AutoManualCode.Manual : AutoManualCode.Auto;
-                        //if (LogEverything) Log.Record($"{(ParameterCode)firstParam} = {firstValue}");
-                        //if (LogEverything && Device.AlarmRelayActivated) Log.Record("AlarmRelayActivated");
+                        if (LogEverything) LogMessage($"SummaryStatus = {firstValue:X2}");
+
+                        var newAlarmRelayActivated = (firstValue & (int)SummaryStatusBitsCode.AL1) != 0;
+                        if (Device.AlarmRelayActivated != newAlarmRelayActivated)
+                        {
+                            Device.AlarmRelayActivated = newAlarmRelayActivated;
+                            if (logEverything)
+                                LogMessage($"Alarm Relay {(Device.AlarmRelayActivated ? "Activated" : "Deactivated")}");
+                        }
+
+                        var newSensorBroken = (firstValue & (int)SummaryStatusBitsCode.SensorBroken) != 0;
+                        if (Device.SensorBroken != newSensorBroken)
+                        {
+                            Device.SensorBroken = newSensorBroken;
+                            if (logEverything && Device.SensorBroken) LogMessage("Sensor Broken");
+                        }
+
+                        var newOperatingMode = ((firstValue & (int)SummaryStatusBitsCode.Manual) != 0) ? AutoManualCode.Manual : AutoManualCode.Auto;
+                        if (Device.OperatingMode != newOperatingMode)
+                        {
+                            Device.OperatingMode = newOperatingMode;
+                            if (logEverything) LogMessage($"Device.OperatingMode = {Device.OperatingMode}");
+                        }
                     }
 
                     Device.OnOffState =
@@ -511,25 +590,72 @@ namespace AeonHacs.Components
                 }
                 else if (responseFunctionCode == FunctionCode.Write)
                 {
-                    /*
                     if (LogEverything)
                     {
-                        int firstValue = Utility.toInt(command, 7);
-                        Log.Record(ParamToString(firstParam) + " param written: [" + firstParam.ToString() + "=" + firstValue.ToString() + "]");
-                        Log.Record($"Wrote {firstValue} to {(ParameterCode)firstParam}");
+                        int firstValue = toInt(cmd[13], cmd[14]);
+                        LogMessage($"Wrote {firstValue} to {(ParameterCode)firstParam}");
                     }
-                    */
                 }
 
                 return true;
             }
             catch (Exception e)
             {
-                //if (LogEverything) Log.Record(e.ToString());
+                if (LogEverything) LogMessage(e.ToString());
                 return false;
             }
         }
 
         #endregion Controller interactions
+
+        /// <summary>
+        /// A place to record transmitted and received messages,
+        /// and various status conditions for debugging.
+        /// </summary>
+        public virtual LogFile Log
+        {
+            get => log ?? (Log = default);
+            set
+            {
+                var oldfname = log?.FileName;
+                var newfname = value is LogFile f ? f.FileName : LogFileName;
+                if (newfname == oldfname && (value == null || value == log)) return;
+                var newLog = value != default ? value : Name.IsBlank() ? default : new LogFile(newfname);
+                newfname = newLog?.FileName;
+                if (newLog != log)
+                {
+                    var msg = $"{Name}: Log = \"{newfname}\", was \"{oldfname}\"";
+                    if (LogEverything) log?.Record(msg);
+                    log?.Close();
+                    Ensure(ref log, newLog);
+                    if (LogEverything) log?.Record(msg);
+                }
+            }
+        }
+        protected LogFile log;
+
+        string LogFileName => $"{Name} Log.txt";
+
+        /// <summary>
+        /// For debugging, produce a verbose log file of the
+        /// device operation. Keep this value false normally;
+        /// it can very quickly produce extremely large files
+        /// that will soon cripple the system.
+        /// </summary>
+        [JsonProperty]
+        public virtual bool LogEverything
+        {
+            get => logEverything;
+            set => Ensure(ref logEverything, value);
+        }
+        bool logEverything;
+
+        public virtual void LogMessage(string message)
+        {
+            if (log != null)
+                Log.Record(message);
+            else
+                Notify.Announce(message);
+        }
     }
 }
