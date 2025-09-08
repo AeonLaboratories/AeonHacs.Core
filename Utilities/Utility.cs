@@ -21,7 +21,8 @@ namespace AeonHacs.Utilities
         public static int toInt(string s, int msbIndex, int lsbIndex) => toInt(s[msbIndex], s[lsbIndex]);
         public static int toInt(char[] msbLsb) => toInt(msbLsb[0], msbLsb[1]);
         public static int toInt(char msb, char lsb) => (short)((msb << 8) | lsb);
-        public static char[] MSBLSB(int i) => new char[] { MSB(i), LSB(i) };
+        public static int toInt(byte msb, byte lsb) => (short)((msb << 8) | lsb);
+        public static char[] MSBLSB(int i) => [MSB(i), LSB(i)];
         public static char LSB(int i) => (char)(i & 0xFF);
         public static char MSB(int i) => (char)((i >> 8) & 0xFF);
 
