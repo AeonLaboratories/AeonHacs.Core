@@ -3385,6 +3385,45 @@ public class Cegs : ProcessManager, ICegs
     #region Sample collection, extraction and measurement
 
     #region Collect
+    [Description("Notify the operator to freeze the inlet port.")]
+    protected virtual void FreezeIp() 
+    {
+        ProcessStep.Start($"Freeze {InletPort.Name}");
+        WaitForOperator(
+            $"Almost ready for LN on {InletPort.Name}.\r\n" +
+            $"First choose Ok to continue, then raise LN onto {InletPort.Name} coldfinger.");
+        WaitSeconds(15, "Wait 15 seconds for LN to settle.");
+        ProcessStep.End();
+    }
+
+    [Description("Notify the operator to raise the inlet port LN.")]
+    protected virtual void RaiseLNIp()
+    {
+        ProcessStep.Start($"Raise {InletPort.Name}");
+        WaitForOperator($"Raise {InletPort.Name} LN one inch (2 cm).");
+        WaitSeconds(15, "Wait 15 seconds for LN to settle.");
+        ProcessStep.End();
+    }
+
+    [Description("Notify the operator to thaw the inlet port.")]
+    protected virtual void ThawIp()
+    {
+        ProcessStep.Start($"Thaw {InletPort.Name}");
+        WaitForOperator(
+            $"Remove LN from {InletPort.Name} and\r\n" +
+            $"Warm the coldfinger to room temperature.\r\n" +
+            $"Then select Ok to continue...");
+        ProcessStep.End();
+    }
+
+    protected virtual void RaiseIpFurnaces()
+    {
+        ProcessStep.Start($"Raise IP furnaces");
+        WaitForOperator(
+            $"Raise the IP furnaces including {InletPort.Name}.\r\n" +
+            $"Then select Ok to continue...");
+        ProcessStep.End();
+    }
 
     protected virtual void FreezeVtt() => VTT.EmptyAndFreeze(CleanPressure);
     protected virtual void FreezeFirstTrap()
