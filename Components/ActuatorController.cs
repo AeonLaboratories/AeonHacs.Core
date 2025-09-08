@@ -728,8 +728,8 @@ namespace AeonHacs.Components
                             $"{Name}.SelectDeviceService: {nameof(AeonServo)} is missing or unresponsive.\r\n" +
                             $"Ok to skip ServiceRequest \"{ServiceRequest}\"?\r\n" +
                             $"Cancel to retry", NoticeType.Error).Ok();
-                        if (!skipOperation && AeonServo != null && !AeonServo.Responsive)
-                            AeonServo.SerialDevice?.Reset();
+                        if (AeonServo != null && !AeonServo.Responsive)
+                            AeonServo.Reset();
                     }
 
                     if (skipOperation)
