@@ -76,6 +76,7 @@ namespace AeonHacs.Components
         }
         IValve sourceValve;
 
+        // TODO: shouldn't this come from the flow manager?
         [JsonProperty("FlowValve")]
         string FlowValveName { get => FlowValve?.Name; set => flowValveName = value; }
         string flowValveName;
