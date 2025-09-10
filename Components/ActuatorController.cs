@@ -467,7 +467,7 @@ namespace AeonHacs.Components
                     sysLogEntry += ": failed.";
 
                 if (pushed || operation?.Name != null)
-                    sysLogEntry += $" {initialCurrent} => {peakCurrent}";
+                    sysLogEntry += $" {(operation.Incremental ? "i":"")}{operation.Value}: {initialCurrent} => {peakCurrent}";
                 if (!pushed && operation?.Name != null)
                 {
                     sysLogEntry += (peakCurrent > initialCurrent) ? " (small push)" : "(no push?)";
