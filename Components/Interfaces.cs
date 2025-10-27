@@ -717,6 +717,8 @@ public interface IManagedDevice : IHacsDevice
     new ManagedDevice.IDevice Device { get; }
     new ManagedDevice.IConfig Config { get; }
     IDeviceManager Manager { get; }
+    virtual (string command, int responsesExpected) ServiceValues(string request) => ("", 0);
+    virtual bool ValidateResponse(string request, string response, int which) => true;
 }
 
 /// <summary>
@@ -2520,11 +2522,8 @@ public interface IImg100 : ISwitchedManometer
 }
 
 // TODO: shouldn't this implement IAuto instead of ISetpoint?
-public interface IMassFlowController : IAnalogOutput, ISetpoint
+public interface IMassFlowController : IManagedDevice, ISetpoint
 {
-    new MassFlowController.IDevice Device { get; }
-    new MassFlowController.IConfig Config { get; }
-    OperationSet OutputConverter { get; set; }
     double FlowRate { get; }
     double TrackedFlow { get; set; }
     double MinimumSetpoint { get; set; }
