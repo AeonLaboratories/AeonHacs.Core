@@ -369,7 +369,7 @@ public class Sample : HacsComponent, ISample
 
     public Sample Clone()
     {
-        return new Sample()
+        var sample =  new Sample()
         {
             LabId = LabId,
             DateTime = DateTime,
@@ -390,6 +390,8 @@ public class Sample : HacsComponent, ISample
             d13CPartsPerMillion = d13CPartsPerMillion,
             Aliquots = Aliquots.Select(a => (new Aliquot(a as Aliquot) as IAliquot)).ToList()
         };
+        sample.Aliquots.ForEach(a => a.Sample = sample);
+        return sample;
     }
 
     public int AliquotIndex(IAliquot aliquot)
