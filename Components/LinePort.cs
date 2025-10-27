@@ -1,89 +1,86 @@
-﻿using AeonHacs;
-using Newtonsoft.Json;
-using System;
+﻿using Newtonsoft.Json;
 using System.ComponentModel;
 
-namespace AeonHacs.Components
+namespace AeonHacs.Components;
+
+public class LinePort : Port, ILinePort
 {
-    public class LinePort : Port, ILinePort
+    #region HacsComponent
+    [HacsConnect]
+    protected override void Connect()
     {
-        #region HacsComponent
-        [HacsConnect]
-        protected override void Connect()
+        base.Connect();
+        Sample = Find<ISample>(sampleName);
+    }
+
+    #endregion HacsComponent
+
+    public enum States { Disabled, Empty, Loaded, Prepared, InProcess, Complete }
+
+    [JsonProperty]
+    public virtual States State
+    {
+        get => state;
+        set
         {
-            base.Connect();
-            Sample = Find<ISample>(sampleName);
+            var priorState = state;
+            if (Ensure(ref state, value) &&  state == States.Empty)
+                ClearContents();
         }
+    }
+    States state;
 
-        #endregion HacsComponent
+    [JsonProperty("Sample")]
+    string SampleName { get => Sample?.Name; set => sampleName = value; }
+    string sampleName;
+    public ISample Sample
+    {
+        get => sample;
+        set => Ensure(ref sample, value, OnPropertyChanged);
+    }
+    ISample sample;
 
-        public enum States { Disabled, Empty, Loaded, Prepared, InProcess, Complete }
+    [JsonProperty("Aliquot"), DefaultValue(0)]
+    int AliquotIndex
+    {
+        get => aliquotIndex;
+        set => Ensure(ref aliquotIndex, value, OnPropertyChanged);
+    }
+    int aliquotIndex = 0;
 
-        [JsonProperty]
-        public virtual States State
+    public IAliquot Aliquot
+    {
+        get
         {
-            get => state;
-            set
-            {
-                var priorState = state;
-                if (Ensure(ref state, value) &&  state == States.Empty)
-                    ClearContents();
-            }
-        }
-        States state;
-
-        [JsonProperty("Sample")]
-        string SampleName { get => Sample?.Name; set => sampleName = value; }
-        string sampleName;
-        public ISample Sample
-        {
-            get => sample;
-            set => Ensure(ref sample, value, OnPropertyChanged);
-        }
-        ISample sample;
-
-        [JsonProperty("Aliquot"), DefaultValue(0)]
-        int AliquotIndex
-        {
-            get => aliquotIndex;
-            set => Ensure(ref aliquotIndex, value, OnPropertyChanged);
-        }
-        int aliquotIndex = 0;
-
-        public IAliquot Aliquot
-        {
-            get
-            {
-                if (Sample?.Aliquots != null && Sample.Aliquots.Count > AliquotIndex)
-                    return Sample.Aliquots[AliquotIndex];
-                else
-                    return null;
-            }
-            set
-            {
-                Sample = value?.Sample;
-                AliquotIndex = Sample?.AliquotIndex(value) ?? 0;
-                if (Aliquot == null && State != States.Empty)
-                    State = States.Empty;
-                NotifyPropertyChanged(nameof(Contents));
-            }
-        }
-
-        public virtual string Contents => Aliquot?.Name ?? "";
-        public virtual void ClearContents() => Aliquot = null;
-
-        protected override void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (e?.PropertyName == nameof(Sample) ||
-                e?.PropertyName == nameof(AliquotIndex))
-                NotifyPropertyChanged();
+            if (Sample?.Aliquots != null && Sample.Aliquots.Count > AliquotIndex)
+                return Sample.Aliquots[AliquotIndex];
             else
-                base.OnPropertyChanged(sender, e);
+                return null;
         }
-
-        public override string ToString()
+        set
         {
-            return $"{Name}: {Contents} ({State})";
+            Sample = value?.Sample;
+            AliquotIndex = Sample?.AliquotIndex(value) ?? 0;
+            if (Aliquot == null && State != States.Empty)
+                State = States.Empty;
+            NotifyPropertyChanged(nameof(Contents));
         }
+    }
+
+    public virtual string Contents => Aliquot?.Name ?? "";
+    public virtual void ClearContents() => Aliquot = null;
+
+    protected override void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e?.PropertyName == nameof(Sample) ||
+            e?.PropertyName == nameof(AliquotIndex))
+            NotifyPropertyChanged();
+        else
+            base.OnPropertyChanged(sender, e);
+    }
+
+    public override string ToString()
+    {
+        return $"{Name}: {Contents} ({State})";
     }
 }

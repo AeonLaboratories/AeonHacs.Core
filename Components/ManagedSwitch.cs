@@ -1,66 +1,65 @@
-﻿using System.ComponentModel;
+﻿using AeonHacs.Utilities;
+using System.ComponentModel;
 using System.Text;
-using AeonHacs.Utilities;
 
-namespace AeonHacs.Components
+namespace AeonHacs.Components;
+
+/// <summary>
+/// A switch that is operated by a DeviceManager.
+/// </summary>
+public class ManagedSwitch : Switch, IManagedSwitch, ManagedSwitch.IDevice, ManagedSwitch.IConfig
 {
-    /// <summary>
-    /// A switch that is operated by a DeviceManager.
-    /// </summary>
-    public class ManagedSwitch : Switch, IManagedSwitch, ManagedSwitch.IDevice, ManagedSwitch.IConfig
+    #region Device interfaces
+
+    public new interface IDevice : Switch.IDevice, ManagedDevice.IDevice { }
+    public new interface IConfig : Switch.IConfig, ManagedDevice.IConfig { }
+
+    public new IDevice Device => this;
+    public new IConfig Config => this;
+    ManagedDevice.IDevice IManagedDevice.Device => this;
+    ManagedDevice.IConfig IManagedDevice.Config => this;
+
+    #endregion Device interfaces
+
+    #region ManagedDevice
+    public IDeviceManager Manager => ManagedDevice.Manager;
+    IDeviceManager ManagedDevice.IDevice.Manager { get => ManagedDevice.Manager; set => ManagedDevice.Device.Manager = value; }
+
+    #endregion ManagedDevice
+
+    public override void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        #region Device interfaces
+        if (sender == ManagedDevice)
+            NotifyPropertyChanged(e?.PropertyName);
+        else
+            base.OnPropertyChanged(sender, e);
+    }
 
-        public new interface IDevice : Switch.IDevice, ManagedDevice.IDevice { }
-        public new interface IConfig : Switch.IConfig, ManagedDevice.IConfig { }
+    public override void OnConfigChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (sender == ManagedDevice)
+            NotifyConfigChanged(e?.PropertyName);
+        else
+            base.OnConfigChanged(sender, e);
+    }
 
-        public new IDevice Device => this;
-        public new IConfig Config => this;
-        ManagedDevice.IDevice IManagedDevice.Device => this;
-        ManagedDevice.IConfig IManagedDevice.Config => this;
+    public override string Name 
+    { 
+        get => base.Name;
+        set { base.Name = value; ManagedDevice.Name = $"({value})"; }
+    }
 
-        #endregion Device interfaces
-
-        #region ManagedDevice
-        public IDeviceManager Manager => ManagedDevice.Manager;
-        IDeviceManager ManagedDevice.IDevice.Manager { get => ManagedDevice.Manager; set => ManagedDevice.Device.Manager = value; }
-
-        #endregion ManagedDevice
-
-        public override void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (sender == ManagedDevice)
-                NotifyPropertyChanged(e?.PropertyName);
-            else
-                base.OnPropertyChanged(sender, e);
-        }
-
-        public override void OnConfigChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (sender == ManagedDevice)
-                NotifyConfigChanged(e?.PropertyName);
-            else
-                base.OnConfigChanged(sender, e);
-        }
-
-        public override string Name 
-        { 
-            get => base.Name;
-            set { base.Name = value; ManagedDevice.Name = $"({value})"; }
-        }
-
-        ManagedDevice ManagedDevice;
-        public ManagedSwitch(IHacsDevice d = null) : base(d)
-        {
-            ManagedDevice = new ManagedDevice(this);
-        }
+    ManagedDevice ManagedDevice;
+    public ManagedSwitch(IHacsDevice d = null) : base(d)
+    {
+        ManagedDevice = new ManagedDevice(this);
+    }
 
 
-        public override string ToString()
-        {
-            var sb = new StringBuilder(base.ToString());
-            sb.Append(Utility.IndentLines(ManagedDevice.ManagerString(this)));
-            return sb.ToString();
-        }
+    public override string ToString()
+    {
+        var sb = new StringBuilder(base.ToString());
+        sb.Append(Utility.IndentLines(ManagedDevice.ManagerString(this)));
+        return sb.ToString();
     }
 }

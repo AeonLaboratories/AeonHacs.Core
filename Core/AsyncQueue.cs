@@ -2,30 +2,29 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace AeonHacs
+namespace AeonHacs;
+
+public class AsyncQueue<T> : ConcurrentQueue<T>
 {
-    public class AsyncQueue<T> : ConcurrentQueue<T>
+    private SemaphoreSlim semaphore;
+
+    public AsyncQueue() : base() =>
+        semaphore = new SemaphoreSlim(0);
+
+    public new void Enqueue(T obj)
     {
-        private SemaphoreSlim semaphore;
+        base.Enqueue(obj);
+        semaphore.Release();
+    }
 
-        public AsyncQueue() : base() =>
-            semaphore = new SemaphoreSlim(0);
-
-        public new void Enqueue(T obj)
+    public async Task<T> DequeueAsync(CancellationToken cancellationToken = default)
+    {
+        while (true)
         {
-            base.Enqueue(obj);
-            semaphore.Release();
-        }
-
-        public async Task<T> DequeueAsync(CancellationToken cancellationToken = default)
-        {
-            while (true)
-            {
-                await semaphore.WaitAsync(cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-                if (TryDequeue(out T item))
-                    return item;
-            }
+            await semaphore.WaitAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (TryDequeue(out T item))
+                return item;
         }
     }
 }

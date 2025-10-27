@@ -1,171 +1,170 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Collections;
 
-namespace AeonHacs.Utilities
+namespace AeonHacs.Utilities;
+
+public class SettingNode
 {
-    public class SettingNode
+    public SettingNode Parent { get; set; }
+    public List<SettingNode> Children { get; set; }
+
+    public string Name { get; set; }
+
+    public bool IsNamed
     {
-        public SettingNode Parent { get; set; }
-        public List<SettingNode> Children { get; set; }
+        get { return !string.IsNullOrEmpty(Name); }
+    }
 
-        public string Name { get; set; }
+    public bool HasSiblings
+    {
+        get { return Parent != null && Parent.Children != null && Parent.Children.Count > 1; }
+    }
 
-        public bool IsNamed
+    public SettingNode() { }
+
+    public SettingNode(object source)
+    {
+        Children = fetchChildren(source);
+    }
+
+    public SettingNode(SettingNode parent, string name, object source)
+    {
+        Parent = parent;
+        Children = fetchChildren(source);
+
+        Name = name;
+    }
+
+    List<SettingNode> fetchChildren(object source)
+    {
+        Type sourceType = source.GetType();
+        var children = new List<SettingNode>();
+        if (typeof(IList).IsAssignableFrom(sourceType))
         {
-            get { return !string.IsNullOrEmpty(Name); }
-        }
-
-        public bool HasSiblings
-        {
-            get { return Parent != null && Parent.Children != null && Parent.Children.Count > 1; }
-        }
-
-        public SettingNode() { }
-
-        public SettingNode(object source)
-        {
-            Children = fetchChildren(source);
-        }
-
-        public SettingNode(SettingNode parent, string name, object source)
-        {
-            Parent = parent;
-            Children = fetchChildren(source);
-
-            Name = name;
-        }
-
-        List<SettingNode> fetchChildren(object source)
-        {
-            Type sourceType = source.GetType();
-            var children = new List<SettingNode>();
-            if (typeof(IList).IsAssignableFrom(sourceType))
+            IList List = source as IList;
+            for (int i = 0; i < List.Count; i++)
             {
-                IList List = source as IList;
-                for (int i = 0; i < List.Count; i++)
+                object v = List[i];
+                if (v.GetType().IsAtomic())
+                    children.Add(new IndexedLeaf(this, source, i));
+                else
+                    children.Add(new SettingNode(this, getSourceName(v), v));
+            }
+        }
+        else
+        {
+            PropertyInfo[] properties = sourceType.GetProperties();
+            foreach (PropertyInfo property in properties)
+            {
+                if (property.GetGetMethod().IsStatic)
+                    continue;
+                object v = property.GetValue(source, null);
+                if (property.CanWrite && property.JsonProperty() && v != null)
                 {
-                    object v = List[i];
-                    if (v.GetType().IsAtomic())
-                        children.Add(new IndexedLeaf(this, source, i));
+                    if (property.PropertyType.IsAtomic())
+                        children.Add(new PropertyLeaf(this, source, property));
                     else
-                        children.Add(new SettingNode(this, getSourceName(v), v));
+                        children.Add(new SettingNode(this, property.Name, v));
                 }
             }
-            else
-            {
-                PropertyInfo[] properties = sourceType.GetProperties();
-                foreach (PropertyInfo property in properties)
-                {
-                    if (property.GetGetMethod().IsStatic)
-                        continue;
-                    object v = property.GetValue(source, null);
-                    if (property.CanWrite && property.JsonProperty() && v != null)
-                    {
-                        if (property.PropertyType.IsAtomic())
-                            children.Add(new PropertyLeaf(this, source, property));
-                        else
-                            children.Add(new SettingNode(this, property.Name, v));
-                    }
-                }
-            }
-            return children;
         }
+        return children;
+    }
 
-        string getSourceName(object source)
+    string getSourceName(object source)
+    {
+        Type nodeType = source.GetType();
+        PropertyInfo[] properties = nodeType.GetProperties();
+        try
         {
-            Type nodeType = source.GetType();
-            PropertyInfo[] properties = nodeType.GetProperties();
+            foreach (PropertyInfo property in properties)
+            {
+                if (property.Name.Equals("Name"))
+                    return property.GetValue(source, null).ToString();
+            }
+        }
+        catch { return null; }
+        return nodeType.Name;
+    }
+}
+
+public class Leaf : SettingNode
+{
+    public object Source { get; set; }
+    public object Value { get; set; }
+    public Type Type { get; set; }
+
+    protected object parseValue(string valueString)
+    {
+        if (Type.IsEnum)
+            return Enum.Parse(Type, valueString);
+        else
+        {
             try
             {
-                foreach (PropertyInfo property in properties)
-                {
-                    if (property.Name.Equals("Name"))
-                        return property.GetValue(source, null).ToString();
-                }
+                return Convert.ChangeType(valueString, Type);
             }
-            catch { return null; }
-            return nodeType.Name;
-        }
-    }
-
-    public class Leaf : SettingNode
-    {
-        public object Source { get; set; }
-        public object Value { get; set; }
-        public Type Type { get; set; }
-
-        protected object parseValue(string valueString)
-        {
-            if (Type.IsEnum)
-                return Enum.Parse(Type, valueString);
-            else
+            catch
             {
-                try
+                if (Type == typeof(bool))
                 {
-                    return Convert.ChangeType(valueString, Type);
-                }
-                catch
-                {
-                    if (Type == typeof(bool))
-                    {
-                        return valueString.ToLower() == "yes";
-                    }
+                    return valueString.ToLower() == "yes";
                 }
             }
-            return null;
         }
-
-        public virtual void SetValue(string valueString)
-        {
-            Value = Convert.ChangeType(valueString, Type);
-        }
+        return null;
     }
 
-    public class IndexedLeaf : Leaf
+    public virtual void SetValue(string valueString)
     {
-        public int Index { get; set; }
+        Value = Convert.ChangeType(valueString, Type);
+    }
+}
 
-        public IndexedLeaf(SettingNode parent, object source, int index)
-        {
-            Parent = parent;
+public class IndexedLeaf : Leaf
+{
+    public int Index { get; set; }
 
-            Name = "[" + index + "]";
+    public IndexedLeaf(SettingNode parent, object source, int index)
+    {
+        Parent = parent;
 
-            Source = source;
-            Value = (source as IList)[index];
-            Type = Value.GetType();
+        Name = "[" + index + "]";
 
-            Index = index;
-        }
+        Source = source;
+        Value = (source as IList)[index];
+        Type = Value.GetType();
 
-        public override void SetValue(string valueString)
-        {
-            (Source as IList)[Index] = parseValue(valueString);
-        }
+        Index = index;
     }
 
-    public class PropertyLeaf : Leaf
+    public override void SetValue(string valueString)
     {
-        public PropertyInfo Property { get; set; }
+        (Source as IList)[Index] = parseValue(valueString);
+    }
+}
 
-        public PropertyLeaf(SettingNode parent, object source, PropertyInfo property)
-        {
-            Parent = parent;
+public class PropertyLeaf : Leaf
+{
+    public PropertyInfo Property { get; set; }
 
-            Name = property.Name;
+    public PropertyLeaf(SettingNode parent, object source, PropertyInfo property)
+    {
+        Parent = parent;
 
-            Source = source;
-            Value = property.GetValue(source, null);
-            Type = property.PropertyType;
+        Name = property.Name;
 
-            Property = property;
-        }
+        Source = source;
+        Value = property.GetValue(source, null);
+        Type = property.PropertyType;
 
-        public override void SetValue(string valueString)
-        {
-            Property.SetValue(Source, parseValue(valueString), null);
-        }
+        Property = property;
+    }
+
+    public override void SetValue(string valueString)
+    {
+        Property.SetValue(Source, parseValue(valueString), null);
     }
 }

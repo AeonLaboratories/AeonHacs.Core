@@ -1,22 +1,20 @@
-﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
-namespace AeonHacs
+namespace AeonHacs;
+
+public class ObservableItemsList<T> : ObservableList<T> where T : INotifyPropertyChanged
 {
-    public class ObservableItemsList<T> : ObservableList<T> where T : INotifyPropertyChanged
+    public new void Add(T item)
     {
-        public new void Add(T item)
-        {
-            base.Add(item);
-            if (item != null)
-                item.PropertyChanged += NotifyPropertyChanged;
-        }
+        base.Add(item);
+        if (item != null)
+            item.PropertyChanged += NotifyPropertyChanged;
+    }
 
-        public new void Remove(T item)
-        {
-            if (item != null)
-                item.PropertyChanged -= NotifyPropertyChanged;
-            base.Remove(item);
-        }
+    public new void Remove(T item)
+    {
+        if (item != null)
+            item.PropertyChanged -= NotifyPropertyChanged;
+        base.Remove(item);
     }
 }
