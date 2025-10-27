@@ -2908,7 +2908,7 @@ public class Cegs : ProcessManager, ICegs
     #endregion Vacuum System
 
     #region OpenLine
-    // TODO: Consider moving this fuction to VacuumSystem. Although gas supplies aren't
+    // TODO: Consider moving this function to VacuumSystem. Although gas supplies aren't
     // VacuumSystem elements, the point of this method is to close all of the gas
     // supplies on a vacuum system when opening the line.
     protected virtual void CloseGasSupplies() => CloseGasSupplies(MC.VacuumSystem);
@@ -2943,25 +2943,30 @@ public class Cegs : ProcessManager, ICegs
     /// <param name="vacuumSystem"></param>
     protected virtual void OpenLine(IVacuumSystem vacuumSystem)
     {
-        ProcessStep.Start($"Ensure all {vacuumSystem.Name}'s sections are all well above freezing.");
-        var coldSections = Sections.Values.Where(s =>
-            s.VacuumSystem == vacuumSystem &&
-            s.Coldfinger is IColdfinger c &&
-            c.Temperature < 5).ToList();
-        int minutesToWait = 0;
-        coldSections.ForEach(s =>
-        {
-            s.Thaw(10);
-            var mtt = (s.Coldfinger as Coldfinger)?.MaximumMinutesToThaw ??
-                (s.Coldfinger as VTColdfinger)?.MaximumMinutesToThaw ?? 0;
-            if (mtt > minutesToWait)
-                minutesToWait = mtt;
-        });
-        WaitFor(() => coldSections.All(s => s.Temperature > 5), minutesToWait * 60000, 1000);
-        ProcessStep.End();
-
+    	if (ParameterTrue("ThawColdfingersWhenOpeningLine"))
+            ThawAllColdfingers(vacuumSystem);            
         vacuumSystem.OpenLine();
     }
+    
+    protected virtual void ThawAllColdfingers(IVacuumSystem vacuumSystem)
+    {
+        ProcessStep.Start($"Ensure all of {vacuumSystem.Name}'s coldfingers are all well above freezing.");
+        var coldColdfingers = vacuumSystem.MySection.Chambers
+            .Where(ch => ch.Coldfinger is IColdfinger c && c.Temperature < 5)
+            .Select(ch => ch.Coldfinger);
+        int minutesToWait = 0;
+
+        foreach (var cf in coldColdfingers)
+        {
+            cf.Thaw(10);
+            var mtt = (cf as Coldfinger)?.MaximumMinutesToThaw ??
+                (cf as VTColdfinger)?.MaximumMinutesToThaw ?? 0;
+            if (mtt > minutesToWait) minutesToWait = mtt;
+        }
+        WaitFor(() => coldColdfingers.All(cf => cf.Temperature > 0), minutesToWait * 60000, 1000);
+        ProcessStep.End();
+    }
+   
 
     #endregion OpenLine
 
@@ -3529,7 +3534,10 @@ public class Cegs : ProcessManager, ICegs
 
         MC.Manometer.WaitForStable(5);
         MC.Isolate();
-        vtc.Thaw(); // speeds final OpenLine in process sequences
+        if (ParameterTrue("ThawVttAfterExtract"))
+            vtc.Thaw(); // speeds final OpenLine in process sequences
+        else
+            vtc.Standby();  // stays cooler for repeated use
 
         ProcessStep.End();
     }
