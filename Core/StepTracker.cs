@@ -4,6 +4,11 @@ using System.ComponentModel;
 
 namespace AeonHacs;
 
+// TODO This class needs a major overhaul. It's stack-based and multi-thread intolerant.
+// Now that it's needed by multiple classes running various threads, consistent nesting of
+// Starts and Ends can't be guaranteed. A different collection type is required and steps
+// need unique keys so that they can be updated or closed reliably by the using code. The
+// CurrentStep is no longer reliably singular.
 public class StepTracker : INotifyPropertyChanged
 {
     public static StepTracker DefaultMajor = new StepTracker(); // major steps
@@ -97,10 +102,15 @@ public class StepTracker : INotifyPropertyChanged
     {
         get
         {
-            if (CurrentStep == null)
+            // TODO Why does this bog down the NotifyPropertyChanged loop ???
+            //try { return DateTime.Now.Subtract(CurrentStep.StartTime); }
+            //catch { return LastElapsed; }
+
+            var step = CurrentStep;
+            if (step == null)
                 return LastElapsed;
             else
-                return DateTime.Now.Subtract(CurrentStep.StartTime);
+                return DateTime.Now.Subtract(step.StartTime);
         }
     }
     public override string ToString()
