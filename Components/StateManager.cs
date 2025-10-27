@@ -69,7 +69,7 @@ public class StateManager : HacsComponent, IStateManager
     }
     int idleTimeout = 500;
 
-    public virtual bool Ready => true;
+    public virtual bool Ready => Started;
 
     public virtual bool HasWork => false;
 
@@ -113,7 +113,8 @@ public class StateManager : HacsComponent, IStateManager
             // Busy check allows completion of StopActions before stopping
             while (!Stopping || Busy)
             {
-                (this as IStateManager).ManageState?.Invoke();
+                if (Started)
+                    (this as IStateManager).ManageState?.Invoke();
 
                 // Refer to StateLoopTimeout only once per loop; it can
                 // vary over multiple calls when it depends on changing
@@ -121,6 +122,8 @@ public class StateManager : HacsComponent, IStateManager
                 var timeout = StateLoopTimeout;
                 if (timeout < 0)
                     timeout = Stopping ? 0 : Timeout.Infinite;
+                else if (!Started)
+                    timeout = Math.Min(timeout, 100);
                 else if (Stopping)
                     timeout = Math.Min(timeout, 30);
 
