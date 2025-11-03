@@ -5341,10 +5341,24 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void ExtractEtcThenEvacuate()
     {
         KeepAllLNManifoldsActive();
-        ExtractEtc();
+        try { ExtractEtc(); }
+        catch (Exception e)
+        {
+            ResumeAllLNManifoldsMonitoring();
+            Pause("Exception in ExtractEtcThenEvacuate()",
+                $"{e}\r\n" +
+                "Process paused.\r\n" +
+                "Restart the application to abort the process,\r\n" +
+                "or choose Ok to continue as is.",
+                NoticeType.Error);
+            OpenAndEvacuateVttToGM();
+            return;
+        }
+
         ResumeAllLNManifoldsMonitoring();
         OpenAndEvacuateVttToGM();
     }
+
 
     [Description("Open and evacuate the VTT-GM section of the CEGS.")]
     protected virtual void OpenAndEvacuateVttToGM()
