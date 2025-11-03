@@ -101,12 +101,12 @@ public class Sample : HacsComponent, ISample
 
 
     [JsonProperty]
-    public string Process
+    public string Protocol
     {
-        get => process;
-        set => Ensure(ref process, value);
+        get => protocol;
+        set => Ensure(ref protocol, value);
     }
-    string process;
+    string protocol;
 
     [JsonProperty]
     public List<Parameter> Parameters
@@ -377,7 +377,7 @@ public class Sample : HacsComponent, ISample
             InletPort = InletPort,
             Traps = Traps,      // set to empty? - defer to caller
             d13CPort = d13CPort,
-            Process = Process,
+            Protocol = Protocol,
             Parameters = Parameters.Select(p => p.Clone()).ToList(),
             SulfurSuspected = SulfurSuspected,
             Take_d13C = Take_d13C,

@@ -1391,7 +1391,7 @@ public interface IHC6Thermocouple : IManagedThermocouple
 public interface ISampleOwner : INamedObject
 {
     Dictionary<string, Sample> Samples { get; set; }
-    Dictionary<string, ProcessSequence> ProcessSequences { get; set; }
+    Dictionary<string, Protocol> Protocols { get; set; }
 }
 
 public interface ISample : IHacsComponent
@@ -1406,7 +1406,7 @@ public interface ISample : IHacsComponent
     string Traps { get; set; }
     void AddTrap(string trapName);
     Id13CPort d13CPort { get; set; }
-    string Process { get; set; }
+    string Protocol { get; set; }
     List<Parameter> Parameters { get; set; }
     double Parameter(string name);
     bool ParameterTrue(string name);
@@ -2167,49 +2167,49 @@ public interface IProcessManager : IHacsBase
 {
     Dictionary<string, ThreadStart> ProcessDictionary { get; }
     List<string> ProcessNames { get; }
-    Dictionary<string, ProcessSequence> ProcessSequences { get; set; }
+    Dictionary<string, Protocol> Protocols { get; set; }
     ProcessManager.ProcessStateCode ProcessState { get; }
     TimeSpan ProcessTime { get; }
     StepTracker ProcessStep { get; }
     StepTracker ProcessSubStep { get; }
     string ProcessToRun { get; set; }
     ProcessManager.ProcessTypeCode ProcessType { get; }
-    ProcessSequence CurrentProcessSequence { get; }
+    Protocol CurrentProtocol { get; }
     bool RunCompleted { get; }
     bool Busy { get; }
     void RunProcess(string processToRun);
     void AbortRunningProcess();
 }
 
-public interface IProcessSequence : IHacsComponent
+public interface IProtocol : IHacsComponent
 {
     InletPortType PortType { get; set; }
-    List<ProcessSequenceStep> Steps { get; set; }
+    List<ProtocolStep> Steps { get; set; }
     List<string> CheckList { get; set; }
-    ProcessSequence Clone();
+    Protocol Clone();
 }
 
-public interface IProcessSequenceStep : INamedObject
+public interface IProtocolStep : INamedObject
 {
-    ProcessSequenceStep Clone();
+    ProtocolStep Clone();
 }
-public interface ICombustionStep : IProcessSequenceStep
+public interface ICombustionStep : IProtocolStep
 {
     int Temperature { get; set; }
     int Minutes { get; set; }
     bool AdmitO2 { get; set; }
     bool WaitForSetpoint { get; set; }
 }
-public interface IWaitMinutesStep : IProcessSequenceStep
+public interface IWaitMinutesStep : IProtocolStep
 {
     int Minutes { get; set; }
 }
 
-public interface IParameterStep : IProcessSequenceStep
+public interface IParameterStep : IProtocolStep
 {
     Parameter Parameter { get; }
 }
-public interface IParametersStep : IProcessSequenceStep
+public interface IParametersStep : IProtocolStep
 {
     List<Parameter> Parameters { get; set; }
 }

@@ -39,7 +39,7 @@ public class ProcessManager : HacsBase, IProcessManager
     protected virtual void BuildProcessDictionary() { }
 
     [JsonProperty(Order = -98)]
-    public Dictionary<string, ProcessSequence> ProcessSequences { get; set; } = new Dictionary<string, ProcessSequence>();
+    public Dictionary<string, Protocol> Protocols { get; set; } = new Dictionary<string, Protocol>();
 
     public ProcessStateCode ProcessState
     {
@@ -83,7 +83,7 @@ public class ProcessManager : HacsBase, IProcessManager
         set => Ensure(ref processToRun, value);
     }
     string processToRun;
-    public enum ProcessTypeCode { Simple, Sequence }
+    public enum ProcessTypeCode { Simple, Protocol }
     public ProcessTypeCode ProcessType
     {
         get => processType;
@@ -97,8 +97,8 @@ public class ProcessManager : HacsBase, IProcessManager
     }
     bool runCompleted = false;
 
-    public virtual bool ProcessSequenceIsRunning =>
-        ProcessType == ProcessTypeCode.Sequence && !RunCompleted;
+    public virtual bool ProtocolIsRunning =>
+        ProcessType == ProcessTypeCode.Protocol && !RunCompleted;
 
     public virtual void RunProcess(string processToRun)
     {
@@ -144,8 +144,8 @@ public class ProcessManager : HacsBase, IProcessManager
                             }
                             else
                             {
-                                ProcessType = ProcessTypeCode.Sequence;
-                                process = RunProcessSequence;
+                                ProcessType = ProcessTypeCode.Protocol;
+                                process = RunProtocol;
                             }
 
                             ProcessThread = new Thread(() => RunProcess(process))
@@ -198,7 +198,7 @@ public class ProcessManager : HacsBase, IProcessManager
     protected virtual void ProcessStarting(string message = "")
     {
         if (message.IsBlank())
-            message = $"Process{(ProcessType == ProcessTypeCode.Sequence ? " sequence" : "")} starting: {ProcessToRun}";
+            message = $"Process{(ProcessType == ProcessTypeCode.Protocol ? " protocol" : "")} starting: {ProcessToRun}";
         Hacs.SystemLog.Record(message);
     }
 
@@ -209,17 +209,17 @@ public class ProcessManager : HacsBase, IProcessManager
         Hacs.SystemLog.Record(message);
     }
 
-    #region ProcessSequences
-    public ProcessSequence CurrentProcessSequence { get; set; } = null;
+    #region Protocols
+    public Protocol CurrentProtocol { get; set; } = null;
 
-    void RunProcessSequence()
+    void RunProtocol()
     {
-        CurrentProcessSequence = ProcessSequences.Values.ToList().Find(x => x?.Name == ProcessToRun);
+        CurrentProtocol = Protocols.Values.ToList().Find(x => x?.Name == ProcessToRun);
 
-        if (CurrentProcessSequence == null)
-            throw new Exception("No such Process Sequence: \"" + ProcessToRun + "\"");
+        if (CurrentProtocol == null)
+            throw new Exception("No such Protocol: \"" + ProcessToRun + "\"");
 
-        foreach (ProcessSequenceStep step in CurrentProcessSequence.Steps)
+        foreach (ProtocolStep step in CurrentProtocol.Steps)
         {
             ProcessStep.Start(step.Name);
             if (step is CombustionStep cs)
@@ -232,7 +232,7 @@ public class ProcessManager : HacsBase, IProcessManager
                 ProcessDictionary[step.Name]();
             ProcessStep.End();
         }
-        CurrentProcessSequence = null;
+        CurrentProtocol = null;
     }
 
     #region parameterized process steps
@@ -244,7 +244,7 @@ public class ProcessManager : HacsBase, IProcessManager
 
     #endregion parameterized process steps
 
-    #endregion ProcessSequences
+    #endregion Protocols
 
     #endregion process manager
 }

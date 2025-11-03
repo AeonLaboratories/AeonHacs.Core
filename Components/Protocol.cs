@@ -5,7 +5,7 @@ using System.Text;
 
 namespace AeonHacs.Components;
 
-public class ProcessSequence : HacsComponent, IProcessSequence
+public class Protocol : HacsComponent, IProtocol
 {
     #region HacsComponent
 
@@ -20,12 +20,12 @@ public class ProcessSequence : HacsComponent, IProcessSequence
     InletPortType portType;
 
     [JsonProperty]
-    public List<ProcessSequenceStep> Steps
+    public List<ProtocolStep> Steps
     {
         get => steps;
         set => Ensure(ref steps, value);
     }
-    List<ProcessSequenceStep> steps;
+    List<ProtocolStep> steps;
 
     [JsonProperty]
     public List<string> CheckList
@@ -35,20 +35,20 @@ public class ProcessSequence : HacsComponent, IProcessSequence
     }
     List<string> checkList;
 
-    public ProcessSequence() { }
+    public Protocol() { }
 
-    public ProcessSequence(string name) : this(name, InletPortType.Combustion) { }
+    public Protocol(string name) : this(name, InletPortType.Combustion) { }
 
-    public ProcessSequence(string name, InletPortType source)
+    public Protocol(string name, InletPortType source)
     {
         Name = name;
         PortType = source;
-        Steps = new List<ProcessSequenceStep>();
+        Steps = new List<ProtocolStep>();
 }
 
-public ProcessSequence Clone()
+public Protocol Clone()
     {
-        ProcessSequence ps = new ProcessSequence(Name, PortType);
+        Protocol ps = new Protocol(Name, PortType);
         Steps.ForEach(pss => ps.Steps.Add(pss.Clone()));
         return ps;
     }
@@ -58,7 +58,7 @@ public ProcessSequence Clone()
 
 // Process steps aren't NamedObjects: they aren't findable by name because
 // there are often duplicates. But they have similar properties.
-public class ProcessSequenceStep : BindableObject, IProcessSequenceStep
+public class ProtocolStep : BindableObject, IProtocolStep
 {
     [DisplayName]
     [JsonProperty]
@@ -67,7 +67,7 @@ public class ProcessSequenceStep : BindableObject, IProcessSequenceStep
         get => name;
         set => Ensure(ref name, value);
     }
-    string name = "Process Sequence Step";
+    string name = "Protocol Step";
 
     [Description]
     [JsonProperty]
@@ -78,19 +78,19 @@ public class ProcessSequenceStep : BindableObject, IProcessSequenceStep
     }
     string description = "";
 
-    public ProcessSequenceStep() { }
+    public ProtocolStep() { }
 
-    public ProcessSequenceStep(string name)
+    public ProtocolStep(string name)
     {
         Name = name;
     }
-    public ProcessSequenceStep(string name, string description)
+    public ProtocolStep(string name, string description)
     {
         Name = name;
         Description = description;
     }
 
-    public virtual ProcessSequenceStep Clone() => new ProcessSequenceStep(Name, Description);
+    public virtual ProtocolStep Clone() => new ProtocolStep(Name, Description);
 
     public override string ToString()
     {
@@ -100,9 +100,9 @@ public class ProcessSequenceStep : BindableObject, IProcessSequenceStep
     }
 }
 
-public abstract class ParameterizedStep : ProcessSequenceStep { }
+public abstract class ParameterizedStep : ProtocolStep { }
 
-[Description("Combust the sample")]
+[Description("Combustion step using local parameters. (Deprecated. Use named Parameters instead.")]
 public class CombustionStep : ParameterizedStep, ICombustionStep
 {
     [JsonProperty]
@@ -129,7 +129,7 @@ public class CombustionStep : ParameterizedStep, ICombustionStep
         WaitForSetpoint = waitForSetpoint;
     }
 
-    public override ProcessSequenceStep Clone() =>
+    public override ProtocolStep Clone() =>
         new CombustionStep(Name, Temperature, Minutes, AdmitO2, WaitForSetpoint);
 
     public override string ToString()
@@ -143,6 +143,7 @@ public class CombustionStep : ParameterizedStep, ICombustionStep
     }
 }
 
+[Description("Wait step using local parameter. (Deprecated. Use 'WaitTimerMinutes' Parameter and 'Wait For Timer' instead")]
 public class WaitMinutesStep : ParameterizedStep, IWaitMinutesStep
 {
     [JsonProperty]
@@ -158,11 +159,12 @@ public class WaitMinutesStep : ParameterizedStep, IWaitMinutesStep
         Minutes = minutes;
     }
 
-    public override ProcessSequenceStep Clone() => new WaitMinutesStep(Name, Minutes);
+    public override ProtocolStep Clone() => new WaitMinutesStep(Name, Minutes);
 
     public override string ToString() => $"Wait for {Minutes} minutes.";
 }
 
+[Description("Assign a value to a named parameter.")]
 public class ParameterStep : ParameterizedStep, IParameterStep
 {
     public override string Name
@@ -208,7 +210,7 @@ public class ParameterStep : ParameterizedStep, IParameterStep
         Value = parameter.Value;
     }
 
-    public override ProcessSequenceStep Clone() => new ParameterStep(Parameter);
+    public override ProtocolStep Clone() => new ParameterStep(Parameter);
 
     public override string ToString()
     {
@@ -231,7 +233,7 @@ public class ParameterStep : ParameterizedStep, IParameterStep
 //        Parameters = parameters ?? new List<Parameter>();
 //    }
 
-//    public override ProcessSequenceStep Clone() => new ParametersStep(Parameters);
+//    public override ProtocolStep Clone() => new ParametersStep(Parameters);
 
 //    public override string ToString()
 //    {
