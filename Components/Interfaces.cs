@@ -2170,8 +2170,8 @@ public interface IProcessManager : IHacsBase
     Dictionary<string, Protocol> Protocols { get; set; }
     ProcessManager.ProcessStateCode ProcessState { get; }
     TimeSpan ProcessTime { get; }
-    StepTracker ProcessStep { get; }
-    StepTracker ProcessSubStep { get; }
+    StatusChannel ProcessStep { get; }
+    StatusChannel ProcessSubStep { get; }
     string ProcessToRun { get; set; }
     ProcessManager.ProcessTypeCode ProcessType { get; }
     Protocol CurrentProtocol { get; }
@@ -2221,8 +2221,8 @@ public interface IVolumeCalibration : IHacsComponent
     int CalibrationMinutes { get; set; }
     List<VolumeExpansion> Expansions { get; set; }
     bool ExpansionVolumeIsKnown { get; set; }
-    StepTracker ProcessStep { get; set; }
-    StepTracker ProcessSubStep { get; set; }
+    StatusChannel ProcessStep { get; set; }
+    StatusChannel ProcessSubStep { get; set; }
     Action OpenLine { get; set; }
     double OkPressure { get; set; }
     HacsLog Log { get; set; }

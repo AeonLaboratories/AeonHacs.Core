@@ -67,7 +67,7 @@ public class ProtocolStep : BindableObject, IProtocolStep
         get => name;
         set => Ensure(ref name, value);
     }
-    string name = "Protocol Step";
+    string name = "Protocol Status";
 
     [Description]
     [JsonProperty]

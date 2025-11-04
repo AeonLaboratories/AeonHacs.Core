@@ -226,66 +226,66 @@ public class ExtractionLine : ProcessManager, IExtractionLine
     void EvacuateTF() => TFSection.OpenAndEvacuate();
     void EvacuateTF(double pressure)
     {
-        ProcessStep.Start($"Evacuate to {pressure:0.0e0} Torr");
+        var step = ProcessStep.Start($"Evacuate to {pressure:0.0e0} Torr");
         TFSection.OpenAndEvacuate(pressure);
-        ProcessStep.End();
+        step.End();
     }
 
     void WaitForPressureBelow(double pressure)
     {
-        ProcessStep.Start($"Wait for tube pressure < {pressure} Torr");
+        var step = ProcessStep.Start($"Wait for tube pressure < {pressure} Torr");
         WaitFor(() => TFManometer.Pressure < pressure);
-        ProcessStep.End();
+        step.End();
     }
 
     void WaitForPressureAbove(double pressure)
     {
-        ProcessStep.Start($"Wait for tube pressure > {pressure} Torr");
+        var step = ProcessStep.Start($"Wait for tube pressure > {pressure} Torr");
         WaitFor(() => TFManometer.Pressure > pressure);
-        ProcessStep.End();
+        step.End();
     }
 
     void WaitForTemperatureAbove(int temperature)
     {
-        ProcessStep.Start($"Wait for tube temperature > {temperature} °C");
+        var step = ProcessStep.Start($"Wait for tube temperature > {temperature} °C");
         WaitFor(() => TubeFurnace.Temperature > temperature);
-        ProcessStep.End();
+        step.End();
     }
 
     void WaitForTemperatureBelow(int temperature)
     {
-        ProcessStep.Start($"Wait for tube temperature < {temperature} °C");
+        var step = ProcessStep.Start($"Wait for tube temperature < {temperature} °C");
         WaitFor(() => TubeFurnace.Temperature < temperature);
-        ProcessStep.End();
+        step.End();
     }
 
     void PressurizeO2(double pressure)
     {
-        ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {O2GasSupply.GasName}");
+        var step = ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {O2GasSupply.GasName}");
         O2GasSupply.Pressurize(pressure);
         //MFC?.TurnOn(MFC.MaximumSetpoint);
         //O2GasSupply.Admit(pressure);
         //MFC.TurnOff();
-        ProcessStep.End();
+        step.End();
     }
 
     void PressurizeHe(double pressure)
     {
-        ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {HeGasSupply.GasName}");
+        var step = ProcessStep.Start($"Pressurize tube to {pressure:0} Torr with {HeGasSupply.GasName}");
         HeGasSupply.Pressurize(pressure);
-        ProcessStep.End();
+        step.End();
     }
 
 
     void PrepareForOpening()
     {
         TFPort.State = LinePort.States.InProcess;
-        ProcessStep.Start("Prepare tube furnace for opening");
+        var step = ProcessStep.Start("Prepare tube furnace for opening");
 
         PressurizeHe(pAmbient + 20);
         PurgeFlowManager.Start();
 
-        ProcessStep.CurrentStep.Description = "Tube furnace ready to be opened";
+        step.Update("Tube furnace ready to be opened");
 
         WaitForOperator(
             "Tube furnace ready to be opened." +
@@ -293,14 +293,14 @@ public class ExtractionLine : ProcessManager, IExtractionLine
             "Dismiss this window when furnace is closed again.");
         PurgeFlowManager.Stop();
 
-        ProcessStep.End();
+        step.End();
         TFPort.State = LinePort.States.Complete;
     }
 
     // Bake furnace tube
     void Bakeout()
     {
-        ProcessStep.Start($"{Name}: Bakeout tube furnace");
+        var step = ProcessStep.Start($"{Name}: Bakeout tube furnace");
         IsolateTF();
 
         if (!OkCancel("Confirm prior sample is removed",
@@ -331,9 +331,9 @@ public class ExtractionLine : ProcessManager, IExtractionLine
         {
             PressurizeO2(O2Pressure);
 
-            ProcessStep.Start($"Bake at {bakeTemperature} °C for {MinutesString(bakeMinutes)} min, cycle {i + 1} of {bakeCycles}");
+            step = ProcessStep.Start($"Bake at {bakeTemperature} °C for {MinutesString(bakeMinutes)} min, cycle {i + 1} of {bakeCycles}");
             WaitMinutes(bakeMinutes);
-            ProcessStep.End();
+            step.End();
             EvacuateTF(0.1);
         }
 
@@ -342,7 +342,7 @@ public class ExtractionLine : ProcessManager, IExtractionLine
         var msg = $"{Name}: Tube bakeout process complete";
         SampleLog.Record(msg);
         Alert(msg);
-        ProcessStep.End();
+        step.End();
         TFPort.State = LinePort.States.Complete;
     }
 
@@ -374,7 +374,7 @@ public class ExtractionLine : ProcessManager, IExtractionLine
 
         vTFFlow.CloseWait();
 
-        ProcessStep.Start($"Bleed O2 over sample for {MinutesString(bleedMinutes)}");
+        var step = ProcessStep.Start($"Bleed O2 over sample for {MinutesString(bleedMinutes)}");
         //MFC.TurnOn(5);
         // Set FTG flow valve here and open the O2 gas supply valve
         O2GasSupply.Admit();
@@ -386,16 +386,16 @@ public class ExtractionLine : ProcessManager, IExtractionLine
         TFPressureManager.Start(ptarget);
 
         WaitRemaining(bleedMinutes);
-        ProcessStep.End();
+        step.End();
 
-        ProcessStep.Start($"Cool to below {t_LiBO2_frozen} °C");
+        step = ProcessStep.Start($"Cool to below {t_LiBO2_frozen} °C");
 
         TubeFurnace.Setpoint = 100;
         WaitForTemperatureBelow(t_LiBO2_frozen);
 
         TFPressureManager.Stop();
 
-        ProcessStep.End();
+        step.End();
 
         TubeFurnace.TurnOff();
         //MFC.TurnOff();
@@ -431,7 +431,7 @@ public class ExtractionLine : ProcessManager, IExtractionLine
         //MFC.ResetTrackedFlow();
         PressurizeO2(targetPressure);
 
-        ProcessStep.Start("Low-T sample combustion");
+        var step = ProcessStep.Start("Low-T sample combustion");
         {
             var vTFFlow = TFPressureManager.FlowValve;
             var vTFFlowShutoff = TFSection.PathToVacuum.LastOrDefault();
@@ -441,7 +441,7 @@ public class ExtractionLine : ProcessManager, IExtractionLine
 
             TFPressureManager.FlowValve.CloseWait();
 
-            ProcessStep.Start($"Bleed O2 over sample for {MinutesString(bleedMinutes)}");
+            step = ProcessStep.Start($"Bleed O2 over sample for {MinutesString(bleedMinutes)}");
             {
                 //MFC.TurnOn(5);
                 O2GasSupply.Admit();
@@ -460,16 +460,16 @@ public class ExtractionLine : ProcessManager, IExtractionLine
 
                 EvacuateTF(OkPressure);
             }
-            ProcessStep.End();
+            step.End();
 
-            ProcessStep.Start("Flush & evacuate TF");
+            step = ProcessStep.Start("Flush & evacuate TF");
             {
                 PressurizeO2(targetPressure);
                 EvacuateTF(1e-3);
             }
-            ProcessStep.End();
+            step.End();
         }
-        ProcessStep.End();
+        step.End();
 
         SampleLog.Record($"{Name}: Finish low-T sample combustion");
         // SampleLog.Record($"{Name}: Low-T O2 bleed volume\t{MFC.TrackedFlow}\tcc");
@@ -480,12 +480,12 @@ public class ExtractionLine : ProcessManager, IExtractionLine
 
         TubeFurnace.Setpoint = extractTemperature;
 
-        ProcessStep.Start($"Combust sample at {extractTemperature} °C for {MinutesString(extractMinutes)}");
+        step = ProcessStep.Start($"Combust sample at {extractTemperature} °C for {MinutesString(extractMinutes)}");
         {
             WaitForTemperatureAbove(extractTemperature - 10);
             WaitRemaining(extractMinutes);
         }
-        ProcessStep.End();
+        step.End();
     }
 
     void FinishExtract()
@@ -495,9 +495,9 @@ public class ExtractionLine : ProcessManager, IExtractionLine
 
         int bakeMinutes = 10;
 
-        ProcessStep.Start($"Continue bake for {MinutesString(bakeMinutes)} more");
+        var step = ProcessStep.Start($"Continue bake for {MinutesString(bakeMinutes)} more");
         WaitMinutes(bakeMinutes);
-        ProcessStep.End();
+        step.End();
 
         //MFC.TurnOn(5);
         O2GasSupply.Admit();
@@ -535,7 +535,7 @@ public class ExtractionLine : ProcessManager, IExtractionLine
         // disable ion gauge while low vacuum flow is expected
         DisableVSManometer();
 
-        ProcessStep.Start($"Bleed O2 over sample for {MinutesString(bleedMinutes)} + cool down");
+        var step = ProcessStep.Start($"Bleed O2 over sample for {MinutesString(bleedMinutes)} + cool down");
         {
 
             TFPressureManager.Start(targetPressure);
@@ -552,7 +552,7 @@ public class ExtractionLine : ProcessManager, IExtractionLine
             O2GasSupply.ShutOff();
             // v_TF_VM.OpenWait();     // WHY???
         }
-        ProcessStep.End();
+        step.End();
 
         RestoreVSManometer();
 

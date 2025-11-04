@@ -328,7 +328,7 @@ public class Meter : HacsDevice, IMeter, Meter.IDevice, Meter.IConfig
     {
         var i = 1;
         var sum = Value;
-        StepTracker.Default.Start($"Averaging {Name} over {seconds} seconds");
+        var step = StatusChannel.Default.Start($"Averaging {Name} over {seconds} seconds");
         void updateSum(object sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(Value))
@@ -340,7 +340,7 @@ public class Meter : HacsDevice, IMeter, Meter.IDevice, Meter.IConfig
         PropertyChanged += updateSum;
         WaitSeconds(seconds);
         PropertyChanged -= updateSum;
-        StepTracker.Default.End();
+        step.End();
         return sum / i;
     }
 

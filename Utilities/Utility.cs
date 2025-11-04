@@ -133,11 +133,11 @@ public class Utility
 
 
     /// <summary>
-    /// Waits a specified amount of time while optionally providing a StepTracker description of the wait operation.
+    /// Waits a specified amount of time while optionally providing a StatusChannel description of the wait operation.
     /// </summary>
     /// <param name="milliseconds">How long to wait, in milliseconds.</param>
     /// <param name="description">
-    /// An optional description for the wait operation. If explicitly set to <c>null</c>, no StepTracker description is provided.
+    /// An optional description for the wait operation. If explicitly set to <c>null</c>, no StatusChannel description is provided.
     /// If empty (the default), a generic description is created based on the amount of time.
     /// </param>
 
@@ -153,44 +153,45 @@ public class Utility
                 description = $"Wait {ToUnitsString(milliseconds, "millisecond")}.";
         }
 
-        if (description != null) StepTracker.Default.Start(description);
+        StatusChannel.Status status = default;
+        if (description != null) status = StatusChannel.Default.Start(description);
 
         Stopwatch sw = new Stopwatch();
         sw.Start();
         WaitFor(() => Hacs.Stopping || sw.Elapsed.TotalMilliseconds >= milliseconds);
 
-        if (description != null) StepTracker.Default.End();
+        status?.End();
     }
 
     /// <summary>
-    /// Waits a specified amount of time while optionally providing a StepTracker description of the wait operation.
+    /// Waits a specified amount of time while optionally providing a StatusChannel description of the wait operation.
     /// </summary>
     /// <param name="seconds">How long to wait, in seconds.</param>
     /// <param name="description">
-    /// An optional description for the wait operation. If explicitly set to <c>null</c>, no StepTracker description is provided.
+    /// An optional description for the wait operation. If explicitly set to <c>null</c>, no StatusChannel description is provided.
     /// If empty (the default), a generic description is created based on the amount of time.
     /// </param>
     public static void WaitSeconds(int seconds, string description = "") =>
         WaitMilliseconds(seconds * 1000, description);
 
     /// <summary>
-    /// Waits a specified amount of time while optionally providing a StepTracker description of the wait operation.
+    /// Waits a specified amount of time while optionally providing a StatusChannel description of the wait operation.
     /// </summary>
     /// <param name="minutes">How long to wait, in minutes.</param>
     /// <param name="description">
-    /// An optional description for the wait operation. If explicitly set to <c>null</c>, no StepTracker description is provided.
+    /// An optional description for the wait operation. If explicitly set to <c>null</c>, no StatusChannel description is provided.
     /// If empty (the default), a generic description is created based on the amount of time.
     /// </param>
     public static void WaitMinutes(int minutes, string description = "") =>
         WaitMilliseconds(minutes * 60000, description);
 
     /// <summary>
-    /// Wait until StepTracker.DefaultMajor.Elapsed has reached the specified number of minutes.
+    /// Wait until StatusChannel.DefaultMajor.Elapsed has reached the specified number of minutes.
     /// </summary>
     /// <param name="minutes"></param>
     public static void WaitRemaining(int minutes)
     {
-        int milliseconds = minutes * 60000 - (int)StepTracker.DefaultMajor.Elapsed.TotalMilliseconds;
+        int milliseconds = minutes * 60000 - (int)StatusChannel.DefaultMajor.Latest.Elapsed.TotalMilliseconds;
         if (milliseconds > 0)
             WaitMilliseconds(milliseconds, $"Wait for remainder of {MinutesString(minutes)}.");
     }

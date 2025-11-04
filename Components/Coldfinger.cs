@@ -613,9 +613,9 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
             Thaw(temperature);
         else
             Target = temperature;
-        StepTracker.Default?.Start($"Wait for {Name} > {AirTemperature - NearAirTemperature} °C");
+        var step = StatusChannel.Default?.Start($"Wait for {Name} > {AirTemperature - NearAirTemperature} °C");
         WaitFor(() => Thawed || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
-        StepTracker.Default?.End();
+        step?.End();
     }
 
 
@@ -626,9 +626,9 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
     {
         if (TargetState != TargetStates.Raise)
             Freeze();
-        StepTracker.Default?.Start($"Wait for {Name} < {FrozenTemperature + FreezeTrigger} °C");
+        var step = StatusChannel.Default?.Start($"Wait for {Name} < {FrozenTemperature + FreezeTrigger} °C");
         WaitFor(() => Frozen || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
-        StepTracker.Default?.End();
+        step?.End();
     }
 
     /// <summary>
@@ -643,8 +643,8 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
     {
         if (Raised && trickling) return;
 
-        var step = StepTracker.Default;
-        step?.Start($"Wait for {Name} LN Raised");
+        var statusChannel = StatusChannel.Default;
+        var step = statusChannel?.Start($"Wait for {Name} LN Raised");
         Raise();
         LNOn();     // force LN on immediately; ManageState will turn it off.
         WaitFor(() => Raised || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
@@ -653,13 +653,13 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
 
         if (!trickling)
         {
-            step?.Start($"Wait for {Name} LN level to peak");
+            step = statusChannel?.Start($"Wait for {Name} LN level to peak");
             WaitFor(() => LNValve.IsClosed || Hacs.Stopping);
             step?.End();
             if (Hacs.Stopping) return;
         }
 
-        step?.Start($"Wait {SecondsToWaitAfterRaised} seconds with LN raised");
+        step = statusChannel?.Start($"Wait {SecondsToWaitAfterRaised} seconds with LN raised");
         WaitFor(() => false, SecondsToWaitAfterRaised * 1000, 1000);
         step?.End();
     }

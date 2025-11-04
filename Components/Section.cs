@@ -283,7 +283,7 @@ public class Section : HacsComponent, ISection
     }
     IFlowManager flowManager;
 
-    protected StepTracker StepTracker => StepTracker.Default;
+    protected StatusChannel StepTracker => StatusChannel.Default;
 
     /// <summary>
     /// A method for cleaning the section;
@@ -591,9 +591,9 @@ public class Section : HacsComponent, ISection
         {
             Freeze();
 
-            StepTracker.Start("Wait for coldfinger to freeze.");
+            var step = StepTracker.Start("Wait for coldfinger to freeze.");
             WaitSeconds(30);
-            StepTracker.End();
+            step.End();
         }
     }
 
@@ -612,9 +612,9 @@ public class Section : HacsComponent, ISection
         else
         {
             Raise();
-            StepTracker.Start("Wait for coldfinger to freeze.");
+            var step = StepTracker.Start("Wait for coldfinger to freeze.");
             WaitSeconds(15);
-            StepTracker.End();
+            step.End();
         }
     }
 
@@ -648,9 +648,9 @@ public class Section : HacsComponent, ISection
         if (IsActivelyCooling)
             FreezeWait();
         OpenAndEvacuate();
-        StepTracker?.Start($"Wait for {pressure} Torr");
+        var step = StepTracker?.Start($"Wait for {pressure} Torr");
         VacuumSystem.WaitForStablePressure(pressure);
-        StepTracker?.End();
+        step?.End();
         Isolate();
         Freeze();
     }

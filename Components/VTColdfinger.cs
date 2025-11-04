@@ -446,17 +446,17 @@ public class VTColdfinger : StateManager<VTColdfinger.TargetStates, VTColdfinger
             Thaw(temperature);
         else
             thawTemperature = temperature;
-        StepTracker.Default?.Start($"Wait for {Name} > 2 °C");
+        var status = StatusChannel.Default?.Start($"Wait for {Name} > 2 °C");
         WaitFor(() => Thawed || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
-        StepTracker.Default?.End();
+        status?.End();
     }
 
     public void FreezeWait()
     {
         Freeze();
-        StepTracker.Default?.Start($"Wait for {Name} < {ColdTemperature} °C");
+        var status = StatusChannel.Default?.Start($"Wait for {Name} < {ColdTemperature} °C");
         WaitFor(() => Hacs.Stopping || Frozen, interval: 1000); // timeout handled in ManageState
-        StepTracker.Default?.End();
+        status?.End();
     }
 
     public void RaiseLN() => FreezeWait();

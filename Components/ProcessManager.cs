@@ -14,8 +14,6 @@ public class ProcessManager : HacsBase, IProcessManager
 
     public ProcessManager()
     {
-        StepTracker.DefaultMajor = ProcessStep;
-        StepTracker.Default = ProcessSubStep;
         BuildProcessDictionary();
     }
 
@@ -74,8 +72,8 @@ public class ProcessManager : HacsBase, IProcessManager
     protected Thread ProcessThread { get; set; } = null;
     protected Stopwatch ProcessTimer { get; set; } = new Stopwatch();
     public TimeSpan ProcessTime => ProcessTimer.Elapsed;
-    public StepTracker ProcessStep { get; protected set; } = new StepTracker("ProcessStep");
-    public StepTracker ProcessSubStep { get; protected set; } = new StepTracker("ProcessSubStep");
+    public StatusChannel ProcessStep { get; protected set; } = StatusChannel.DefaultMajor;
+    public StatusChannel ProcessSubStep { get; protected set; } = StatusChannel.Default;
 
     public virtual string ProcessToRun
     {
@@ -221,7 +219,7 @@ public class ProcessManager : HacsBase, IProcessManager
 
         foreach (ProtocolStep step in CurrentProtocol.Steps)
         {
-            ProcessStep.Start(step.Name);
+            var status = ProcessStep.Start(step.Name);
             if (step is CombustionStep cs)
                 Combust(cs.Temperature, cs.Minutes, cs.AdmitO2, cs.WaitForSetpoint);
             else if (step is WaitMinutesStep wms)
@@ -230,7 +228,7 @@ public class ProcessManager : HacsBase, IProcessManager
                 SetParameter(sps.Parameter);
             else
                 ProcessDictionary[step.Name]();
-            ProcessStep.End();
+            status.End();
         }
         CurrentProtocol = null;
     }

@@ -31,24 +31,24 @@ public class GasSupply : HacsComponent, IGasSupply
     #endregion HacsComponent
 
     /// <summary>
-    /// A StepTracker to receive process details.
+    /// A StatusChannel to receive process details.
     /// </summary>
-    public StepTracker ProcessStep
+    public StatusChannel ProcessStep
     {
-        get => processStep ?? StepTracker.Default;
+        get => processStep ?? StatusChannel.Default;
         set => Ensure(ref processStep, value);
     }
-    StepTracker processStep;
+    StatusChannel processStep;
 
     /// <summary>
-    /// A StepTracker to receive process overview messages.
+    /// A StatusChannel to receive process overview messages.
     /// </summary>
-    public StepTracker MajorStep
+    public StatusChannel MajorStep
     {
-        get => majorStep ?? StepTracker.DefaultMajor;
+        get => majorStep ?? StatusChannel.DefaultMajor;
         set => Ensure(ref majorStep, value);
     }
-    StepTracker majorStep;
+    StatusChannel majorStep;
 
 
     /// <summary>
@@ -294,7 +294,7 @@ public class GasSupply : HacsComponent, IGasSupply
     {
         var sw = new Stopwatch();
         double peak = Meter.Value;
-        ProcessStep?.Start($"Wait for {pressure:0} {Meter.UnitSymbol} {GasName} in {Destination.Name}");
+        var step = ProcessStep?.Start($"Wait for {pressure:0} {Meter.UnitSymbol} {GasName} in {Destination.Name}");
         sw.Restart();
         bool shouldStop()
         {
@@ -328,7 +328,7 @@ public class GasSupply : HacsComponent, IGasSupply
         if (thenCloseShutoff)
             ShutOff();
 
-        ProcessStep?.End();
+        step.End();
     }
 
     /// <summary>
@@ -361,7 +361,7 @@ public class GasSupply : HacsComponent, IGasSupply
     {
         string subject, message;
 
-        MajorStep?.Start($"Admit {pressure:0} {Meter?.UnitSymbol} {gasName} into {Destination.Name}");
+        var majorStep = MajorStep?.Start($"Admit {pressure:0} {Meter?.UnitSymbol} {gasName} into {Destination.Name}");
         if (Meter == null)
         {
             Admit();
@@ -408,7 +408,7 @@ public class GasSupply : HacsComponent, IGasSupply
                 }
             }
         }
-        MajorStep.End();
+        majorStep.End();;
     }
 
     /// <summary>
@@ -470,21 +470,21 @@ public class GasSupply : HacsComponent, IGasSupply
 
         for (int i = 1; i <= flushes; i++)
         {
-            MajorStep?.Start($"Flush {Destination.Name} with {GasName} ({i} of {flushes})");
+            var majorStep = MajorStep?.Start($"Flush {Destination.Name} with {GasName} ({i} of {flushes})");
             if (port != null) Destination.ClosePorts();
             Admit(pressureHigh, false);
-            ProcessStep?.Start($"Wait for {minutesAtPressureHigh} minutes at {pressureHigh:0} Torr");
+            var step = ProcessStep?.Start($"Wait for {minutesAtPressureHigh} minutes at {pressureHigh:0} Torr");
             WaitFor(() => false, (int)(60000 * minutesAtPressureHigh), 500);
-            ProcessStep?.End();
+            step.End();
             port?.Open();
             Destination.Evacuate(pressureLow);
             if (i < flushes)
             {
-                ProcessStep?.Start($"Wait for {minutesBetweenFlushes} minutes before next flush");
+                step = ProcessStep?.Start($"Wait for {minutesBetweenFlushes} minutes before next flush");
                 WaitFor(() => false, (int)(60000 * minutesBetweenFlushes), 500);
-                ProcessStep?.End();
+                step.End();
             }
-            MajorStep?.End();
+            majorStep.End();;
         }
         FlowValve?.CloseWait();
     }
@@ -542,7 +542,7 @@ public class GasSupply : HacsComponent, IGasSupply
         if (vacuumSystem == null) vacuumSystem = Destination.VacuumSystem;
         if (vacuumSystem == null) return;
 
-        MajorStep?.Start($"Restore {GasName} pressure regulation");
+        var majorStep = MajorStep?.Start($"Restore {GasName} pressure regulation");
 
         IsolateAndJoin();
         vacuumSystem.IsolateManifold();
@@ -577,7 +577,7 @@ public class GasSupply : HacsComponent, IGasSupply
         FlowValve.CloseWait();
         vacuumSystem.Isolate();
 
-        MajorStep?.End();
+        majorStep.End();
     }
 
     /// <summary>
@@ -593,14 +593,14 @@ public class GasSupply : HacsComponent, IGasSupply
         if (vacuumSystem == null)
             throw new Exception("NormalizeFlow requires a VacuumSystem");
 
-        MajorStep?.Start($"Normalize {GasName}-{Destination.Name} flow conditions");
+        var majorStep = MajorStep?.Start($"Normalize {GasName}-{Destination.Name} flow conditions");
 
         FlowValve.CloseWait();
         if (calibrate)
         {
-            ProcessStep?.Start("Calibrate flow valve");
+            var step = ProcessStep?.Start("Calibrate flow valve");
             FlowValve.Calibrate();
-            ProcessStep?.End();
+            step.End();
         }
 
         var toBeOpened = Destination?.InternalValves.SafeUnion(Path?.InternalValves);
@@ -621,13 +621,13 @@ public class GasSupply : HacsComponent, IGasSupply
         // TODO timeout
         WaitFor(() => vacuumSystem.HighVacuumValve.IsOpened || vacuumSystem.LowVacuumValve.IsOpened);
         WaitSeconds(2);
-        MajorStep?.End();
+        majorStep.End();
 
-        MajorStep?.Start("Drain flow-supply volume");
+        majorStep = MajorStep?.Start("Drain flow-supply volume");
         bool success = WaitFor(() => vacuumSystem.Pressure <= PurgePressure, SecondsToPurge * 1000);
         SourceValve.CloseWait();
         IsolateFromVacuum();
-        MajorStep?.End();
+        majorStep.End();
 
         return success;
     }
@@ -638,6 +638,7 @@ public class GasSupply : HacsComponent, IGasSupply
     /// <param name="targetValue">desired final pressure or other metric</param>
     public void FlowPressurize(double targetValue)
     {
+        StatusChannel.Status majorStep;
         string subject, message;
 
         if (!(FlowManager is IFlowManager))
@@ -648,9 +649,9 @@ public class GasSupply : HacsComponent, IGasSupply
 
         bool gasIsCO2 = Name.Contains("CO2");
         if (gasIsCO2)
-            MajorStep?.Start($"Admit {targetValue:0} {Meter.UnitSymbol} into the {Destination.Name}");
+            majorStep = MajorStep?.Start($"Admit {targetValue:0} {Meter.UnitSymbol} into the {Destination.Name}");
         else
-            MajorStep?.Start($"Pressurize {Destination.Name} to {targetValue:0} {Meter.UnitSymbol} with {GasName}");
+            majorStep = MajorStep?.Start($"Pressurize {Destination.Name} to {targetValue:0} {Meter.UnitSymbol} with {GasName}");
 
         if (targetValue > Meter.MaxValue)
         {
@@ -698,6 +699,6 @@ public class GasSupply : HacsComponent, IGasSupply
                 $"Ok or Cancel to accept this and move on.\r\n" +
                 $"Restart the application to abort the process.");
         }
-        MajorStep?.End();
+        majorStep.End();
     }
 }

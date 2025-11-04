@@ -64,18 +64,18 @@ public class VolumeCalibration : HacsComponent, IVolumeCalibration
     }
     bool expansionVolumeIsKnown;
 
-    public StepTracker ProcessStep
+    public StatusChannel ProcessStep
     {
         get => processStep;
         set => Ensure(ref processStep, value);
     }
-    StepTracker processStep;
-    public StepTracker ProcessSubStep
+    StatusChannel processStep;
+    public StatusChannel ProcessSubStep
     {
         get => processSubStep;
         set => Ensure(ref processSubStep, value);
     }
-    StepTracker processSubStep;
+    StatusChannel processSubStep;
     public Action OpenLine { get; set; }
     public double OkPressure
     {
@@ -141,29 +141,30 @@ public class VolumeCalibration : HacsComponent, IVolumeCalibration
 
     void admitGas()
     {
-        ProcessSubStep.Start("Open line");
+        var substep = ProcessSubStep.Start("Open line");
         openLine();
-        ProcessSubStep.End();
+        substep.End();
 
-        ProcessSubStep.Start($"Admit calibration gas into {GasSupply.Destination.Name}");
+        substep = ProcessSubStep.Start($"Admit calibration gas into {GasSupply.Destination.Name}");
         GasSupply.Destination.ClosePorts();
         GasSupply.Pressurize(CalibrationPressure);
-        ProcessSubStep.End();
+        substep.End();
 
-        ProcessSubStep.Start("Evacuate unnecessary gas from supply path.");
+        substep = ProcessSubStep.Start("Evacuate unnecessary gas from supply path.");
         GasSupply.EvacuatePath(OkPressure);
-        ProcessSubStep.End();
+        substep.End();
     }
 
     double measure(VolumeExpansion expansion)
     {
+        StatusChannel.Status substep;
         var valves = expansion?.ValveList;
         if (valves != null && valves.Any())
         {
-            ProcessSubStep.Start($"Expand gas into {expansion.Chamber.Name} via {valves[0].Name}");
+            substep = ProcessSubStep.Start($"Expand gas into {expansion.Chamber.Name} via {valves[0].Name}");
             valves.CloseExcept(new List<IValve>(){ valves[0]});
             valves[0].OpenWait();
-            ProcessSubStep.End();
+            substep.End();
 
             WaitSeconds(15);
 
@@ -178,16 +179,16 @@ public class VolumeCalibration : HacsComponent, IVolumeCalibration
         }
         else
         {
-            ProcessSubStep.Start($"Wait for >= {5} seconds of {Manometer.Name} stability");
+            substep = ProcessSubStep.Start($"Wait for >= {5} seconds of {Manometer.Name} stability");
             Manometer.WaitForStable(5);
-            ProcessSubStep.End();
+            substep.End();
         }
 
-        ProcessSubStep.Start($"Average the pressure over 30 seconds");
+        substep = ProcessSubStep.Start($"Average the pressure over 30 seconds");
         // Measurement units are Torr/K to compensate for pressure drift due to
         // temperature changes.
         var value = Manometer.WaitForAverage(30) / Kelvins;
-        ProcessSubStep.End();
+        substep.End();
 
         valves?[0]?.OpenWait();
         return value;
@@ -197,7 +198,7 @@ public class VolumeCalibration : HacsComponent, IVolumeCalibration
     {
         double[][] obs = daa(Expansions.Count + 1, repeats);   // observations
 
-        ProcessStep.Start("Measure expansions");
+        var step = ProcessStep.Start("Measure expansions");
 
         var sb = new StringBuilder();
         string vol0 = GasSupply.Destination.Name.Replace("_", "..");
@@ -223,11 +224,11 @@ public class VolumeCalibration : HacsComponent, IVolumeCalibration
             Log.Record(sb.ToString());
         }
 
-        ProcessStep.End();
+        step.End();
 
-        ProcessStep.Start("Open line");
+        step = ProcessStep.Start("Open line");
         openLine();
-        ProcessStep.End();
+        step.End();
 
         return obs;
     }

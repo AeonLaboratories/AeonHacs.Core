@@ -318,14 +318,14 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     double lowVacuumRequiredPressure;    // do not use HV above this pressure
 
     /// <summary>
-    /// A StepTracker to receive ongoing process state messages.
+    /// A StatusChannel to receive ongoing process state messages.
     /// </summary>
-    public StepTracker ProcessStep
+    public StatusChannel ProcessStep
     {
-        get => processStep ?? StepTracker.Default;
+        get => processStep ?? StatusChannel.Default;
         set => Ensure(ref processStep, value);
     }
-    StepTracker processStep;
+    StatusChannel processStep;
 
     /// <summary>
     /// A defined operating (valve) State for the VacuumSystem.
@@ -468,9 +468,9 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public void OpenLine()
     {
         if (MySection == null) return;
-        ProcessStep?.Start($"Open {Name} line");
+        var step = ProcessStep?.Start($"Open {Name} line");
         MySection.OpenAndEvacuate();
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -485,14 +485,13 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
         if (pressure == 0) pressure = BaselinePressure;
         TargetPressure = pressure;
 
-        ProcessStep?.Start($"Wait for {Manometer.Name} < {TargetPressure:0.0e0} Torr");
+        var step = ProcessStep?.Start($"Wait for {Manometer.Name} < {TargetPressure:0.0e0} Torr");
         bool shouldStop()
         {
             if (pressure != TargetPressure)
             {
                 pressure = TargetPressure;
-                if (ProcessStep != null)
-                    ProcessStep.CurrentStep.Description = $"Wait for {Manometer.Name} < {TargetPressure:0.0e0} Torr";
+                step?.Update($"Wait for {Manometer.Name} < {TargetPressure:0.0e0} Torr");
             }
             return Pressure <= TargetPressure || Stopping;
         }
@@ -503,12 +502,12 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
             if (timeouts % (4 * 24) == 0)
             {
                 Announce($"{Manometer.Name} hasn't reached {TargetPressure:0.0e0} Torr",
-                    $"It's been evacuating for {ProcessStep.Elapsed.TotalMinutes:0} minutes.");
+                    $"It's been evacuating for {step?.Elapsed.TotalMinutes:0} minutes.");
             }
             timeouts++;
         }
 
-        ProcessStep?.End();
+        step?.End();
     }
 
     /// <summary>

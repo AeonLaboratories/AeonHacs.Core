@@ -1726,7 +1726,7 @@ public class Cegs : ProcessManager, ICegs
             var expectedMinutes = (int)(degrees / ramper.RateDegreesPerMinute);
             longEnough = Math.Max(longEnough, 1.5 * expectedMinutes);
         }
-        ProcessStep.Start($"Waiting for {InletPort.Name} to reach {IpSetpoint:0} °C");
+        var step = ProcessStep.Start($"Waiting for {InletPort.Name} to reach {IpSetpoint:0} °C");
         while (!WaitFor(() => Stopping || InletPort.Temperature < IpSetpoint, (int)(longEnough * 60000), 1000))
         {
             var furnaceWasOn = InletPort.SampleFurnace?.IsOn ?? false;
@@ -1741,7 +1741,7 @@ public class Cegs : ProcessManager, ICegs
             }
             break;
         }
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -1772,7 +1772,7 @@ public class Cegs : ProcessManager, ICegs
         }
         // 2. The trap may not be the first chamber in IM_FirstTrap with a manometer.
 
-        ProcessStep.Start($"Waiting for {InletPort.Name} to reach {closeEnough:0} °C");
+        var step = ProcessStep.Start($"Waiting for {InletPort.Name} to reach {closeEnough:0} °C");
         while (!WaitFor(() => Stopping || InletPort.Temperature >= closeEnough, (int)(longEnough * 60000), 1000))
         {
             var furnaceWasOn = InletPort.SampleFurnace?.IsOn ?? false;
@@ -1787,7 +1787,7 @@ public class Cegs : ProcessManager, ICegs
             }
             break;
         }
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -1859,7 +1859,7 @@ public class Cegs : ProcessManager, ICegs
         var status = freezeTrap ?
             $"Start collecting sample in {trap.Name}" :
             $"Start gas flow through {trap.Name}";
-        ProcessStep.Start(status);
+        var step = ProcessStep.Start(status);
 
         trap.Evacuate();
         if (freezeTrap)
@@ -1881,7 +1881,7 @@ public class Cegs : ProcessManager, ICegs
         CollectStopwatch.Restart();
         collectionPath.FlowManager?.Start(FirstTrapBleedPressure);
 
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -2067,7 +2067,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Wait for a collection stop condition to occur.")]
     protected virtual void CollectUntilConditionMet()
     {
-        ProcessStep.Start($"Wait for a collection stop condition");
+        var step = ProcessStep.Start($"Wait for a collection stop condition");
         var actions = CollectionActions();
         var conditions = CollectionConditions();
 
@@ -2094,7 +2094,7 @@ public class Cegs : ProcessManager, ICegs
             WaitMilliseconds(1000, null);
         }
         SampleLog.Record($"{Sample.LabId}\tCollection stop condition met:\t{stoppedBecause}");
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -2118,7 +2118,7 @@ public class Cegs : ProcessManager, ICegs
     /// <param name="immediately">If false, wait for CT pressure to bleed down after closing IP</param>
     protected virtual void StopCollecting(bool immediately = true)
     {
-        ProcessStep.Start("Stop Collecting");
+        var step = ProcessStep.Start("Stop Collecting");
         var collectionPath = IM_FirstTrap;
 
         collectionPath?.FlowManager?.Stop();
@@ -2132,7 +2132,7 @@ public class Cegs : ProcessManager, ICegs
         collectionPath?.FlowValve?.CloseWait();
         if (InletPort is not null)
             InletPort.State = LinePort.States.Complete;
-        ProcessStep.End();
+        step.End();
         if (FirstTrap != VTT)
             TransferCO2FromCTToVTT();
     }
@@ -2149,7 +2149,7 @@ public class Cegs : ProcessManager, ICegs
         var p = CollectionPathManometer;
         var im = Manifold(InletPort);
         var flowValveIsOpened = collectionPath.FlowValve?.IsOpened ?? true;
-        ProcessStep.Start($"Wait 5 to 30 seconds for {collectionPath.Name} pressure to stop falling");
+        var step = ProcessStep.Start($"Wait 5 to 30 seconds for {collectionPath.Name} pressure to stop falling");
         WaitSeconds(5);
         if (p != null) // don't wait if there's no manometer
             WaitFor(() =>
@@ -2161,7 +2161,7 @@ public class Cegs : ProcessManager, ICegs
                 }
                 return !p.IsFalling;
             }, 30000, 1000);
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -2397,27 +2397,27 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void ExerciseAllValves(int secondsBetween)
     {
-        ProcessStep.Start("Exercise all opened valves");
+        var step = ProcessStep.Start("Exercise all opened valves");
         foreach (var v in Valves?.Values)
             if ((v is CpwValve || v is PneumaticValve) && v.IsOpened)
             {
-                ProcessSubStep.Start($"Exercising {v.Name}");
+                var substep = ProcessSubStep.Start($"Exercising {v.Name}");
                 v.Exercise();
                 if (secondsBetween > 0)
                     WaitSeconds(secondsBetween);
-                ProcessSubStep.End();
+                substep.End();
             }
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Close all CPW and pneumatic valves.")]
     protected virtual void CloseAllValves()
     {
-        ProcessStep.Start("Close all opened valves");
+        var step = ProcessStep.Start("Close all opened valves");
         foreach (var v in Valves?.Values)
             if ((v is CpwValve || v is PneumaticValve) && !(v is RS232Valve))
                 v.CloseWait();
-        ProcessStep.End();
+        step.End();
     }
 
     // This skips LN valves that aren't connected to a coldfinger
@@ -2428,19 +2428,19 @@ public class Cegs : ProcessManager, ICegs
     [Description("Exercise all LN manifold valves")]
     protected virtual void ExerciseLNValves()
     {
-        ProcessStep.Start("Exercise all LN Manifold valves");
+        var step = ProcessStep.Start("Exercise all LN Manifold valves");
         foreach (var valve in AllLNValves)
             valve?.Exercise();
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Close all LN manifold valves")]
     protected virtual void CloseLNValves()
     {
-        ProcessStep.Start("Close all LN Manifold valves");
+        var step = ProcessStep.Start("Close all LN Manifold valves");
         foreach (var valve in AllLNValves)
             valve?.Close();
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Calibrate all RS232 multi-turn valves")]
@@ -2489,12 +2489,12 @@ public class Cegs : ProcessManager, ICegs
 
         void getToStartingPressure()
         {
-            ProcessSubStep.Start($"Wait for {vs.Manometer.Name} < {basePressure: 0.00e0} Torr.");
+            var substep = ProcessSubStep.Start($"Wait for {vs.Manometer.Name} < {basePressure: 0.00e0} Torr.");
             vs.WaitForStablePressure(basePressure);
-            ProcessSubStep.End();
+            substep.End();
         }
 
-        ProcessStep.Start($"Leak-check {section.Name}.");
+        var step = ProcessStep.Start($"Leak-check {section.Name}.");
 
         getToStartingPressure();
         // ports often have higher gas loads, usually due to water
@@ -2512,7 +2512,7 @@ public class Cegs : ProcessManager, ICegs
             }
             break;
         }
-        ProcessStep.End();
+        step.End();
         return finalLeakRate;
     }
 
@@ -2522,7 +2522,7 @@ public class Cegs : ProcessManager, ICegs
         if (ips.Count() < 1) return;
         var portNames = string.Join(", ", ips.Select(p => p.Name));
 
-        ProcessStep.Start($"Evacuate & Flush with inert gas: [{portNames}]");
+        var step = ProcessStep.Start($"Evacuate & Flush with inert gas: [{portNames}]");
 
         im.ClosePortsExcept(ips);
         im.VacuumSystem.MySection.Isolate();
@@ -2534,14 +2534,14 @@ public class Cegs : ProcessManager, ICegs
         im.VacuumSystem.WaitForPressure(CleanPressure);
         foreach (var ip in ips) ip.Close();
 
-        ProcessStep.End();
+        step.End();
     }
 
     protected virtual void WaitForStablePressure(IVacuumSystem vacuumSystem, double pressure, int seconds = 5)
     {
-        ProcessSubStep.Start($"Wait for stable pressure below {pressure} {vacuumSystem.Manometer.UnitSymbol}");
+        var substep = ProcessSubStep.Start($"Wait for stable pressure below {pressure} {vacuumSystem.Manometer.UnitSymbol}");
         vacuumSystem.WaitForStablePressure(pressure, seconds);
-        ProcessSubStep.End();
+        substep.End();
     }
 
     [Description("Turn off the active inlet port furnaces.")]
@@ -2552,7 +2552,7 @@ public class Cegs : ProcessManager, ICegs
     {
         if (InletPort is null) return;
 
-        ProcessStep.Start($"Heat Combustion Chamber Quartz ({QuartzFurnaceWarmupMinutes} minutes)");
+        var step = ProcessStep.Start($"Heat Combustion Chamber Quartz ({QuartzFurnaceWarmupMinutes} minutes)");
         InletPort.QuartzFurnace?.TurnOn();
         if (InletPort.State == LinePort.States.Loaded ||
             InletPort.State == LinePort.States.Prepared)
@@ -2570,7 +2570,7 @@ public class Cegs : ProcessManager, ICegs
                 $"Remove any coolant from combustion tube and \r\n" +
                 $"raise the sample furnace at {InletPort.Name}.");
         }
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -2589,11 +2589,11 @@ public class Cegs : ProcessManager, ICegs
 
         if (port != null)
         {
-            ProcessSubStep.Start($"Admit {gasSupply.GasName} into {port.Name}");
+            var substep = ProcessSubStep.Start($"Admit {gasSupply.GasName} into {port.Name}");
             port.Open();
             WaitSeconds(2);
             port.Close();
-            ProcessSubStep.End();
+            substep.End();
             WaitSeconds(5);
         }
     }
@@ -2626,12 +2626,12 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void DiscardIPGases()
     {
         if (!IpIm(out ISection im)) return;
-        ProcessStep.Start($"Discard gases at ({InletPort.Name})");
+        var step = ProcessStep.Start($"Discard gases at ({InletPort.Name})");
         im.Isolate();
         InletPort.Open();
         WaitSeconds(10);                // give some time to record a measurement
         im.Evacuate(OkPressure);    // allow for high pressure due to water
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -2640,10 +2640,10 @@ public class Cegs : ProcessManager, ICegs
     [Description("Discard gases from the measurement chamber.")]
     protected virtual void DiscardMCGases()
     {
-        ProcessStep.Start("Discard sample from MC");
+        var step = ProcessStep.Start("Discard sample from MC");
         SampleRecord(Sample);
         MC?.Evacuate();
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -2729,29 +2729,29 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        ProcessStep.Start($"Prepare d13C ports");
+        var step = ProcessStep.Start($"Prepare d13C ports");
         manifold.ClosePortsExcept(ports);
         manifold.Isolate();
         foreach (var p in ports) p.Open();
 
-        ProcessSubStep.Start($"Evacuate {manifold.Name} to {OkPressure:0.0e0} Torr");
+        var substep = ProcessSubStep.Start($"Evacuate {manifold.Name} to {OkPressure:0.0e0} Torr");
         manifold.OpenAndEvacuate(OkPressure);
-        ProcessSubStep.End();
+        substep.End();
 
         Flush(manifold, 3);
 
-        ProcessSubStep.Start($"Evacuate {manifold.Name} to {CleanPressure:0.0e0} Torr");
+        substep = ProcessSubStep.Start($"Evacuate {manifold.Name} to {CleanPressure:0.0e0} Torr");
         manifold.OpenAndEvacuate();
         HoldForLeakTightness(manifold);
-        ProcessStep.End();
+        substep.End();
 
-        ProcessStep.Start("Close prepared d13C ports");
+        substep = ProcessSubStep.Start("Close prepared d13C ports");
         manifold.ClosePorts();
-        ProcessStep.End();
+        substep.End();
 
         foreach (var p in ports) p.State = LinePort.States.Prepared;
         manifold.VacuumSystem.OpenLine();
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -2992,12 +2992,12 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void PressurizeGRsWithInertGas(IEnumerable<IGraphiteReactor> grs)
     {
-        ProcessStep.Start("Backfill the graphite reactors with inert gas");
+        var step = ProcessStep.Start("Backfill the graphite reactors with inert gas");
         if (!GrGmInertGas(grs, out ISection gm, out IGasSupply gasSupply)) return;
 
         var pressure = Ambient.Pressure + 10;
 
-        ProcessSubStep.Start($"Admit {pressure:0} Torr {gasSupply.GasName} into {gm.Name}");
+        var substep = ProcessSubStep.Start($"Admit {pressure:0} Torr {gasSupply.GasName} into {gm.Name}");
         gm.ClosePorts();
         var preAdmitPressure = gm.Pressure;
         gasSupply.Admit();
@@ -3028,14 +3028,14 @@ public class Cegs : ProcessManager, ICegs
             }
             break;
         }
-        ProcessSubStep.End();
+        substep.End();
 
 
-        ProcessSubStep.Start($"Open graphite reactors that are awaiting service.");
+        substep = ProcessSubStep.Start($"Open graphite reactors that are awaiting service.");
         foreach (var gr in grs) gr.Open();
-        ProcessSubStep.End();
+        substep.End();
 
-        ProcessSubStep.Start($"Ensure {gm.Name} pressure is ≥ {pressure:0} Torr");
+        substep = ProcessSubStep.Start($"Ensure {gm.Name} pressure is ≥ {pressure:0} Torr");
         WaitSeconds(1);
         while (!WaitFor(() => Hacs.Stopping || gm.Pressure >= pressure, (int)MaximumSecondsAdmitGas * 1000 / 2, 250))
         {
@@ -3050,13 +3050,13 @@ public class Cegs : ProcessManager, ICegs
             break;
         }
         gasSupply.ShutOff(true);
-        ProcessSubStep.End();
+        substep.End();
 
-        ProcessSubStep.Start("Isolate the graphite reactors");
+        substep = ProcessSubStep.Start("Isolate the graphite reactors");
         CloseAllGRs();
-        ProcessSubStep.End();
+        substep.End();
 
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Prepare graphite reactors waiting for service.")]
@@ -3114,6 +3114,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Precondition graphite reactor iron.")]
     protected virtual void PreconditionGRs()
     {
+        var step = ProcessStep.Start("Prepare graphite reactors");
         var grs = GraphiteReactors.FindAll(gr => gr.State == GraphiteReactor.States.WaitPrep);
 
         if (grs.Count < 1)
@@ -3145,31 +3146,31 @@ public class Cegs : ProcessManager, ICegs
             gr.Close();
 
         var count = grs.Count;
-        ProcessStep.Start(measureVolumes ?
+        step = ProcessStep.Start(measureVolumes ?
             $"Calibrate GR {"manometer".Plurality(count)} and {"volume".Plurality(count)}" :
             "Leak check GR".Plurality(count)
         );
 
         // On the first flush, Check for leaks, measure the GR volumes, and calibrate their manometers
-        ProcessSubStep.Start("Evacuate graphite reactors");
+        var substep = ProcessSubStep.Start("Evacuate graphite reactors");
         gm.Isolate();
         grs.ForEach(gr => gr.Open());
         gm.OpenAndEvacuate();
         WaitMinutes((int)GRFirstEvacuationMinutes);     // some time to reduce the gas load due to water in the desiccant.
         HoldForLeakTightness(gm);
-        ProcessSubStep.End();
+        substep.End();
 
-        ProcessSubStep.Start($"Zero GR manometers.");
+        substep = ProcessSubStep.Start($"Zero GR manometers.");
         grs.ForEach(gr => gr.Manometer.ZeroNow());
         WaitFor(() => !grs.Any(gr => gr.Manometer.Zeroing));    // TODO: add timeout to this wait?
-        ProcessSubStep.End();
+        substep.End();
 
         if (measureVolumes)
         {
             grs.ForEach(gr => gr.Close());
             foreach (var gr in grs)
             {
-                ProcessStep.Start($"Measure {gr.Name} volume");
+                substep = ProcessStep.Start($"Measure {gr.Name} volume");
                 gsInert.Admit(PressureOverAtm);
                 gm.Isolate();
                 WaitSeconds(10);
@@ -3183,37 +3184,37 @@ public class Cegs : ProcessManager, ICegs
 
                 gr.MilliLiters = gmMilliLiters * (p0 / p1 - 1);
                 gr.Size = EnableSmallReactors && gr.MilliLiters < 2.0 ? GraphiteReactor.Sizes.Small : GraphiteReactor.Sizes.Standard;
-                ProcessStep.End();
+                substep.End();
             }
             grs.ForEach(gr => gr.Open());
 
             gm.OpenAndEvacuate(OkPressure);
         }
 
-        ProcessStep.End();
+        step.End();
 
-        ProcessStep.Start($"Flush GRs with {gsFlush.GasName}");
+        step = ProcessStep.Start($"Flush GRs with {gsFlush.GasName}");
         gsFlush.Flush(PressureOverAtm, 0.1, measureVolumes ? flushes - 1 : flushes);
         gm.VacuumSystem.WaitForPressure(OkPressure);
-        ProcessStep.End();
+        step.End();
 
         if (IronPreconditioningMinutes > 0)
         {
             if (IronPreconditionH2Pressure > 0)
             {
-                ProcessStep.Start("Admit H2 into GRs");
+                substep = ProcessStep.Start("Admit H2 into GRs");
                 gm.IsolateFromVacuum();
                 gsH2.FlowPressurize(IronPreconditionH2Pressure);
                 grs.ForEach(gr => gr.Close());
-                ProcessStep.End();
+                substep.End();
             }
 
-            ProcessStep.Start("Start Heating Fe under vacuum");
+            substep = ProcessStep.Start("Start Heating Fe under vacuum");
             grs.ForEach(gr => gr.TurnOn(IronPreconditioningTemperature));
-            ProcessStep.End();
+            substep.End();
 
             int targetTemp = (int)IronPreconditioningTemperature - (int)IronPreconditioningTemperatureCushion;
-            ProcessStep.Start($"Wait for GRs to reach {targetTemp} °C.");
+            substep = ProcessStep.Start($"Wait for GRs to reach {targetTemp} °C.");
             while (!WaitFor(() => Hacs.Stopping || !AnyUnderTemp(grs, targetTemp), (int)MaximumMinutesGrToReachTemperature * 60000, 1000))
             {
                 var sluggish = grs.Where(gr => gr.SampleTemperature < targetTemp);
@@ -3232,32 +3233,32 @@ public class Cegs : ProcessManager, ICegs
                 }
                 break;
             }
-            ProcessStep.End();
+            substep.End();
 
 
-            ProcessStep.Start("Precondition iron for " + MinutesString((int)IronPreconditioningMinutes));
+            substep = ProcessStep.Start("Precondition iron for " + MinutesString((int)IronPreconditioningMinutes));
             if (IronPreconditionH2Pressure > 0)
             {
                 gm.OpenAndEvacuate(OkPressure);
                 gm.VacuumSystem.OpenLine();
             }
             WaitRemaining((int)IronPreconditioningMinutes);
-            ProcessStep.End();
+            substep.End();
 
             if (KeepFeUnderH2 || IronPreconditionH2Pressure <= 0)
                 grs.ForEach(gr => gr.TurnOff());
             else
             {
-                ProcessStep.Start("Evacuate GRs");
+                substep = ProcessStep.Start("Evacuate GRs");
                 gm.Isolate();
                 CloseAllGRs();  // in case any (others) are open
                 grs.ForEach(gr => { gr.TurnOff(); gr.Open(); });
                 gm.OpenAndEvacuate(OkPressure);
-                ProcessStep.End();
+                substep.End();
 
-                ProcessStep.Start($"Flush GRs with {gsFlush.GasName}");
+                substep = ProcessStep.Start($"Flush GRs with {gsFlush.GasName}");
                 gsFlush.Flush(PressureOverAtm, 0.1, flushes);
-                ProcessStep.End();
+                substep.End();
             }
         }
 
@@ -3266,11 +3267,13 @@ public class Cegs : ProcessManager, ICegs
         gm.VacuumSystem.OpenLine();
 
         Announce("Graphite reactor preparation complete.");
+        step.End();
     }
 
     [Description("Change iron in sulfur traps.")]
     protected virtual void ChangeSulfurFe()
     {
+        var step = ProcessStep.Start("Service sulfur traps");
         var grs = GraphiteReactors.FindAll(gr =>
             IsSulfurTrap(gr) && gr.State == GraphiteReactor.States.WaitService);
 
@@ -3294,20 +3297,20 @@ public class Cegs : ProcessManager, ICegs
 
         // assume the Fe has been replaced
 
-        ProcessStep.Start("Evacuate sulfur traps");
-
+        var substep = ProcessStep.Start("Evacuate sulfur traps");
         gm.Isolate();
         grs.ForEach(gr => gr.Open());
         gm.OpenAndEvacuate(OkPressure);
-        ProcessStep.End();
+        substep.End();
 
-        ProcessStep.Start("Flush GRs with He");
+        substep = ProcessStep.Start("Flush GRs with He");
         Flush(gm, 3);
-        ProcessStep.End();
+        substep.End();
 
         grs.ForEach(gr => gr.PreparationComplete());
 
         gm.VacuumSystem.OpenLine();
+        step.End();
     }
 
     #endregion GR service
@@ -3327,9 +3330,9 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void EvacuateIP(double pressure)
     {
         if (!IpIm(out ISection im)) return;
-        ProcessStep.Start($"Evacuate {InletPort.Name} to below {pressure:0.0e0}.");
+        var step = ProcessStep.Start($"Evacuate {InletPort.Name} to below {pressure:0.0e0}.");
         im.OpenAndEvacuate(pressure, InletPort);
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -3364,12 +3367,12 @@ public class Cegs : ProcessManager, ICegs
     /// <param name="vs"></param>
     protected virtual void CloseGasSupplies(IEnumerable<IVacuumSystem> vs)
     {
-        ProcessSubStep.Start("Close gas supplies");
+        var substep = ProcessSubStep.Start("Close gas supplies");
         var gasSupplies = GasSupplies.Values.Where(gs => vs.Contains(gs.Destination.VacuumSystem));
         foreach (GasSupply gs in gasSupplies) gs.ShutOff();
         // close flow valves after all shutoff valves are closed
         foreach (GasSupply gs in gasSupplies) gs.FlowValve?.CloseWait();
-        ProcessSubStep.End();
+        substep.End();
     }
 
     /// <summary>
@@ -3381,9 +3384,9 @@ public class Cegs : ProcessManager, ICegs
     [Description("Open and evacuate the main vacuum line.")]
     protected virtual void OpenLine()
     {
-        ProcessStep.Start("Close gas supplies");
+        var step = ProcessStep.Start("Close gas supplies");
         CloseGasSupplies();
-        ProcessStep.End();
+        step.End();
         OpenLine(MC.VacuumSystem);
     }
 
@@ -3404,7 +3407,7 @@ public class Cegs : ProcessManager, ICegs
     /// <param name="vacuumSystem"></param>
     protected virtual void ThawAllColdfingers(IVacuumSystem vacuumSystem)
     {
-        ProcessStep.Start($"Ensure all of {vacuumSystem.Name}'s coldfingers are all well above freezing.");
+        var step = ProcessStep.Start($"Ensure all of {vacuumSystem.Name}'s coldfingers are all well above freezing.");
         var coldColdfingers = vacuumSystem.MySection.Chambers
             .Where(ch => ch.Coldfinger is IColdfinger c && c.Temperature < 5)
             .Select(ch => ch.Coldfinger);
@@ -3418,7 +3421,7 @@ public class Cegs : ProcessManager, ICegs
             if (mtt > minutesToWait) minutesToWait = mtt;
         }
         WaitFor(() => coldColdfingers.All(cf => cf.Temperature > 0), minutesToWait * 60000, 1000);
-        ProcessStep.End();
+        step.End();
     }
 
 
@@ -3622,9 +3625,9 @@ public class Cegs : ProcessManager, ICegs
 
         if (InletPort.PortType == InletPortType.Manual)
         {
-            ProcessStep.Start("Release the sample");
+            var step = ProcessStep.Start("Release the sample");
             WaitForOperator($"Release the sealed sample '{Sample.LabId}' at {InletPort.Name}.");
-            ProcessStep.End();
+            step.End();
         }
         InletPort.State = LinePort.States.Prepared;
         if (Sample is Sample) Sample.State = Components.Sample.States.Prepared;
@@ -3669,10 +3672,10 @@ public class Cegs : ProcessManager, ICegs
         if (manualPorts.Count >= 1)
         {
             var manualPortNames = string.Join(", ", manualPorts.Select(p => p.Name));
-            ProcessStep.Start("Release the samples");
+            var step = ProcessStep.Start("Release the samples");
             WaitForOperator("Release the samples at ports:\r\n" +
                 $"\t{manualPortNames}.");
-            ProcessStep.End();
+            step.End();
         }
 
         ips.ForEach(ip => ip.State = LinePort.States.Prepared);
@@ -3726,10 +3729,12 @@ public class Cegs : ProcessManager, ICegs
     /// <param name="cleanItUp">Transfer it to the VTT and extract() before measuring.</param>
     protected virtual void AdmitDeadCO2(double ugc_targetSize, bool cleanItUp = false)
     {
+        using var step = ProcessStep.Start("Admit dead CO2 into the MC");
+
         var CO2 = GasSupply("CO2", MC);
         if (CO2 == null) return;
 
-        ProcessStep.Start("Evacuate MC");
+        var substep = ProcessSubStep.Start("Evacuate MC");
         MC.Isolate();
         var particles = ugc_targetSize * CarbonAtomsPerMicrogram;
         if (Pressure(particles, MC.CurrentVolume(true), MC.Temperature) > MC.Manometer.MaxValue)
@@ -3743,29 +3748,29 @@ public class Cegs : ProcessManager, ICegs
             Warn("Dead CO2 sample is too big",
                 $"Requested amount ({ugc_targetSize} µgC) exceeds {MC.Name} limit ({ugcMax} µgC).\r\n" +
                 "Admit Dead CO2 process will abort.");
-
-            ProcessStep.End();
+            substep.End();
             return;
         }
 
         MC.Evacuate(CleanPressure);
         MC.VacuumSystem.WaitForStablePressure(CleanPressure);
         ZeroMC();
-        ProcessStep.End();
+        substep.End();
 
-        ProcessStep.Start("Admit CO2 into the MC");
+        substep = ProcessSubStep.Start($"Pressurize MC with {ugc_targetSize} ugC in CO2");
         CO2.Pressurize(ugc_targetSize);
-        ProcessStep.End();
+        substep.End();
 
         if (cleanItUp)
             CleanupCO2InMC();
         else
         {
-            ProcessSubStep.Start("Take measurement");
+            substep = ProcessSubStep.Start("Take measurement");
             WaitForMCStable();
             SampleLog.Record($"Admitted CO2:\t{ugCinMC:0.0}\tµgC\t={ugCinMC / GramsCarbonPerMole:0.00}\tµmolC\t(target was {ugc_targetSize:0.0}\tµgC)");
-            ProcessSubStep.End();
+            substep.End();
         }
+        step.End();
     }
 
     // TODO delete / deprecate?
@@ -3788,7 +3793,7 @@ public class Cegs : ProcessManager, ICegs
         EvacuateIP();
         Flush(im, 3, InletPort);
 
-        ProcessStep.Start($"Wait for {im.VacuumSystem.Manometer.Name} < {CleanPressure:0.0e0} Torr");
+        var step = ProcessStep.Start($"Wait for {im.VacuumSystem.Manometer.Name} < {CleanPressure:0.0e0} Torr");
         im.VacuumSystem.WaitForPressure(CleanPressure);
 
         gs.Admit();
@@ -3797,7 +3802,7 @@ public class Cegs : ProcessManager, ICegs
         var pIM = im.Pressure;
         gs.ShutOff(true);
 
-        ProcessStep.End();
+        step.End();
 
         SampleLog.Record($"Carbonate vial pressure: {pIM:0}");
         im.VacuumSystem.OpenLine();
@@ -3812,7 +3817,7 @@ public class Cegs : ProcessManager, ICegs
     {
         if (!IpImInertGas(out ISection im, out IGasSupply gs)) return;
 
-        ProcessStep.Start($"Provide positive He pressure at {InletPort.Name} needle");
+        var step = ProcessStep.Start($"Provide positive He pressure at {InletPort.Name} needle");
         im.ClosePorts();
         im.Isolate();
         gs.Admit();
@@ -3820,24 +3825,24 @@ public class Cegs : ProcessManager, ICegs
         InletPort.Open();
         WaitSeconds(5);
         gs.WaitForPressure(PressureOverAtm);
-        ProcessStep.End();
+        step.End();
 
         PlaySound();
-        ProcessStep.Start("Remove previous sample or plug from IP needle");
+        step = ProcessStep.Start("Remove previous sample or plug from IP needle");
         WaitFor(() => im.Manometer.IsFalling, 20 * 1000, 100);
-        ProcessStep.End();
+        step.End();
 
-        ProcessStep.Start("Wait for stable He flow at IP needle");
+        step = ProcessStep.Start("Wait for stable He flow at IP needle");
         WaitFor(() => im.Manometer.IsStable, 30 * 1000, 100);   // TODO: Take some action if this fails?
-        ProcessStep.End();
+        step.End();
 
         PlaySound();
-        ProcessStep.Start("Load next sample vial or plug at IP needle");
+        step = ProcessStep.Start("Load next sample vial or plug at IP needle");
         if (WaitFor(() => im.Manometer.RateOfChange >= IMPluggedTorrPerSecond, 30 * 1000, 100))
             InletPort.State = LinePort.States.Loaded;
         else
             InletPort.State = LinePort.States.Complete;
-        ProcessStep.End();
+        step.End();
 
         InletPort.Close();
         gs.ShutOff();
@@ -3854,12 +3859,12 @@ public class Cegs : ProcessManager, ICegs
     [Description("Notify the operator to freeze the InletPort.")]
     protected virtual void FreezeIp()
     {
-        ProcessStep.Start($"Freeze {InletPort.Name}");
+        var step = ProcessStep.Start($"Freeze {InletPort.Name}");
         WaitForOperator(
             $"Almost ready for LN on {InletPort.Name}.\r\n" +
             $"First choose Ok to continue, then raise LN onto {InletPort.Name} coldfinger.");
         WaitSeconds(15, "Wait 15 seconds for LN to settle.");
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -3868,10 +3873,10 @@ public class Cegs : ProcessManager, ICegs
     [Description("Notify the operator to raise the InletPort LN.")]
     protected virtual void RaiseLNIp()
     {
-        ProcessStep.Start($"Raise {InletPort.Name}");
+        var step = ProcessStep.Start($"Raise {InletPort.Name}");
         WaitForOperator($"Raise {InletPort.Name} LN one inch (2 cm).");
         WaitSeconds(15, "Wait 15 seconds for LN to settle.");
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -3880,12 +3885,12 @@ public class Cegs : ProcessManager, ICegs
     [Description("Notify the operator to thaw the InletPort.")]
     protected virtual void ThawIp()
     {
-        ProcessStep.Start($"Thaw {InletPort.Name}");
+        var step = ProcessStep.Start($"Thaw {InletPort.Name}");
         WaitForOperator(
             $"Remove LN from {InletPort.Name} and\r\n" +
             $"Warm the coldfinger to room temperature.\r\n" +
             $"Then select Ok to continue...");
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -3894,11 +3899,11 @@ public class Cegs : ProcessManager, ICegs
     [Description("Notify the operator to raise the active inlet port furnaces.")]
     protected virtual void RaiseIpFurnaces()
     {
-        ProcessStep.Start($"Raise IP furnaces");
+        var step = ProcessStep.Start($"Raise IP furnaces");
         WaitForOperator(
             $"Raise the IP furnaces including {InletPort.Name}.\r\n" +
             $"Then select Ok to continue...");
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -3941,17 +3946,17 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        ProcessStep.Start($"Evacuate {im.Name}");
+        var step = ProcessStep.Start($"Evacuate {im.Name}");
         im.Evacuate(CleanPressure);
         WaitForStablePressure(im.VacuumSystem, CleanPressure);
-        ProcessStep.End();
+        step.End();
 
-        ProcessStep.Start($"Evacuate and Freeze {trap.Name}");
+        step = ProcessStep.Start($"Evacuate and Freeze {trap.Name}");
         trap.EmptyAndFreeze(CleanPressure);
         trap.FreezeWait();
-        ProcessStep.End();
+        step.End();
 
-        ProcessStep.Start($"Freeze the CO2 from {InletPort.Name} into the {trap.Name}");
+        step = ProcessStep.Start($"Freeze the CO2 from {InletPort.Name} into the {trap.Name}");
         im_trap.Close();
         InletPort.Open();
         InletPort.State = LinePort.States.InProcess;
@@ -3961,7 +3966,7 @@ public class Cegs : ProcessManager, ICegs
         trap.Isolate();
         InletPort.Close();
         InletPort.State = LinePort.States.Complete;
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -4083,10 +4088,10 @@ public class Cegs : ProcessManager, ICegs
         PrepareInletPort();
         EvacuateIP(OkPressure);
 
-        ProcessStep.Start($"Heat Quartz");
+        var step = ProcessStep.Start($"Heat Quartz");
         TurnOnIpQuartzFurnace();
         WaitMinutes((int)QuartzFurnaceWarmupMinutes);
-        ProcessStep.End();
+        step.End();
 
         InitializeSplits();
 
@@ -4178,7 +4183,7 @@ public class Cegs : ProcessManager, ICegs
     #region Extract
     protected virtual void ExtractAt(int targetTemp)
     {
-        ProcessStep.Start($"Extract CO2 at {targetTemp:0} °C");
+        var step = ProcessStep.Start($"Extract CO2 at {targetTemp:0} °C");
         //SampleLog.Record($"\tCO2 extraction temperature:\t{targetTemp:0}\t°C");
 
         VTT_MC.Isolate();
@@ -4189,7 +4194,7 @@ public class Cegs : ProcessManager, ICegs
         MC.FreezeWait();
 
         targetTemp -= 1;            // continue at 1 deg under
-        ProcessSubStep.Start($"Wait for {VTT.Name} to reach {targetTemp:0} °C");
+        var substep = ProcessSubStep.Start($"Wait for {VTT.Name} to reach {targetTemp:0} °C");
         while (!WaitFor(() => Hacs.Stopping || vtc.Temperature >= targetTemp, 10 * 60000, 1000))
         {
             ShutDownAllColdfingers();
@@ -4205,7 +4210,7 @@ public class Cegs : ProcessManager, ICegs
             }
             break;
         }
-        ProcessSubStep.End();
+        substep.End();
 
         VTT_MC.Open();
         WaitMinutes((int)ExtractionMinutes);
@@ -4218,19 +4223,19 @@ public class Cegs : ProcessManager, ICegs
         else
             vtc.Standby();  // stays cooler for repeated use
 
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Precisely warm the frozen VTT to selectively release CO2 into the MC.")]
     protected virtual void Extract()
     {
-        ProcessStep.Start($"Extract CO2 from {VTT.Name} to {MC.Name}");
+        var step = ProcessStep.Start($"Extract CO2 from {VTT.Name} to {MC.Name}");
         MC.OpenAndEvacuateAll(CleanPressure);
         ZeroMC();
         MC.ClosePorts();
         MC.Isolate();
         ExtractAt(CO2ExtractionTemperature);
-        ProcessStep.End();
+        step.End();
     }
 
     #endregion Extract
@@ -4239,9 +4244,9 @@ public class Cegs : ProcessManager, ICegs
 
     protected virtual void WaitForMCStable(int seconds)
     {
-        ProcessSubStep.Start($"Wait for μgC in MC to stabilize for {SecondsString(seconds)}");
+        var substep = ProcessSubStep.Start($"Wait for μgC in MC to stabilize for {SecondsString(seconds)}");
         ugCinMC.WaitForStable(seconds);
-        ProcessSubStep.End();
+        substep.End();
     }
 
     [Description("Wait until the measurement chamber conditions remain stable for 5 seconds.")]
@@ -4251,10 +4256,10 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void ZeroMC()
     {
         WaitForMCStable();
-        ProcessSubStep.Start($"Zero {MC.Manometer.Name}");
+        var substep = ProcessSubStep.Start($"Zero {MC.Manometer.Name}");
         MC.Manometer.ZeroNow();
         WaitFor(() => !MC.Manometer.Zeroing);       // TODO: add timeout?
-        ProcessSubStep.End();
+        substep.End();
     }
 
     /// <summary>
@@ -4290,19 +4295,19 @@ public class Cegs : ProcessManager, ICegs
     [Description("Measure and record the amount of CO2 in the MC and joined adjacent chambers.")]
     protected virtual void TakeMeasurement()
     {
-        ProcessStep.Start("Take measurement");
+        var step = ProcessStep.Start("Take measurement");
         if (MC.Manometer.OverRange)
         {
-            ProcessSubStep.Start("Expand sample into MC+MCU");
+            var substep = ProcessSubStep.Start("Expand sample into MC+MCU");
             MC.Ports[0].Open();
             WaitSeconds(15);
-            ProcessSubStep.End();
+            substep.End();
             if (MC.Manometer.OverRange)
             {
-                ProcessSubStep.Start("Expand sample into MC+MCU+MCL");
+                substep = ProcessSubStep.Start("Expand sample into MC+MCU+MCL");
                 MC.Ports[1].Open();
                 WaitSeconds(15);
-                ProcessSubStep.End();
+                substep.End();
             }
         }
 
@@ -4352,20 +4357,20 @@ public class Cegs : ProcessManager, ICegs
                 );
             }
         }
-        ProcessStep.End();
+        step.End();
     }
 
 
     [Description("Prepare the MC to measure the sample quantity and then take the measurement.")]
     protected virtual void Measure()
     {
-        ProcessStep.Start("Prepare to measure MC contents");
+        var step = ProcessStep.Start("Prepare to measure MC contents");
         MC.Isolate();
 
         if (MC.IsActivelyCooling)
         {
             #region release incondensables
-            ProcessStep.Start("Release incondensables");
+            step = ProcessStep.Start("Release incondensables");
 
             MC.OpenPorts();
             MC.RaiseLN();
@@ -4379,7 +4384,7 @@ public class Cegs : ProcessManager, ICegs
                 if ((Sample?.AliquotsCount ?? 1) < 2) MC.Ports[0].Close();
                 WaitSeconds(5);
             }
-            ProcessStep.End();
+            step.End();
             #endregion release incondensables
 
             MC.Isolate();
@@ -4387,7 +4392,7 @@ public class Cegs : ProcessManager, ICegs
 
         if (!MC.Thawed)
         {
-            ProcessSubStep.Start("Bring MC to uniform temperature");
+            var substep = ProcessSubStep.Start("Bring MC to uniform temperature");
             MC.Thaw();
             bool thawed()
             {
@@ -4401,41 +4406,41 @@ public class Cegs : ProcessManager, ICegs
                 return MC.Thawed;
             }
             WaitFor(() => thawed(), -1, 1000); // (timeout is handled by Coldfinger)
-            ProcessSubStep.End();
+            substep.End();
         }
 
-        ProcessStep.End();
+        step.End();
 
-        ProcessStep.Start("Measure Sample");
+        step = ProcessStep.Start("Measure Sample");
         TakeMeasurement();
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Discard the contents of the Split chamber.")]
     protected virtual void DiscardSplit()
     {
-        ProcessStep.Start("Discard Excess sample");
+        var step = ProcessStep.Start("Discard Excess sample");
         while (Sample.Aliquots[0].MicrogramsCarbon > MaximumSampleMicrogramsCarbon)
         {
-            ProcessSubStep.Start("Evacuate Split");
+            var substep = ProcessSubStep.Start("Evacuate Split");
             Split.Evacuate(CleanPressure);
-            ProcessSubStep.End();
+            substep.End();
 
-            ProcessSubStep.Start("Split sample");
+            substep = ProcessSubStep.Start("Split sample");
             Split.IsolateFromVacuum();
             MC_Split.Open();
 
             var seconds = (int)SplitEquilibrationSeconds;
-            ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
+            substep = ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
             WaitSeconds(seconds);
-            ProcessSubStep.End();
+            substep.End();
 
             MC_Split.Close();
-            ProcessSubStep.End();
+            substep.End();
 
-            ProcessSubStep.Start("Discard split");
+            substep = ProcessSubStep.Start("Discard split");
             Split.Evacuate(CleanPressure);
-            ProcessSubStep.End();
+            substep.End();
 
             Sample.Discards++;
             SampleLog.Record(
@@ -4458,7 +4463,7 @@ public class Cegs : ProcessManager, ICegs
                 );
             }
         }
-        ProcessStep.End();
+        step.End();
     }
 
     #endregion Measure
@@ -4482,18 +4487,18 @@ public class Cegs : ProcessManager, ICegs
         {
             MC.FreezeWait();
 
-            ProcessSubStep.Start($"Wait for the sample to freeze in {MC.Name}");
+            var substep = ProcessSubStep.Start($"Wait for the sample to freeze in {MC.Name}");
             // CO2TransferMinutes is certainly excessive here, but how much is right?
-            WaitFor(() => ProcessSubStep.Elapsed.TotalMinutes >= CO2TransferMinutes / 2);
+            WaitFor(() => substep.Elapsed.TotalMinutes >= CO2TransferMinutes / 2);
             MC.RaiseLN();
-            ProcessSubStep.End();
+            substep.End();
 
             MC.Ports[1].Close();
 
-            ProcessSubStep.Start($"Thaw and expand sample into {MC.Name}..{MC.Ports[0].Name}");
+            substep = ProcessSubStep.Start($"Thaw and expand sample into {MC.Name}..{MC.Ports[0].Name}");
             MC.Thaw();
             WaitFor(() => MC.Thawed);    // TODO: add timeout?
-            ProcessSubStep.End();
+            substep.End();
         }
 
         // Don't close the ports if only 1 aliquot; it might be
@@ -4508,21 +4513,21 @@ public class Cegs : ProcessManager, ICegs
         var ftc = gr.Coldfinger;
         var h = gr.Heater;
 
-        ProcessStep.Start("Trap sulfur.");
+        var step = ProcessStep.Start("Trap sulfur.");
         SampleLog.Record(
             $"Trap sulfur in {gr.Name} at {SulfurTrapTemperature} °C for {MinutesString((int)SulfurTrapMinutes)}");
         ftc.Thaw();
         gr.TurnOn(SulfurTrapTemperature);
-        ProcessSubStep.Start($"Wait for {gr.Name} to reach sulfur trapping temperature (~{SulfurTrapTemperature} °C).");
+        var substep = ProcessSubStep.Start($"Wait for {gr.Name} to reach sulfur trapping temperature (~{SulfurTrapTemperature} °C).");
         WaitFor(() => ftc.Temperature > 0 && gr.SampleTemperature > SulfurTrapTemperature - 5);    // TODO: add timeout
-        ProcessSubStep.End();
+        substep.End();
 
-        ProcessSubStep.Start("Hold for " + MinutesString((int)SulfurTrapMinutes));
+        substep = ProcessSubStep.Start("Hold for " + MinutesString((int)SulfurTrapMinutes));
         WaitMinutes((int)SulfurTrapMinutes);
-        ProcessSubStep.End();
+        substep.End();
 
         h.TurnOff();
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Use a free graphite reactor to quantitatively remove sulfur from the sample CO2.")]
@@ -4530,7 +4535,7 @@ public class Cegs : ProcessManager, ICegs
     {
         if (!Sample.SulfurSuspected) return;
 
-        ProcessStep.Start("Remove sulfur.");
+        var step = ProcessStep.Start("Remove sulfur.");
 
         IGraphiteReactor gr = NextSulfurTrap(PriorGR);
         gr.Reserve("sulfur");
@@ -4540,7 +4545,7 @@ public class Cegs : ProcessManager, ICegs
         TransferCO2FromGRToMC(gr, false);
         gr.State = GraphiteReactor.States.WaitService;
 
-        ProcessStep.End();
+        step.End();
         Measure();
     }
 
@@ -4590,13 +4595,13 @@ public class Cegs : ProcessManager, ICegs
         if (port.Coldfinger?.IsActivelyCooling ?? false)
             port.Coldfinger.RaiseLN();
 
-        ProcessSubStep.Start($"Admit {gs.GasName} into {port.Name}");
+        var substep = ProcessSubStep.Start($"Admit {gs.GasName} into {port.Name}");
         port.Open();
         WaitSeconds(5);
         port.Close();
         if (port.Coldfinger?.IsActivelyCooling ?? false)
             port.Coldfinger.Freeze();
-        ProcessSubStep.End();
+        substep.End();
         WaitSeconds(5);
         double pFinal = meter.WaitForAverage((int)MeasurementSeconds);
         return [pInitial, pFinal];
@@ -4702,14 +4707,14 @@ public class Cegs : ProcessManager, ICegs
             DilutedSampleMicrogramsCarbon <= SmallSampleMicrogramsCarbon ||
             Sample.TotalMicrogramsCarbon > SmallSampleMicrogramsCarbon) return;
 
-        ProcessStep.Start($"Dilute sample to {DilutedSampleMicrogramsCarbon}");
+        var step = ProcessStep.Start($"Dilute sample to {DilutedSampleMicrogramsCarbon}");
         //Clean(VTT);
         TransferCO2FromMCToVTT();
         AdmitDeadCO2(DilutedSampleMicrogramsCarbon - Sample.TotalMicrogramsCarbon);
         TransferCO2FromMCToVTT();   // add the dilution gas to the sample
         Extract();
         Measure();
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -4743,10 +4748,10 @@ public class Cegs : ProcessManager, ICegs
         gm.IsolateFromVacuum();
         foreach (Aliquot aliquot in Sample.Aliquots)
         {
-            ProcessStep.Start("Graphitize aliquot " + aliquot.Name);
+            var step = ProcessStep.Start("Graphitize aliquot " + aliquot.Name);
             AddH2ToGR(aliquot);
             Find<IGraphiteReactor>(aliquot.GraphiteReactor).Start();
-            ProcessStep.End();
+            step.End();
         }
         gm.ClosePorts();
         gm.OpenAndEvacuate(OkPressure);
@@ -4840,7 +4845,7 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        ProcessStep.Start($"Transfer CO2 from {fromSection.Name} to {toSection.Name}");
+        var step = ProcessStep.Start($"Transfer CO2 from {fromSection.Name} to {toSection.Name}");
         fromSection.Isolate();
 
         var toSectionEvacuatesThroughFromSection =
@@ -4860,28 +4865,28 @@ public class Cegs : ProcessManager, ICegs
         else
             fromSection.Thaw();
 
-        ProcessStep.Start("Wait for transfer start conditions.");
+        step = ProcessStep.Start("Wait for transfer start conditions.");
         WaitFor(() =>
             toSection.Frozen &&
             fromSection.Temperature > CO2TransferStartTemperature,
             interval: 1000); // timeout checked by coldfinger
-        ProcessStep.End();
+        step.End();
 
-        ProcessSubStep.Start($"Join {toSection.Name} to {fromSection.Name}");
+        var substep = ProcessSubStep.Start($"Join {toSection.Name} to {fromSection.Name}");
         combinedSection.Isolate();
         combinedSection.Open();
-        ProcessSubStep.End();
+        substep.End();
 
         WaitSeconds((int)(CO2TransferMinutes * 60), $"Wait {SecondsString((int)(CO2TransferMinutes * 60))} for CO2 transfer to complete");
 
         toSection.RaiseLN();
 
-        ProcessSubStep.Start($"Isolate {toSection.Name}");
+        substep = ProcessSubStep.Start($"Isolate {toSection.Name}");
         toSection.Isolate();
         toSection.Freeze();     // raise no longer needed
-        ProcessSubStep.End();
+        substep.End();
 
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Transfer the CO2 from the MC to the VTT.")]
@@ -4942,7 +4947,7 @@ public class Cegs : ProcessManager, ICegs
 
         Id13CPort d13CPort = take_d13C ? Guess_d13CPort(Sample) : null;
 
-        ProcessStep.Start("Evacuate paths to sample destinations");
+        var step = ProcessStep.Start("Evacuate paths to sample destinations");
         MC.Isolate();
         gm.ClosePortsExcept(gr);
         if (gr.IsOpened)
@@ -4997,13 +5002,13 @@ public class Cegs : ProcessManager, ICegs
         mc_gm.IsolateExcept(toBeOpened);
         gm.VacuumSystem.IsolateExcept(toBeOpened);
         toBeOpened.Open();
-        ProcessSubStep.Start($"Waiting for {gm.VacuumSystem.Manometer.Name} < {CleanPressure:0.00} Torr");
+        var substep = ProcessSubStep.Start($"Waiting for {gm.VacuumSystem.Manometer.Name} < {CleanPressure:0.00} Torr");
         gm.VacuumSystem.Evacuate(CleanPressure);
-        ProcessSubStep.End();
+        substep.End();
         gr.Manometer.ZeroNow(true); // wait to finish
-        ProcessStep.End();
+        step.End();
 
-        ProcessStep.Start("Expand the sample");
+        step = ProcessStep.Start("Expand the sample");
 
         if (d13CPort != null)
         {
@@ -5023,17 +5028,17 @@ public class Cegs : ProcessManager, ICegs
 
         mc_gm.Open();
 
-        ProcessStep.End();
+        step.End();
 
 
         if (d13CPort != null)
         {
-            ProcessStep.Start("Take d13C split");
+            step = ProcessStep.Start("Take d13C split");
 
             var seconds = (int)SplitEquilibrationSeconds;
-            ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
+            substep = ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
             WaitSeconds(seconds);
-            ProcessSubStep.End();
+            substep.End();
 
             d13C.IsolateFrom(mc_gm);
             Sample.Micrograms_d13C = aliquot.MicrogramsCarbon * d13C.MilliLiters / (d13C.MilliLiters + mc_gm.MilliLiters);
@@ -5043,20 +5048,20 @@ public class Cegs : ProcessManager, ICegs
             d13CPort.State = LinePort.States.InProcess;
             d13CPort.Aliquot = aliquot;
             d13CPort.Coldfinger.Freeze();
-            ProcessStep.End();
+            step.End();
 
-            ProcessStep.Start($"Freeze sample into {gr.Name} and {d13CPort.Name}");
+            step = ProcessStep.Start($"Freeze sample into {gr.Name} and {d13CPort.Name}");
             gr.Open();
         }
         else
-            ProcessStep.Start($"Freeze sample into {gr.Name}");
+            step = ProcessStep.Start($"Freeze sample into {gr.Name}");
 
         var grCF = gr.Coldfinger;
         grCF.Freeze();
 
         var grDone = false;
         var d13CDone = d13CPort == null;
-        ProcessSubStep.Start($"Wait for coldfinger{(d13CPort == null ? "" : "s")} to freeze");
+        substep = ProcessSubStep.Start($"Wait for coldfinger{(d13CPort == null ? "" : "s")} to freeze");
         bool bothFrozen()
         {
             if (!grDone) grDone = grCF.Frozen;
@@ -5064,11 +5069,11 @@ public class Cegs : ProcessManager, ICegs
             return grDone && d13CDone;
         }
         WaitFor(bothFrozen, interval: 1000);
-        ProcessSubStep.End();
+        substep.End();
 
         WaitSeconds((int)(CO2TransferMinutes * 60), $"Wait {SecondsString((int)(CO2TransferMinutes * 60))} for CO2 transfer to complete");
 
-        ProcessSubStep.Start("Raise LN");
+        substep = ProcessSubStep.Start("Raise LN");
         void jgr()
         {
             grCF.RaiseLN();
@@ -5090,7 +5095,7 @@ public class Cegs : ProcessManager, ICegs
         var tgr = Task.Run(jgr);
         var td13 = Task.Run(jd13);
         WaitFor(() => tgr.IsCompleted && td13.IsCompleted);
-        ProcessSubStep.End();
+        substep.End();
 
         var checkGrCO2Pressure = CheckGrCO2Pressure;
         if (checkGrCO2Pressure)
@@ -5099,7 +5104,7 @@ public class Cegs : ProcessManager, ICegs
             grCF.Standby();
         else if (checkGrCO2Pressure)
             grCF.FreezeWait();
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Add carrier gas to the sample's d13C split.")]
@@ -5176,7 +5181,7 @@ public class Cegs : ProcessManager, ICegs
 
         var grCF = gr.Coldfinger;
 
-        ProcessStep.Start($"Transfer CO2 from {gr.Name} to {MC.Name}.");
+        var step = ProcessStep.Start($"Transfer CO2 from {gr.Name} to {MC.Name}.");
 
         if (firstFreezeGR)
         {
@@ -5187,41 +5192,42 @@ public class Cegs : ProcessManager, ICegs
         mc_gm.OpenAndEvacuate(CleanPressure);
         MC.ClosePorts();
 
+        StatusChannel.Status substep;
         if (firstFreezeGR)
         {
-            ProcessSubStep.Start($"Raise {gr.Name} LN.");
+            substep = ProcessSubStep.Start($"Raise {gr.Name} LN.");
             grCF.RaiseLN();
-            ProcessSubStep.End();
+            substep.End();
 
-            ProcessSubStep.Start("Evacuate incondensables.");
+            substep = ProcessSubStep.Start("Evacuate incondensables.");
             mc_gm.OpenAndEvacuate(CleanPressure);
             gr.Open();
             mc_gm.VacuumSystem.WaitForPressure(CleanPressure);
             mc_gm.IsolateFromVacuum();
-            ProcessSubStep.End();
+            substep.End();
         }
         else
         {
             mc_gm.IsolateFromVacuum();
-            ProcessSubStep.Start($"Open the path from {gr.Name} to {MC.Name}");
+            substep = ProcessSubStep.Start($"Open the path from {gr.Name} to {MC.Name}");
             gr.Open();
             mc_gm.Open();
-            ProcessSubStep.End();
+            substep.End();
         }
 
         grCF.Thaw();
         var mcCF = MC.Coldfinger;
         mcCF.FreezeWait();
 
-        ProcessSubStep.Start($"Wait for sample to freeze into {MC.Name}");
+        substep = ProcessSubStep.Start($"Wait for sample to freeze into {MC.Name}");
         WaitSeconds((int)(CO2TransferMinutes * 60));
         mcCF.RaiseLN();
         mc_gm.Close();
         mcCF.Freeze();
         gr.Close();
-        ProcessSubStep.End();
+        substep.End();
 
-        ProcessStep.End();
+        step.End();
     }
 
     [Description("Transfer the CO2 from the MC to the active inlet port.")]
@@ -5263,15 +5269,15 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void TransferCO2FromMCToIPViaVM()
     {
         if (!IpIm(out ISection im)) return;
-        ProcessStep.Start($"Evacuate and join {InletPort.Name}..Split via VM");
+        var step = ProcessStep.Start($"Evacuate and join {InletPort.Name}..Split via VM");
         EvacuateIP();
         im.IsolateFromVacuum();
         Split.Evacuate();
         im.JoinToVacuum();
         im.VacuumSystem.WaitForPressure(0);
-        ProcessStep.End();
+        step.End();
 
-        ProcessStep.Start($"Transfer CO2 from MC to {InletPort.Name}");
+        step = ProcessStep.Start($"Transfer CO2 from MC to {InletPort.Name}");
         Pause("Operator Needed",
             $"Almost ready for LN on {InletPort.Name}.\r\n" +
             $"First choose Ok to continue, then raise LN onto {InletPort.Name} coldfinger.");
@@ -5284,7 +5290,7 @@ public class Cegs : ProcessManager, ICegs
 
         WaitSeconds(15, "Wait 15 seconds for LN to settle.");
         InletPort.Close();
-        ProcessStep.End();
+        step.End();
     }
 
     #endregion Transfer CO2 between chambers
@@ -5311,7 +5317,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Wait for the VTT-GM section of the CEGS to be ready for a sample.")]
     protected virtual void WaitForCegs()
     {
-        ProcessStep.Start("Wait for CEGS to be ready to process sample");
+        var step = ProcessStep.Start("Wait for CEGS to be ready to process sample");
 
         bool cegsAvailable()
         {
@@ -5321,7 +5327,7 @@ public class Cegs : ProcessManager, ICegs
         }
         WaitFor(cegsAvailable, -1, 1000);
 
-        ProcessStep.End();
+        step.End();
     }
 
     /// <summary>
@@ -5423,42 +5429,42 @@ public class Cegs : ProcessManager, ICegs
         var n = 5;
         for (int i = 1; i <= n; ++i)
         {
-            ProcessStep.Start($"Measure valve volumes (pass {i})");
-            ProcessSubStep.Start($"Evacuate, admit gas");
+            var step = ProcessStep.Start($"Measure valve volumes (pass {i})");
+            var substep = ProcessSubStep.Start($"Evacuate, admit gas");
             MC.Isolate();
             MC.OpenPorts();
             MC.Evacuate(OkPressure);
             MC.ClosePorts();
             var GasSupply = InertGasSupply(MC);
             GasSupply.Pressurize(95);
-            ProcessSubStep.End();
+            substep.End();
 
-            ProcessSubStep.Start($"get p0");
+            substep = ProcessSubStep.Start($"get p0");
             WaitMinutes(1);
             var p0 = MC.Manometer.WaitForAverage((int)MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
-            ProcessSubStep.End();
+            substep.End();
 
             // When compared to p2, p1 reveals the volume
             // difference between the valve's Opened and Closed
             // positions.
-            ProcessSubStep.Start($"get p1");
+            substep = ProcessSubStep.Start($"get p1");
             volumeCalibrationPortValve.Open();
             WaitMinutes(1);
             var p1 = MC.Manometer.WaitForAverage((int)MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
-            ProcessSubStep.End();
+            substep.End();
 
             // When compared to p0, p2 reveals the valve's
             // port side headspace, if the port
             // is plugged flush with the fitting shoulder.
-            ProcessSubStep.Start($"get p2");
+            substep = ProcessSubStep.Start($"get p2");
             volumeCalibrationPortValve.Close();
             WaitMinutes(1);
             var p2 = MC.Manometer.WaitForAverage((int)MeasurementSeconds) / (MC.Temperature + ZeroDegreesC);
             TestLog.Record($"{p0:0.00000}\t{p1:0.00000}\t{p2:0.00000}");
             t2sum += p0 / p1 - 1;
             t3sum += p0 / p2 - 1;
-            ProcessSubStep.End();
-            ProcessStep.End();
+            substep.End();
+            step.End();
         }
         var t2 = t2sum / n;
         var t3 = t3sum / n;
@@ -5529,12 +5535,12 @@ public class Cegs : ProcessManager, ICegs
             }
         });
 
-        ProcessStep.Start("Freeze graphite reactors");
+        var step = ProcessStep.Start("Freeze graphite reactors");
         grs.ForEach(gr => gr.Coldfinger.Freeze());
 
         WaitFor(() => grs.All(gr => gr.Coldfinger.Frozen), interval: 1000);
 
-        ProcessStep.End();
+        step.End();
 
         TestLog.WriteLine();
         TestLog.Record("H2DensityRatio test");
@@ -5542,41 +5548,41 @@ public class Cegs : ProcessManager, ICegs
 
         GrGmH2(grs, out ISection gm, out IGasSupply gs);
 
-        ProcessStep.Start("Isolate graphite reactors");
+        step = ProcessStep.Start("Isolate graphite reactors");
         gm.ClosePorts();
         gm.Isolate();
-        ProcessStep.End();
+        step.End();
         for (int pH2 = 850; pH2 > 100; pH2 /= 2)
         {
-            ProcessStep.Start($"Measure density ratios starting with {pH2:0} Torr");
+            step = ProcessStep.Start($"Measure density ratios starting with {pH2:0} Torr");
 
-            ProcessSubStep.Start("Evacuate graphite reactors");
+            var substep = ProcessSubStep.Start("Evacuate graphite reactors");
             grs.ForEach(gr => gr.Open());
             gm.Evacuate(OkPressure);
-            ProcessSubStep.End();
+            substep.End();
 
-            ProcessSubStep.Start("Isolate graphite reactors");
+            substep = ProcessSubStep.Start("Isolate graphite reactors");
             gm.ClosePorts();
-            ProcessSubStep.End();
+            substep.End();
 
 
-            ProcessSubStep.Start($"Pressurize {gm.Name} to {pH2:0} Torr");
+            substep = ProcessSubStep.Start($"Pressurize {gm.Name} to {pH2:0} Torr");
             gs.Pressurize(pH2);
             gs.IsolateFromVacuum();
-            ProcessSubStep.End();
+            substep.End();
             grs.ForEach(gr =>
             {
                 WaitSeconds(10);        // was 30 -- why?
                 var pInitial = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
 
-                ProcessSubStep.Start($"Admit H2 into {gr.Name}");
+                var substep = ProcessSubStep.Start($"Admit H2 into {gr.Name}");
                 gr.Coldfinger.RaiseLN();
                 gr.Open();
                 WaitSeconds(5);
                 gr.Close();
                 gr.Coldfinger.Freeze();
                 WaitSeconds(10);        // was 60 -- why??
-                ProcessSubStep.End();
+                substep.End();
 
                 var pFinal = gm.Manometer.WaitForAverage((int)MeasurementSeconds);
 
@@ -5590,7 +5596,7 @@ public class Cegs : ProcessManager, ICegs
                 // tubes have never been altered since the GR volumes were measured.
                 TestLog.Record($"{gr.Name}\t{pInitial:0.00}\t{pFinal:0.00}\t{p:0.00}\t{pFinal / p:0.000}");
             });
-            ProcessStep.End();
+            step.End();
         }
         grs.ForEach(gr => gr.Coldfinger.Standby());
         gm.VacuumSystem.OpenLine();
@@ -5672,24 +5678,24 @@ public class Cegs : ProcessManager, ICegs
         if (manifold == null) return 0;     // can't check; assume ok
         var vs = manifold.VacuumSystem;
 
-        ProcessStep.Start($"Leak checking {port.Name}.");
+        var step = ProcessStep.Start($"Leak checking {port.Name}.");
 
         var basePressure = LeakTestBasePressure;
         if (!basePressure.IsANumber())
             basePressure = OkPressure; // OkPressure is a convenient but high starting pressure;
                                        // ideally, RoR tests start at ultimate pressure.
 
-        ProcessSubStep.Start($"Evacuate {manifold.Name}+{port.Name} to below {basePressure:0.0e0} Torr");
+        var substep = ProcessSubStep.Start($"Evacuate {manifold.Name}+{port.Name} to below {basePressure:0.0e0} Torr");
         manifold.Isolate();
         manifold.ClosePortsExcept(port);
         manifold.Open();
         port.Open();
         manifold.Evacuate(basePressure);
-        ProcessSubStep.End();
+        substep.End();
 
         var leakRate = SectionLeakRate(manifold, LeakTightTorrLitersPerSecond);
 
-        ProcessStep.End();
+        step.End();
 
         return leakRate;
     }
@@ -5718,7 +5724,7 @@ public class Cegs : ProcessManager, ICegs
         var testSeconds = 120;      // Aeon's standard rate-of-rise test duration
         var vs = section.VacuumSystem;
 
-        ProcessStep.Start($"Leak checking {section.Name}.");
+        var step = ProcessStep.Start($"Leak checking {section.Name}.");
 
         // For completeness, PathToVacuum's equivalent set of chambers should be included, too. It's
         // neglected for now (it would add little because all Manifold(port)'s reach their VM except for MCP1 and MCP2).
@@ -5730,26 +5736,26 @@ public class Cegs : ProcessManager, ICegs
         vs.AutoManometer = false;
         vs.DisableManometer();      // use pVM_LP to measure leak rate as pVM_IG may not have sufficient headroom.
 
-        ProcessSubStep.Start($"Venting high vacuum valve {vs.HighVacuumValve.Name}.");
+        var substep = ProcessSubStep.Start($"Venting high vacuum valve {vs.HighVacuumValve.Name}.");
         vs.VentHV();
         WaitSeconds(30);
-        ProcessSubStep.End();
+        substep.End();
 
         var p0 = vs.Pressure;
         var torrLimit = p0 + torr;
         vs.Isolate();
 
-        ProcessSubStep.Start($"Wait up to {testSeconds:0} seconds for {torrLimit:0.0e0} Torr");
+        substep = ProcessSubStep.Start($"Wait up to {testSeconds:0} seconds for {torrLimit:0.0e0} Torr");
         var leaky = WaitFor(() => vs.Pressure > torrLimit, testSeconds * 1000, 1000);
-        var elapsed = ProcessSubStep.Elapsed.TotalSeconds;
+        var elapsed = substep.Elapsed.TotalSeconds;
         torr = vs.Pressure - p0;     // actual change in pressure
         var gasLoad = torr * liters / elapsed;
-        ProcessSubStep.End();
+        substep.End();
 
         vs.Evacuate();
         vs.AutoManometer = autoManometer;
 
-        ProcessStep.End();
+        step.End();
         Hacs.SystemLog.Record(
             $"Gas load ({section.VacuumSystem.VacuumManifold.Name}+{section.Name}): {gasLoad:0.0e0} Torr L / sec{(leaky ? " (leaky)" : "")}"
         );
@@ -5792,7 +5798,7 @@ public class Cegs : ProcessManager, ICegs
         bool timedOut = false;      // loop timed out with wait condition not met
 
         var state = "";
-        var step = "";
+        var status = "";
 
         string getState()
         {
@@ -5812,7 +5818,7 @@ public class Cegs : ProcessManager, ICegs
                 ddPv_dt = ddPv / dt;
                 expectedError = error + lagMinutes * dPv_dt;
             }
-            state = $"{step}CO={h.Config.PowerLevel:0.00}: {pv:0.0} °C (d={dPv_dt:0.0} dd={ddPv_dt:0.0}) e={expectedError:0.0}";
+            state = $"{status}CO={h.Config.PowerLevel:0.00}: {pv:0.0} °C (d={dPv_dt:0.0} dd={ddPv_dt:0.0}) e={expectedError:0.0}";
             return state;
         }
 
@@ -5837,20 +5843,21 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        ProcessStep.Start($"Calibrating {h.Name} power level");
+        using var step = ProcessStep.Start($"Calibrating {h.Name} power level");
         TestLog.Record($"Calibrating {h.Name}'s PowerLevel");
 
         getState();
         WaitSeconds(5, "Initialize state");
+        StatusChannel.Status substep;
         if (tc.Temperature > pvTarget - 50)
         {
             h.TurnOff();
-            step = "Cooling: ";
+            status = "Cooling: ";
             TestLog.Record($"{h.Name} calibration: {getState()}.");
-            ProcessSubStep.Start(step);
+            substep = ProcessSubStep.Start(status);
             bool cooled()
             {
-                ProcessSubStep.CurrentStep.Description = getState();
+                substep.Update(getState());
                 return pv < pvTarget - 50;
             }
             if (!WaitFor(cooled, oneMinute, oneSecond))
@@ -5858,14 +5865,13 @@ public class Cegs : ProcessManager, ICegs
                 Announce("Calibration thermocouple is too hot.",
                     "And it hasn't cooled sufficiently after over a minute.\r\n" +
                     $"Is it in {h.Name}?", NoticeType.Error);
-                ProcessStep.End();
                 return;
             }
-            ProcessSubStep.End();
+            substep.End();
         }
 
-        step = "Detect heating: ";
-        ProcessSubStep.Start(step);
+        status = "Detect heating: ";
+        substep = ProcessSubStep.Start(status);
         var warmingTimeoutSeconds = 60;
         h.MaximumPowerLevel = 15;
         h.PowerLevel = 15;
@@ -5873,7 +5879,7 @@ public class Cegs : ProcessManager, ICegs
         TestLog.Record($"{h.Name} calibration: {getState()}.");
         bool furnaceHeating()
         {
-            ProcessSubStep.CurrentStep.Description = getState();
+            substep.Update(getState());
             return dPv_dt > 5 && ddPv_dt > 5;
         }
         while (!WaitFor(furnaceHeating, warmingTimeoutSeconds * oneSecond, 4 * oneSecond))
@@ -5886,46 +5892,46 @@ public class Cegs : ProcessManager, ICegs
                 $"Is the calibration thermocouple in {h.Name}?\r\n" +
                 $"Ok to try again or Cancel calibrating {h.Name}.", NoticeType.Warning).Ok())
             {
-                ProcessSubStep.End();       // to restart the timer
-                ProcessSubStep.Start(step);
+                substep.End();       // to restart the timer
+                substep = ProcessSubStep.Start(status);
                 h.TurnOn();
                 TestLog.Record($"{h.Name} calibration: {getState()}");
             }
             else
             {
-                ProcessSubStep.End();
+                substep.End();
                 return;
             }
         }
-        step = "Heating detected: ";
+        status = "Heating detected: ";
         TestLog.Record($"{h.Name} calibration: {getState()}");
-        ProcessSubStep.End();
+        substep.End();
 
-        step = $"Pre-heat: ";
-        ProcessSubStep.Start(step);
+        status = $"Pre-heat: ";
+        substep = ProcessSubStep.Start(status);
         bool preheated()
         {
-            ProcessSubStep.CurrentStep.Description = getState();
+            substep.Update(getState());
             return pv > pvTarget - 10;
         }
         WaitFor(preheated, 5 * oneMinute, 4 * oneSecond);
-        step = "Pre-Heat ended: ";
+        status = "Pre-Heat ended: ";
         TestLog.Record($"{h.Name} calibration: {getState()}");
-        ProcessSubStep.End();
+        substep.End();
 
-        step = $"Stabilize: ";
-        ProcessSubStep.Start(step);
+        status = $"Stabilize: ";
+        substep = ProcessSubStep.Start(status);
         double startingCO = 11.0;           // rough estimate
         h.PowerLevel = startingCO;
         TestLog.Record($"{h.Name} calibration: {getState()}");
         bool stabilize()
         {
-            ProcessSubStep.CurrentStep.Description = getState();
-            return ProcessSubStep.Elapsed.TotalSeconds >= 60;
+            substep.Update(getState());
+            return substep.Elapsed.TotalSeconds >= 60;
         }
         WaitFor(stabilize, -1, 4 * oneSecond);
-        ProcessSubStep.End();
-        step = "";
+        substep.End();
+        status = "";
 
         while (!Stopping & !timedOut)
         {
@@ -5944,17 +5950,17 @@ public class Cegs : ProcessManager, ICegs
             WaitFor(configured, -1, 1);
             TestLog.Record($"{h.Name} calibration: {getState()}.");
 
-            step = "";
-            ProcessSubStep.Start(step);
+            status = "";
+            substep = ProcessSubStep.Start(status);
             bool changeNeeded()
             {
                 if (tc.Temperature > pvLimit) return true;
-                ProcessSubStep.CurrentStep.Description = getState();
-                return ProcessSubStep.Elapsed.TotalSeconds >= minSecondsAtCo &&
+                substep.Update(getState());
+                return substep.Elapsed.TotalSeconds >= minSecondsAtCo &&
                     (expectedError < tooLow || expectedError > tooHigh);
             }
             timedOut = !WaitFor(changeNeeded, (int)(longEnough * oneMinute), 5 * oneSecond);
-            ProcessSubStep.End();
+            substep.End();
 
             if (tc.Temperature > pvLimit)
             {
@@ -5975,7 +5981,7 @@ public class Cegs : ProcessManager, ICegs
             Announce($"{h.Name} Calibration Unsuccessful",
                 $"Check {TestLog.Name} for details.", NoticeType.Error);
         }
-        ProcessStep.End();
+        step.End();
 
         void RecordAlert(string message, string details)
         {
@@ -6011,7 +6017,7 @@ public class Cegs : ProcessManager, ICegs
         WaitMinutes(15); // Wait for temperature to stabalize.
         var names = new List<string>();
         Array.ForEach(heaters, h => names.Add(h.Name));
-        var log = new DataLog($"PID Step test{(heaters.Length > 1 ? "s" : "")} {string.Join(',', names)}.txt")
+        var log = new DataLog($"PID Status test{(heaters.Length > 1 ? "s" : "")} {string.Join(',', names)}.txt")
         {
             //Header = string.Join('\t', heaters as IEnumerable),
             ChangeTimeoutMilliseconds = 3 * 1000,
@@ -6069,7 +6075,7 @@ public class Cegs : ProcessManager, ICegs
 
         WaitMinutes(60); // Wait for temperature to stabalize.
 
-        var log = new DataLog($"VttWarm Step Test.txt")
+        var log = new DataLog($"VttWarm Status Test.txt")
         {
             Columns = new()
                 {
@@ -6273,7 +6279,7 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        ProcessStep.Start("Measure transfer efficiency");
+        var step = ProcessStep.Start("Measure transfer efficiency");
         if (ugCinMC < Sample.Micrograms * 0.8)
         {
             MC.VacuumSystem.OpenLine();
@@ -6287,7 +6293,7 @@ public class Cegs : ProcessManager, ICegs
             Sample.Micrograms = Sample.SelectedMicrogramsCarbon;
             transferLoop?.Invoke();
         }
-        ProcessStep.End();
+        step.End();
     }
 
 
@@ -6297,12 +6303,12 @@ public class Cegs : ProcessManager, ICegs
     [Description("Discard MC contents.")]
     protected virtual void DiscardExtractedGases()
     {
-        ProcessStep.Start("Discard extracted gases");
+        var step = ProcessStep.Start("Discard extracted gases");
         var mcCF = MC.Coldfinger;
         mcCF.Thaw();
-        ProcessSubStep.Start("Wait for MC coldfinger to thaw enough.");
+        var substep = ProcessSubStep.Start("Wait for MC coldfinger to thaw enough.");
         WaitFor(() => mcCF.Temperature > (VTT.Coldfinger as VTColdfinger).Setpoint + 10);
-        ProcessSubStep.End();
+        substep.End();
         mcCF.Standby();    // stop thawing to save time
 
         // record pressure
@@ -6310,7 +6316,7 @@ public class Cegs : ProcessManager, ICegs
 
         VTT_MC.OpenAndEvacuate(OkPressure);
         VTT_MC.IsolateFromVacuum();
-        ProcessStep.End();
+        step.End();
     }
 
 
@@ -6328,7 +6334,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Stepwise warm-up to discard early-evolving gases before releasing CO2 for capture.")]
     protected virtual void StepExtractionYieldTest()
     {
-        Sample.LabId = "Step Extraction Yield Test";
+        Sample.LabId = "Status Extraction Yield Test";
         //admitDeadCO2(1000);
         Measure();
 
@@ -6429,7 +6435,7 @@ public class Cegs : ProcessManager, ICegs
         gs?.Admit(pressure);
         WaitSeconds(10);
 
-        TestLog.Record($"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}");
+        TestLog.Record($"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Latest.Elapsed:m':'ss}");
         gs?.Destination?.OpenAndEvacuate();
     }
 
@@ -6441,7 +6447,7 @@ public class Cegs : ProcessManager, ICegs
         gs?.Pressurize(pressure);
         WaitSeconds(15);
 
-        TestLog.Record($"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Elapsed:m':'ss}");
+        TestLog.Record($"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Latest.Elapsed:m':'ss}");
         gs?.Destination?.OpenAndEvacuate();
     }
 

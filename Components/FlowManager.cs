@@ -218,14 +218,14 @@ public class FlowManager : HacsComponent, IFlowManager
     bool useRateOfChange = false;
 
     /// <summary>
-    /// A StepTracker to receive ongoing process state messages.
+    /// A StatusChannel to receive ongoing process state messages.
     /// </summary>
-    public StepTracker ProcessStep
+    public StatusChannel ProcessStep
     {
-        get => processStep ?? StepTracker.Default;
+        get => processStep ?? StatusChannel.Default;
         set => Ensure(ref processStep, value);
     }
-    StepTracker processStep;
+    StatusChannel processStep;
 
 
     Thread managerThread;
