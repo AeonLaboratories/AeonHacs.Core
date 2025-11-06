@@ -1432,6 +1432,11 @@ public interface ISample : IHacsComponent
     double Micromoles { get; set; }
 
     /// <summary>
+    /// A counter indicating which split of the sample this is.
+    /// </summary>
+    int Split { get; set; }
+
+    /// <summary>
     /// Added dilution (dead) carbon
     /// </summary>
     double MicrogramsDilutionCarbon { get; set; }
@@ -1468,6 +1473,22 @@ public interface ISample : IHacsComponent
     int AliquotsCount { get; set; }
     int AliquotIndex(IAliquot aliquot);
 
+    /// <summary>
+    /// Creates a new split of the current sample.
+    /// </summary>
+    /// <remarks>The split is a pseudo-sample; its CO2 is obtained from the same material as the
+    /// source sample, but under different conditions.
+    /// The split's <see cref="Split"/> property is set to one more than its source's Split value, 
+    /// so create each split from the prior one to maintain a sane value.
+    /// The <see cref="DateTime"/> property is set to the split creation time; change it in the caller
+    /// if a different value is desired.
+    /// <see cref="State"/> is set to <see cref="States.Loaded"/> in anticipation of collection,
+    /// and the <see cref="InletPort"/>'s <see cref="LinePort.State"/> is set to <see cref="LinePort.States.Loaded"/> as well.
+    /// The <see cref="Parameters"/> are copied from the source
+    /// sample, and a new set of <see cref="Aliquots"/> mirroring the source sample's is created
+    /// </remarks>
+    /// <returns>A new <see cref="Sample"/> instance representing the split.</returns>
+    Sample CreateSplit();
     Sample Clone();
 }
 

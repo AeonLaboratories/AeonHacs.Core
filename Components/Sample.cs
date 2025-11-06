@@ -226,6 +226,14 @@ public class Sample : HacsComponent, ISample
         set => Micrograms = value * GramsCarbonPerMole;
     }
 
+    [JsonProperty]
+    public int Split
+        {
+        get => split;
+        set => Ensure(ref split, value);
+    }
+    int split;
+
     /// <summary>
     /// micrograms of added dilution (dead) carbon
     /// </summary>
@@ -366,6 +374,26 @@ public class Sample : HacsComponent, ISample
     {
         Name = GenerateSampleName;
     }
+    
+    /// <inheritdoc/>
+    public Sample CreateSplit()
+    {
+        Sample splitSample = new()
+        {
+            LabId = LabId,
+            Split = Split + 1,
+            DateTime = DateTime.Now,
+            State = States.Loaded,
+            InletPort = InletPort,
+            Protocol = Protocol,
+            Parameters = Parameters.Select(p => p.Clone()).ToList(),
+            SulfurSuspected = SulfurSuspected,
+            Take_d13C = Take_d13C,
+            Aliquots = Aliquots.Select(a => (new Aliquot(a as Aliquot) as IAliquot)).ToList()
+        };
+        splitSample.InletPort.State = LinePort.States.Loaded;
+        return splitSample;
+    }
 
     public Sample Clone()
     {
@@ -404,6 +432,6 @@ public class Sample : HacsComponent, ISample
 
     public override string ToString()
     {
-        return $"{LabId} [{InletPort?.Name ?? "---"}] {{{Name}}}";
+        return $"{LabId}{(Split > 0 ? $" Split {Split}":"")} [{InletPort?.Name ?? "---"}] {{{Name}}}";
     }
 }

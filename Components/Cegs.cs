@@ -1517,6 +1517,11 @@ public class Cegs : ProcessManager, ICegs
     public double MaximumSampleMicrogramsCarbon => GetParameter(nameof(MaximumSampleMicrogramsCarbon));
 
     /// <summary>
+    /// Final sample furnace temperature setpoint for ramped oxidation.
+    /// </summary>
+    public double MaximumSampleTemperature => GetParameter(nameof(MaximumSampleTemperature));
+
+    /// <summary>
     /// The longest time allowed for admitting gas.
     /// </summary>
     public double MaximumSecondsAdmitGas => (int)GetParameter(nameof(MaximumSecondsAdmitGas));
@@ -1859,6 +1864,7 @@ public class Cegs : ProcessManager, ICegs
         var status = freezeTrap ?
             $"Start collecting sample in {trap.Name}" :
             $"Start gas flow through {trap.Name}";
+
         var step = ProcessStep.Start(status);
 
         trap.Evacuate();
@@ -2574,12 +2580,17 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
+    /// Heat the InletPort's quartz media.
+    /// </summary>
+    [Description("Heat the active inlet port's quartz media.")]
+    protected virtual void HeatQuartz() => HeatQuartz(false);
+
+    /// <summary>
     /// Heat the InletPort's quartz media, while evacuating the rest
     /// of the line.
     /// </summary>
     [Description("Heat the active inlet port's quartz media, while evacuating the rest of the line.")]
     protected virtual void HeatQuartzOpenLine() => HeatQuartz(true);
-
     protected virtual void Admit(string gas, ISection destination, IPort port, double pressure)
     {
         if (!(GasSupply(gas, destination) is GasSupply gasSupply))
@@ -3376,19 +3387,34 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    /// Open and evacuate the entire vacuum line. This establishes
-    /// the baseline system state: the condition it is normally left in
+    /// Open and evacuate the entire vacuum line. This establishes the 
+    /// baseline system state: the condition it is normally left in
     /// when idle, and the expected starting point for major
     /// processes such as running samples.
     /// </summary>
-    [Description("Open and evacuate the main vacuum line.")]
+    [Description("Open and evacuate the entire line.")]
     protected virtual void OpenLine()
     {
-        var step = ProcessStep.Start("Close gas supplies");
-        CloseGasSupplies();
-        step.End();
-        OpenLine(MC.VacuumSystem);
+        OpenLineMC();
+        if (IM.VacuumSystem != MC.VacuumSystem)
+            OpenLineIM();
     }
+
+    /// <summary>
+    /// Open and evacuate the vacuum line including the Measurement
+    /// Chamber. Its vacuum system services the portion of the line 
+    /// responsible for purification, measurement, and graphitization.
+    /// </summary>
+    [Description("Open and evacuate the vacuum line that services the MC.")]
+    protected virtual void OpenLineMC() => OpenLine(MC.VacuumSystem);
+
+    /// <summary>
+    /// Open and evacuate the vacuum line including the Inlet
+    /// Manifold. Its vacuum system services the portion of the line
+    /// responsible for liberating and collecting sample gases.
+    /// </summary>
+    [Description("Open and evacuate the vacuum line that services the IM.")]
+    protected virtual void OpenLineIM() => OpenLine(IM.VacuumSystem);
 
     /// <summary>
     /// Opens all sections serviced by the vacuumSystem, first thawing, if needed, to ensure they are above freezing.
@@ -3396,6 +3422,7 @@ public class Cegs : ProcessManager, ICegs
     /// <param name="vacuumSystem"></param>
     protected virtual void OpenLine(IVacuumSystem vacuumSystem)
     {
+        CloseGasSupplies(vacuumSystem);
         if (ThawColdfingersWhenOpeningLine)
             ThawAllColdfingers(vacuumSystem);
         vacuumSystem.OpenLine();
@@ -3980,55 +4007,19 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    /// The root LabId for a split sample.
+    /// Creates a new split of the current sample and assigns it to the <see cref="Sample"/> property.
     /// </summary>
-    protected string SplitSampleRoot = "";
+    /// <remarks>This method invokes the <see cref="Sample.CreateSplit"/> method to generate the new split.
+    /// </remarks>
+    [Description("Create a new split of the current sample and make it the current sample.")]
+    protected virtual void CreateSampleSplit() => Sample = Sample.CreateSplit();
 
     /// <summary>
-    /// Prepare for split sample processing (multiple collection steps).
+    /// Collect gas from the active sample and send it to the VTT to complete processing.
     /// </summary>
-    [Description("Prepare for split sample processing (multiple collection steps)")]
-    protected virtual void InitializeSplits()
+    [Description("Collect gas from the active sample and send it to the VTT to complete processing.")]
+    protected virtual void CollectAndLaunchExctractEtc()
     {
-        SetParameter("SampleSplitCounter", 1);      // temporary Parameter
-        SplitSampleRoot = Sample.LabId;
-    }
-
-    /// <summary>
-    /// Clear split sample processing data.
-    /// </summary>
-    [Description("Clear split sample processing data")]
-    protected virtual void ClearSplits()
-    {
-        ClearParameter("SampleSplitCounter");
-        SplitSampleRoot = "";
-    }
-
-    /// <summary>
-    /// Collect a sample split (one protocol step) and send it to the VTT to complete processing.
-    /// </summary>
-    [Description("Collect a sample split (one protocol step) and send it to the VTT to complete processing")]
-    protected virtual void CollectSampleSplit()
-    {
-        var counter = GetParameter("SampleSplitCounter");
-        if (counter > 1)
-        {
-            // Copy the sample for subsequent splits
-            Sample sample = new()
-            {
-                LabId = $"{SplitSampleRoot}-{counter}",
-                DateTime = Sample.DateTime,
-                State = Components.Sample.States.Loaded,
-                InletPort = InletPort,
-                d13CPort = null,
-                Protocol = Sample.Protocol,
-                Parameters = Sample.Parameters.Select(p => p.Clone()).ToList(),
-                SulfurSuspected = Sample.SulfurSuspected,
-                Take_d13C = Sample.Take_d13C,
-                Aliquots = Sample.Aliquots.Select(a => (new Aliquot(a as Aliquot) as IAliquot)).ToList()
-            };
-            // ToggleCT(); // requires tandem traps
-        }
         CollectUntilConditionMet();
         StopCollecting();
         WaitForCegs();
@@ -4036,15 +4027,15 @@ public class Cegs : ProcessManager, ICegs
         StartExtractEtc();
     }
 
-
     /// <summary>
     /// Graphitize all collected splits.
     /// </summary>
     [Description("Graphitize all collected splits.")]
     protected virtual void GraphitizeSplits()
     {
+        var sampleId = Sample.LabId;
         // Start the deferred graphitizations and add carrier gas to the d13C vessels.
-        foreach (var s in Samples.Values.Where(s => s.LabId.StartsWith(SplitSampleRoot)))
+        foreach (var s in Samples.Values.Where(s => s.LabId == sampleId))
         {
             Sample = s;
 
@@ -4067,103 +4058,96 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void SplitSampleProtocolExample()
     {
         // ** Process Configuration **
-        // * Stepped Combustion *
-        SetParameter("ThawAllColdfingersWhenOpeningLine", 0);
-        SetParameter("ThawVttAfterExtract", 0);
-        SetParameter("HoldSampleAtPorts", 1);
-        SetParameter("FinishCollecting", 1);    // true => StopCollectingAfterBleedDown()
+        // * Stepped Combustion * and * Ramped Oxidation *
+        SetParameter(nameof(ThawColdfingersWhenOpeningLine), 0);
+        SetParameter(nameof(ThawVttAfterExtract), 0);
+        SetParameter(nameof(HoldSampleAtPorts), 1);
+        SetParameter(nameof(WaitForBleedDown), 1);
         EnableIpRamp();
 
         // * Ramped Oxidation *
-        //SetParameter("ThawAllColdfingersWhenOpeningLine", 0);
-        //SetParameter("ThawVttAfterExtract", 0);
-        //SetParameter("HoldSampleAtPorts", 1);
-        //SetParameter("FinishCollecting", 1);    // true => StopCollectingAfterBleedDown()
-        //EnableIpRamp();
+        //SetParameter(nameof(MaximumSampleTemperature), 1000);
+        //SetParameter(nameof(MinutesAtMaximumTemperature), 10);
         //IncludeCO2Analyzer();
         //SelectCT1();
         //UseIpFlow();
 
-        OpenLine(IM.VacuumSystem);
+        OpenLineIM();
         PrepareInletPort();
-        EvacuateIP(OkPressure);
+        EvacuateIP();
+        HeatQuartz();
 
-        var step = ProcessStep.Start($"Heat Quartz");
-        TurnOnIpQuartzFurnace();
-        WaitMinutes((int)QuartzFurnaceWarmupMinutes);
-        step.End();
-
-        InitializeSplits();
-
+        // * Stepped Combustion *
         // Discard Split 0?
-        //SetParameter("IpRampRate", 50);
-        //SetParameter("IpSetpoint", 150);
+        //SetParameter(nameof(IpRampRate), 50);
+        //SetParameter(nameof(IpSetpoint), 150);
         //AdjustIpSetpoint();
         //AdmitIPO2();
         //TurnOnIpSampleFurnace();
         //WaitIpRiseToSetpoint();
-        //SetParameter("IpMinutes", 15);
+        //SetParameter(nameof(IpMinutes), 15);
         //WaitIpMinutes();
         //DiscardIPGases();
 
-        // Split 1: 0-200 °C
-        SetParameter("IpRampRate", 50);
-        SetParameter("IpSetpoint", 200);
-        AdjustIpSetpoint();
-
         // ** Start Collecting **
         // * Stepped Combustion *
+        // Split 1: 380 °C
+        SetParameter(nameof(IpRampRate), 50);
+        SetParameter(nameof(IpSetpoint), 380);
+        SetParameter(nameof(IpMinutes), 15);
+        AdjustIpSetpoint();
         AdmitIPO2();
         TurnOnIpSampleFurnace();
         WaitIpRiseToSetpoint();
-        SetParameter("IpMinutes", 15);
         WaitIpMinutes();
         PrepareForCollection();
         StartCollecting();
 
         // * Ramped Oxidation *
+        //SetParameter(nameof(IpRampRate), 10);
+        //SetParameter(nameof(IpSetpoint), 1000);
+        //AdjustIpSetpoint();
         //StartFlowThroughToTrap();
-        //ResetUgcTracking();
-        //ClearCollectionConditions();
-
+        //TurnOnIpSampleFurnace();
 
         // ** Set Stop Conditions **
         // * Stepped Combustion *
-        // (use default stop conditions)
+        // use already-defined stop conditions
 
         // * Ramped Oxidation *
+        //ClearCollectionConditions();
+        //ResetUgcTracking();
         //SetParameter("CollectUntilMinutes", 60);
         //SetParameter("CollectUntilUgc", 120);
-        //SetParameter("MaximumSampleTemperature", 1000);
-        //SetParameter("MinutesAtMaximumTemperature", 10);
 
-        CollectSampleSplit();
+        CollectAndLaunchExctractEtc();
 
-        // Split 2: 200-625 °C
+        // Split 2: 625 °C
+        CreateSampleSplit();
         SetParameter("IpRampRate", 75);
         SetParameter("IpSetpoint", 625);
+        SetParameter("IpMinutes", 60);
         AdjustIpSetpoint();
         AdmitIPO2();
         WaitIpRiseToSetpoint();
-        SetParameter("IpMinutes", 60);
         WaitIpMinutes();
         PrepareForCollection();
         StartCollecting();
-        CollectSampleSplit();
+        CollectAndLaunchExctractEtc();
 
-        // Split 3: 625-850 °C
+        // Split 3: 850 °C
+        CreateSampleSplit();
         SetParameter("IpSetpoint", 850);
+        SetParameter("IpMinutes", 60);
         AdjustIpSetpoint();
         AdmitIPO2();
         WaitIpRiseToSetpoint();
-        SetParameter("IpMinutes", 60);
         WaitIpMinutes();
         PrepareForCollection();
         StartCollecting();
-        CollectSampleSplit();
+        CollectAndLaunchExctractEtc();
 
         GraphitizeSplits();
-        ClearSplits();
         OpenLine();
     }
 
