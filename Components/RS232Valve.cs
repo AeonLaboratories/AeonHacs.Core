@@ -241,6 +241,24 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
         ActuatorOperations.Remove(operation);
     }
 
+    public virtual void MoveBy(int delta)
+    {
+        var operationName = $"_{(delta > 0 ? "Close ": "Open ")} {Math.Abs(delta)}/96 turn";
+        var operation = FindOperation(operationName) as ActuatorOperation;
+        if (operation != null) ActuatorOperations.Remove(operation);
+        var closeOp = FindOperation("Close");
+        operation = new ActuatorOperation()
+        {
+            Name = operationName,
+            Incremental = true,
+            Value = delta,
+            Configuration = closeOp.Configuration
+        };
+        ActuatorOperations.Add(operation);
+        DoWait(operation);
+        ActuatorOperations.Remove(operation);
+    }
+
     protected override void UpdateValveState()
     {
         ValveState =

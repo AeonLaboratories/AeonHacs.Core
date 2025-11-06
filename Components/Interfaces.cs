@@ -1354,6 +1354,7 @@ public interface IRS232Valve : ICpwValve, IRxValve
     long RS232UpdatesReceived { get; }
 
     void MoveTo(int position);
+    void MoveBy(int delta);
 
     /// <summary>
     /// Automatically determine the valve's closed position.
@@ -2311,6 +2312,11 @@ public interface ICegsPreferences : INotifyPropertyChanged
     /// sufficient vacuum.
     /// </summary>
     static bool EnableAutozero { get; set; }
+
+    /// <summary>
+    /// Enables special operations for system service and maintenance.
+    /// </summary>
+    static bool EnableServiceMode { get; set; }
 
     /// <summary>
     /// The last graphite reactor used. The next one that will
