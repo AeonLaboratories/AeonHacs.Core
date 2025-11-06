@@ -53,20 +53,9 @@ public class ProcessManager : HacsBase, IProcessManager
     public virtual bool Busy
     {
         get => busy;
-        protected set
-        {
-            if (Ensure(ref busy, value))
-                NotBusy = !busy;
-        }
+        protected set => Ensure(ref busy, value);
     }
     bool busy = false;
-
-    public virtual bool NotBusy
-    {
-        get => notBusy;
-        protected set => Ensure(ref notBusy, value);
-    }
-    bool notBusy = true;
 
     protected Thread ManagerThread { get; set; } = null;
     protected Thread ProcessThread { get; set; } = null;
