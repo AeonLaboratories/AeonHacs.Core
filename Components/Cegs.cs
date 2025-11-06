@@ -13,10 +13,22 @@ using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Components;
 
+/// <summary>
+/// Controls a Carbon Extraction and Graphitization System (CEGS) and automates radiocarbon sample processing.
+/// </summary>
+/// <remarks>
+/// A CEGS is a process control system. It converts sample carbon to CO2, purifies it, and reduces it to solid 
+/// "graphite" for AMS isotope analysis.
+/// Each <see cref="Cegs"/> instance implements the instrument modeled in its 'settings.json' file. This file 
+/// contains the comprehensive set of components, along with their configurations, dependencies and interconnections,
+/// which together combine to form the instrument. It also stores the sample processing protocols and tracks
+/// the current system state, including its contents (samples).
+/// This class extends <see cref="ProcessManager"/> and implements <see cref="ICegs"/>.</remarks>
 public class Cegs : ProcessManager, ICegs
 {
     #region HacsComponent
 
+    /// <inheritdoc/>
     [HacsPreConnect]
     protected virtual void PreConnect()
     {
@@ -45,6 +57,7 @@ public class Cegs : ProcessManager, ICegs
     }
 
 
+    /// <inheritdoc/>
     [HacsConnect]
     protected virtual void Connect()
     {
@@ -90,6 +103,7 @@ public class Cegs : ProcessManager, ICegs
     }
 
 
+    /// <inheritdoc/>
     [HacsPostConnect]
     protected virtual void PostConnect()
     {
@@ -142,6 +156,7 @@ public class Cegs : ProcessManager, ICegs
     }
 
 
+    /// <inheritdoc/>
     [HacsPostStart]
     protected virtual void PostStart()
     {
@@ -153,6 +168,7 @@ public class Cegs : ProcessManager, ICegs
     }
 
 
+    /// <inheritdoc/>
     [HacsPreStop]
     protected virtual void PreStop()
     {
@@ -175,9 +191,12 @@ public class Cegs : ProcessManager, ICegs
         }
     }
 
-
+    /// <summary>
+    /// Whether to stop logging system status.
+    /// </summary>
     protected bool StopLogging { get; set; } = false;
 
+    /// <inheritdoc/>
     [HacsPostStop]
     protected virtual void PostStop()
     {
@@ -209,8 +228,14 @@ public class Cegs : ProcessManager, ICegs
     /// </summary>
     ManualResetEvent stoppedSignal2 = new ManualResetEvent(true);
 
+    /// <summary>
+    /// Whether the system has completely stopped.
+    /// </summary>
     public new bool Stopped => stoppedSignal1.WaitOne(0) && stoppedSignal2.WaitOne(0);
 
+    /// <summary>
+    /// Whether the system is in the process of stopping.
+    /// </summary>
     protected bool Stopping { get; set; }
 
     #endregion HacsComponent
@@ -218,20 +243,74 @@ public class Cegs : ProcessManager, ICegs
     #region System configuration
 
     #region Component lists
+    /// <summary>
+    /// The device managers in the system.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IDeviceManager> DeviceManagers { get; set; }
+    /// <summary>
+    /// Managed devices not included in the other component lists. These are devices 
+    /// controlled by device managers.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IManagedDevice> ManagedDevices { get; set; }
+    /// <summary>
+    /// The meters in the system. Meters process regularly updated numeric inputs to produce
+    /// meaningful values that represent something in the real world.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IMeter> Meters { get; set; }
+    /// <summary>
+    /// The valves.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IValve> Valves { get; set; }
+    /// <summary>
+    /// Heaters (specifically those controlled by heater controllers).
+    /// </summary>
     [JsonProperty] public Dictionary<string, IHeater> Heaters { get; set; }
+    /// <summary>
+    /// PID parameters, mostly for heaters, but other PID-controlled devices
+    /// may be in this list, too.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IPidSetup> PidSetups { get; set; }
+    /// <summary>
+    /// Liquid nitrogen manifolds.
+    /// </summary>
     [JsonProperty] public Dictionary<string, ILNManifold> LNManifolds { get; set; }
+    /// <summary>
+    /// Coldfingers (cryogenic traps).
+    /// </summary>
     [JsonProperty] public Dictionary<string, IColdfinger> Coldfingers { get; set; }
+    /// <summary>
+    /// Vacuum systems are virtual components comprising vacuum pumps, pressure gauges, and
+    /// valves coordinated to reach or maintain a target state of operation in a vacuum
+    /// manifold. Vacuum systems service a specific group of sections via the manifold.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IVacuumSystem> VacuumSystems { get; set; }
+    /// <summary>
+    /// Chambers, gas-tight volumes enclosed by valves.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IChamber> Chambers { get; set; }
+    /// <summary>
+    /// Sections are series' of chambers connected in sequence, which are conveniently
+    /// operated as a unit.
+    /// </summary>
     [JsonProperty] public Dictionary<string, ISection> Sections { get; set; }
+    /// <summary>
+    /// Gas supplies are combinations of a pressurized gas shut-off valve, a destination section, 
+    /// and optionally, a metering (flow) valve.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IGasSupply> GasSupplies { get; set; }
+    /// <summary>
+    /// Flow managers monitor a pressure and control a flow valve to reach or maintain
+    /// a target condition, such as a pressure or rate of change.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IFlowManager> FlowManagers { get; set; }
+    /// <summary>
+    /// Volume calibrations contain valve configurations and methods for measuring the
+    /// volumes of chambers and sections.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IVolumeCalibration> VolumeCalibrations { get; set; }
+    /// <summary>
+    /// Log files for recording system data over time.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IHacsLog> Logs { get; set; }
 
     // The purpose of the FindAll().ToDictionary is to automate deletions
@@ -244,7 +323,9 @@ public class Cegs : ProcessManager, ICegs
         set { }
     }
 
-
+    /// <summary>
+    /// HacsComponents not included in the other component lists.
+    /// </summary>
     [JsonProperty] public Dictionary<string, IHacsComponent> HacsComponents { get; set; }
 
     #endregion Component lists
@@ -461,6 +542,9 @@ public class Cegs : ProcessManager, ICegs
     }
     Meter _ugCinMC;
 
+    /// <summary>
+    /// The amount of carbon in the Measurement Chamber, in micromoles.
+    /// </summary>
     public virtual double umolCinMC => ugCinMC.Value / gramsCarbonPerMole;
 
     [JsonProperty("IpOvenRamper"), DefaultValue("IpOvenRamper")]
@@ -530,6 +614,9 @@ public class Cegs : ProcessManager, ICegs
 
     #region Constants
 
+    /// <summary>
+    /// CEGS system settings, constants, and default parameters.
+    /// </summary>
     [JsonProperty]
     public virtual CegsPreferences CegsPreferences { get; set; }
 
@@ -537,30 +624,16 @@ public class Cegs : ProcessManager, ICegs
 
     #region UI Communications
 
+    /// <summary>
+    /// Assign a function that selects samples for processing.
+    /// </summary>
     public virtual Func<bool, List<ISample>> SelectSamples { get; set; }
 
     #endregion UI Communications
 
-    public override bool Busy
-    {
-        get => base.Busy || !Free;
-        protected set => base.Busy = value;
-    }
-
-    public bool Free
-    {
-        get => free;
-        protected set
-        {
-            if (Ensure(ref free, value))
-            {
-                NotifyPropertyChanged(nameof(Busy));
-                NotifyPropertyChanged(nameof(NotBusy));
-            }
-        }
-    }
-    bool free = true;
-
+    /// <summary>
+    /// Enables the processing of samples supplied by an external automatic sample feed system.
+    /// </summary>
     [JsonProperty]
     public bool AutoFeedEnabled
     {
