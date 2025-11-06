@@ -17,6 +17,8 @@ public partial class CegsPreferences : HacsComponent, ICegsPreferences
     static bool enableWatchdogs = true;
     [JsonProperty, DefaultValue(true)] public static bool EnableAutozero { get => enableAutozero; set => Default.Ensure(ref enableAutozero, value); }
     static bool enableAutozero = true;
+    [JsonProperty, DefaultValue(true)] public static bool EnableServiceMode { get => enableServiceMode; set => Default.Ensure(ref enableServiceMode, value); }
+    static bool enableServiceMode = false;
     [JsonProperty, DefaultValue("6")] public static string PriorGR { get => lastGR; set => Default.Ensure(ref lastGR, value); }
     static string lastGR = "6";
     [JsonProperty, DefaultValue(1)] public static int NextGraphiteNumber { get => nextGraphiteNumber; set => Default.Ensure(ref nextGraphiteNumber, value); }
