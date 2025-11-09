@@ -4091,7 +4091,7 @@ public class Cegs : ProcessManager, ICegs
     /// Collect gas from the active sample and send it to the VTT to complete processing.
     /// </summary>
     [Description("Collect gas from the active sample and send it to the VTT to complete processing.")]
-    protected virtual void CollectAndLaunchExctractEtc()
+    protected virtual void CollectAndLaunchExtractEtc()
     {
         CollectUntilConditionMet();
         StopCollecting();
@@ -4193,7 +4193,7 @@ public class Cegs : ProcessManager, ICegs
         //SetParameter("CollectUntilMinutes", 60);
         //SetParameter("CollectUntilUgc", 120);
 
-        CollectAndLaunchExctractEtc();
+        CollectAndLaunchExtractEtc();
 
         // Split 2: 625 °C
         CreateSampleSplit();
@@ -4206,7 +4206,7 @@ public class Cegs : ProcessManager, ICegs
         WaitIpMinutes();
         PrepareForCollection();
         StartCollecting();
-        CollectAndLaunchExctractEtc();
+        CollectAndLaunchExtractEtc();
 
         // Split 3: 850 °C
         CreateSampleSplit();
@@ -4218,7 +4218,7 @@ public class Cegs : ProcessManager, ICegs
         WaitIpMinutes();
         PrepareForCollection();
         StartCollecting();
-        CollectAndLaunchExctractEtc();
+        CollectAndLaunchExtractEtc();
 
         GraphitizeSplits();
         OpenLine();
