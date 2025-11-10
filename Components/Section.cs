@@ -89,6 +89,12 @@ public class Section : HacsComponent, ISection
 
     }
 
+    [HacsPostConnect]
+    protected virtual void PostConnect()
+    {
+        allGasValves = new HashSet<IValve>(FindAll<IGasSupply>().Select(gs => gs.SourceValve));
+    }
+
     #endregion HacsComponent
 
     [JsonProperty("Chambers")]
@@ -358,6 +364,18 @@ public class Section : HacsComponent, ISection
             VacuumSystem.Evacuate();
     }
 
+    HashSet<IValve> allGasValves;
+    List<IValve> OpenedVSSectionValves;
+    void SnapshotOpenedVSSectionValves()
+    {
+        OpenedVSSectionValves = VacuumSystem.VacuumManifold.Isolation.Where(v =>
+            v != VacuumSystem.HighVacuumValve &&
+            v != VacuumSystem.LowVacuumValve &&
+            v.IsOpened &&
+            !allGasValves.Contains(v))
+            .ToList();
+    }
+
     /// <summary>
     /// Isolate the section and connect it to the Vacuum Manifold
     /// if possible. If there is no PathToVacuum, isolate the
@@ -369,6 +387,8 @@ public class Section : HacsComponent, ISection
         var toBeClosed = Isolation.SafeUnion(PathToVacuumIsolation);
 
         var firstIsolateVacuumSystem = toBeOpened != null && toBeOpened.Any();
+
+        SnapshotOpenedVSSectionValves();
         if (firstIsolateVacuumSystem)
             VacuumSystem.Isolate();
 
@@ -401,8 +421,9 @@ public class Section : HacsComponent, ISection
         var toBeClosed = Isolation.SafeUnion(PathToVacuumIsolation);
 
         var firstIsolateVacuumSystem = toBeOpened != null && toBeOpened.Any();
-        if (firstIsolateVacuumSystem)
-            VacuumSystem.Isolate();
+
+        SnapshotOpenedVSSectionValves();
+        if (firstIsolateVacuumSystem) VacuumSystem.Isolate();
 
         VacuumSystem.IsolateExcept(toBeOpened);
         toBeClosed?.CloseExcept(toBeOpened);
@@ -416,6 +437,8 @@ public class Section : HacsComponent, ISection
         toBeOpened?.Open();
 
         VacuumSystem.Evacuate(pressure);
+        OpenedVSSectionValves.Open();
+        OpenedVSSectionValves = null;
     }
 
     /// <summary>
@@ -449,8 +472,9 @@ public class Section : HacsComponent, ISection
         // system, issue a Warning, etc., in case the pressure cannot
         // be reached.
         VacuumSystem.Evacuate(pressure);
+        OpenedVSSectionValves.Open();
+        OpenedVSSectionValves = null;
     }
-
 
 
     /// <summary>
@@ -467,8 +491,12 @@ public class Section : HacsComponent, ISection
     /// <param name="pressure">wait until this pressure is reached</param>
     public void Evacuate(double pressure)
     {
+        SnapshotOpenedVSSectionValves();
         IsolateAndJoinToVacuum();
         VacuumSystem.Evacuate(pressure);
+        OpenedVSSectionValves.Open();
+        OpenedVSSectionValves = null;
+
     }
 
     /// <summary>
@@ -511,12 +539,6 @@ public class Section : HacsComponent, ISection
             p.Close();
     }
 
-    // TODO: what needs this?
-    //protected virtual void ZeroPressureGauges(IEnumerable<IChamber> chambers)
-    //{
-    //    foreach (var chamber in chambers)
-    //        TryToZeroManometer(chamber);
-    //}
 
     /// <summary>
     /// A list of all valves that directly connect this Section to the given Section.

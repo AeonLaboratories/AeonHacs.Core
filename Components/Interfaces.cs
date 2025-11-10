@@ -1549,11 +1549,8 @@ public interface IInletPort : ILinePort
 {
     List<InletPortType> SupportedPortTypes { get; set; }
     InletPortType PortType { get; set; }
-    bool NotifySampleFurnaceNeeded { get; set; }
-    int WarmTemperature { get; set; }
     IHeater QuartzFurnace { get; set; }
     IOven SampleFurnace { get; set; }
-    //List<IValve> PathToFirstTrap { get; set; }
     void TurnOffFurnaces();
 }
 

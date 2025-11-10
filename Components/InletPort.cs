@@ -39,22 +39,6 @@ public class InletPort : LinePort, IInletPort
 
     public override string Contents => Sample?.LabId ?? "<none>";
 
-    [JsonProperty]
-    public bool NotifySampleFurnaceNeeded
-    {
-        get => notifySampleFurnaceNeeded;
-        set => Ensure(ref notifySampleFurnaceNeeded, value);
-    }
-    bool notifySampleFurnaceNeeded;
-
-    [JsonProperty, DefaultValue(40)]
-    public int WarmTemperature
-    {
-        get => warmTemperature;
-        set => Ensure(ref warmTemperature, value);
-    }
-    int warmTemperature = 40;
-
     [JsonProperty("QuartzFurnace")]
     string QuartzFurnaceName { get => QuartzFurnace?.Name; set => quartzFurnaceName = value; }
     string quartzFurnaceName;
@@ -74,21 +58,6 @@ public class InletPort : LinePort, IInletPort
         set => Ensure(ref sampleFurnace, value);
     }
     IOven sampleFurnace;
-
-    //[JsonProperty("PathToFirstTrap")]
-    //List<string> PathToFirstTrapValveNames { get => PathToFirstTrap?.Names(); set => pathToVTTValveNames = value; }
-    //List<string> pathToVTTValveNames;
-    /// <summary>
-    /// Ordered list of valves between the InletPort chamber and the
-    /// CO2 collection trap chamber, including the IP port valve and
-    /// a valve on the CO2 collection chamber perimeter.
-    /// </summary>
-    //public List<IValve> PathToFirstTrap
-    //{
-    //    get => pathToFirstTrap;
-    //    set => Ensure(ref pathToFirstTrap, value);
-    //}
-    //List<IValve> pathToFirstTrap;
 
     public virtual void TurnOffFurnaces()
     {
