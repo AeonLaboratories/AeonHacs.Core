@@ -2212,8 +2212,6 @@ public class Cegs : ProcessManager, ICegs
         if (InletPort is not null)
             InletPort.State = LinePort.States.Complete;
         step.End();
-        if (FirstTrap != VTT)
-            TransferCO2FromCTToVTT();
     }
 
     /// <summary>
@@ -2252,7 +2250,7 @@ public class Cegs : ProcessManager, ICegs
         PrepareForCollection();
         StartCollecting();
         CollectUntilConditionMet();
-        StopCollectingAfterBleedDown();
+        StopCollecting();
     }
 
     #endregion Process Steps
@@ -4075,8 +4073,9 @@ public class Cegs : ProcessManager, ICegs
     [Description("Transfer collected CO2 from Coil Trap to VTT.")]
     protected virtual void TransferCO2FromCTToVTT()
     {
+        if (FirstTrap == VTT) return;
         Sample.AddTrap(VTT.Name);
-        TransferCO2(FirstTrap, VTT, -30);
+        TransferCO2(CT, VTT, -30);      // CT, not FirstTrap; in case of tandem coil traps
     }
 
     /// <summary>
@@ -4095,6 +4094,7 @@ public class Cegs : ProcessManager, ICegs
     {
         CollectUntilConditionMet();
         StopCollecting();
+        // need to do something here? override this method.
         WaitForCegs();
         TransferCO2FromCTToVTT();
         StartExtractEtc();
@@ -4821,6 +4821,13 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void CollectEtc()
     {
         Collect();
+        TransferCO2FromCTToVttEtc();
+    }
+
+    [Description("Transfer CO2 to VTT, then continue the standard protocol up to and including graphitization.")]
+    protected virtual void TransferCO2FromCTToVttEtc()
+    {
+        TransferCO2FromCTToVTT();
         ExtractEtc();
     }
 
