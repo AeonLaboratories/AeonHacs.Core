@@ -2209,8 +2209,6 @@ public class Cegs : ProcessManager, ICegs
         collectionPath?.Close();
         FirstTrap?.Isolate();
         collectionPath?.FlowValve?.CloseWait();
-        if (InletPort is not null)
-            InletPort.State = LinePort.States.Complete;
         step.End();
     }
 
@@ -4106,7 +4104,7 @@ public class Cegs : ProcessManager, ICegs
     {
         CollectUntilConditionMet();
         StopCollecting();
-        // need to do something here? override this method.
+        // need to do something here? override this method, or include all these steps in the Protocol.
         WaitForCegs();
         TransferCO2FromCTToVTT();
         StartExtractEtc();
