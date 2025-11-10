@@ -3418,11 +3418,11 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    /// Evacuates the InletPort to the OkPressure level.
+    /// Evacuates the InletPort to pressure given by Parameter IpEvacuationPressure.
     /// </summary>
-    /// <remarks>The OkPressure is intended to be low enough to join sections for drying.</remarks>
-    [Description("Evacuate the active inlet port to 'OkPressure'")]
-    protected virtual void EvacuateIP() => EvacuateIP(OkPressure);
+    /// <remarks>It's a good idea to set IpEvacuationPressure to OkPressure by default.</remarks>
+    [Description("Evacuate the active inlet port to 'IpEvacuationPressure'")]
+    protected virtual void EvacuateIP() => EvacuateIP(IpEvacuationPressure);
 
     #endregion Vacuum System
 
