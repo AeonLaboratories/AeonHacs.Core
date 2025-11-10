@@ -3812,6 +3812,18 @@ public class Cegs : ProcessManager, ICegs
         InletPort?.Close();
     }
 
+
+    /// <summary>
+    /// Isolates the active inlet port. Equivalent to CloseIP() unless InletPort is flow-through.
+    /// </summary>
+    [Description("Isolate the active inlet port.")]
+    protected virtual void IsolateIP()
+    {
+        var ipSection = FirstOrDefault<ISection>(s => s.Chambers.Count == 1 && s.Chambers.Contains(InletPort));
+        ipSection?.Isolate();
+    }
+
+
     /// <summary>
     /// Admits a dead CO2 sample into the MC.
     /// </summary>
