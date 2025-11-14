@@ -77,15 +77,16 @@ public class Sample : HacsComponent
     string traps;
 
     /// <summary>
-    /// Appends a trap name to Traps.
+    /// Appends a trap name to Traps. 
+    /// <remarks>
+    /// Does nothing if trapName is null or blank, or already at the end of the list.
+    /// </remarks>
     /// </summary>
     /// <param name="trapName"></param>
     public void AddTrap(string trapName)
     {
-        if (!traps.IsBlank())
-            traps += ", " + trapName;
-        else
-            traps = trapName;
+        if (trapName.IsBlank() || (traps?.EndsWith(trapName) ?? false)) return;
+        traps = traps.IsBlank() ? trapName : $"{traps}, {trapName}";
     }
 
 
@@ -399,7 +400,7 @@ public class Sample : HacsComponent
     {
         Name = GenerateSampleName;
     }
-    
+
     /// <summary>
     /// Creates a new split of the current sample.
     /// </summary>
