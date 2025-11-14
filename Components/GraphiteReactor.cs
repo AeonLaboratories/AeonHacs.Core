@@ -32,7 +32,7 @@ public class GraphiteReactor : Port, IGraphiteReactor
 
     #endregion HacsComponent
 
-    public enum States { InProcess, Start, WaitTemp, WaitFalling, WaitFinish, Stop, WaitService, WaitPrep, Prepared, Disabled }
+    public enum States { Reserved, Start, WaitTemp, WaitFalling, WaitFinish, Stop, WaitService, WaitPrep, Prepared, Disabled }
 
     public enum Sizes { Standard, Small }
 
@@ -194,7 +194,7 @@ public class GraphiteReactor : Port, IGraphiteReactor
     {
         Aliquot = aliquot;
         if (Aliquot != null) Aliquot.GraphiteReactor = Name;
-        State = States.InProcess;
+        State = States.Reserved;
     }
     public void Reserve(string contents)
     {
@@ -236,7 +236,7 @@ public class GraphiteReactor : Port, IGraphiteReactor
         switch (state)
         {
             case States.Prepared:
-            case States.InProcess:
+            case States.Reserved:
                 break;
             case States.Start:
                 var thawBeforeGraphitizing = Sample?.ParameterTrue("ThawBeforeGraphitizing") ?? false;
