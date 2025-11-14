@@ -1,6 +1,7 @@
 ﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -62,7 +63,6 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void Connect()
     {
         Sample = Find<Sample>(sampleName);
-        CollectedSample = Find<Sample>(collectedSampleName);
         if (inletPort == null)
             inletPort = FirstOrDefault<IInletPort>();
         if (inletPort == null)
@@ -679,16 +679,63 @@ public class Cegs : ProcessManager, ICegs
     }
     IInletPort inletPort;
 
-    [JsonProperty("CollectedSample")]
-    string CollectedSampleName { get => CollectedSample?.Name; set => collectedSampleName = value; }
-    string collectedSampleName;
-    public virtual ISample CollectedSample
+    // This is a persistent queue of collected samples, because with sample splits, more than
+    // one may be active simultaneously. To unify the code for ordinary and split-sample
+    // protocols, the queue simply holds the single Sample in the former case. The Sample in
+    // progress is added to the queue when collection stops. The CollectedSample property
+    // simply peeks at the head of the queue. A sample is removed from the queue once it has
+    // been transferred into a graphite reactor or discarded. It may be necessary to manage
+    // the queue manually after a process abort or manual sample operations. Because the
+    // queue is intended to track samples (splits) created during the execution of a single
+    // sample-processing protocol, it is cleared prior to running a any sample. It is
+    // persisted only to simplify state recovery following a system restart.
+    /// <summary>
+    /// The names of samples already collected for processing.
+    /// </summary>
+    [JsonProperty("CollectedSamples")]
+    public ConcurrentQueue<string> CollectedSamples
     {
-        get => collectedSample;
-        set => Ensure(ref collectedSample, value);
+        get => collectedSamples;
+        set => Ensure(ref collectedSamples, value);
     }
-    ISample collectedSample;
+    ConcurrentQueue<string> collectedSamples;
 
+    /// <summary>
+    /// Add a sample name to the collected samples queue.
+    /// </summary>
+    /// <param name="sample"></param>
+    protected virtual void EnqueueCollectedSample(Sample sample)
+    {
+        if (sample == null) return;
+        CollectedSamples.Enqueue(sample.Name);
+    }
+
+    /// <summary>
+    /// Removes an item from the collected samples queue.
+    /// </summary>
+    [Description("Removes an item from the collected samples queue.")]
+    protected virtual void DequeueCollectedSample() => CollectedSamples.TryDequeue(out _);
+
+    /// <summary>
+    /// Clears the list of collected samples.
+    /// </summary>
+    [Description("Clears the list of collected samples.")]
+    protected virtual void ClearCollectedSamplesQueue() => CollectedSamples.Clear();
+
+    /// <summary>
+    /// The already collected sample currently being processed. This is the item at
+    /// the head of the queue.
+    /// </summary>
+    public Sample CollectedSample
+    {
+        get
+        {
+            if (CollectedSamples is not null && CollectedSamples.TryPeek(out string sampleName))
+                return Find<Sample>(sampleName);
+            else
+                return Sample;
+        }
+    }
 
     protected virtual Id13CPort d13CPort
     {
@@ -701,7 +748,7 @@ public class Cegs : ProcessManager, ICegs
         Guess_d13CPort(CollectedSample);
 
     protected virtual Id13CPort Guess_d13CPort(Sample sample) =>
-        Guess_d13CPort(collectedSample?.InletPort);
+        Guess_d13CPort(CollectedSample?.InletPort);
 
     protected virtual Id13CPort Guess_d13CPort(IInletPort inletPort)
     {
@@ -924,7 +971,7 @@ public class Cegs : ProcessManager, ICegs
                 {
                     ip.Sample = sample;
                     ip.State = LinePort.States.Prepared;    // assume this was done by the sample provider
-                    if (Sample is Sample) Sample.State = Components.Sample.States.Prepared;
+                    if (Sample is Sample) Sample.State = Sample.States.Prepared;
                     Task.Run(() => RunSample(sample));
                 }
             }
@@ -1279,7 +1326,7 @@ public class Cegs : ProcessManager, ICegs
             return false;       // it still has a split in a d13CPort
         if (s.InletPort?.Sample == s && s.InletPort.State != LinePort.States.Complete)
             return false;       // it still incomplete in its InletPort...
-        if (s.State != Components.Sample.States.Complete)
+        if (s.State !=Sample.States.Complete)
             return false;       // it hasn't completed a protocol run
         return true;
     }
@@ -1971,7 +2018,7 @@ public class Cegs : ProcessManager, ICegs
         }
         if (Sample is not null)
         {
-            Sample.State = Components.Sample.States.InProcess;
+            Sample.State =Sample.States.InProcess;
             Sample.AddTrap(trap.Name);
         }
         CollectStopwatch.Restart();
@@ -2225,6 +2272,7 @@ public class Cegs : ProcessManager, ICegs
             FinishCollecting();
         collectionPath?.Close();
         FirstTrap?.Isolate();
+        EnqueueCollectedSample(Sample);
         collectionPath?.FlowValve?.CloseWait();
         step.End();
     }
@@ -2734,8 +2782,9 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void DiscardMCGases()
     {
         var step = ProcessStep.Start("Discard sample from MC");
-        SampleRecord(CollectedSample);
+        SampleRecord(CollectedSample ?? Sample);
         MC?.Evacuate();
+        DequeueCollectedSample();
         step.End();
     }
 
@@ -3569,7 +3618,6 @@ public class Cegs : ProcessManager, ICegs
         //Turn off all coldfingers
     }
 
-    // TODO: warning: this method is only valid for late operations if CollectedSample == Sample
     /// <summary>
     /// Run the active sample.
     /// </summary>
@@ -3620,6 +3668,7 @@ public class Cegs : ProcessManager, ICegs
             $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
             $"\t{Sample.AliquotsCount}\t{"aliquot".Plurality(Sample.AliquotsCount)}");
 
+        ClearCollectedSamplesQueue();
         base.RunProcess(Sample.Protocol);
         WaitFor(() => !base.Busy, -1, 1000);
     }
@@ -3693,11 +3742,26 @@ public class Cegs : ProcessManager, ICegs
 
         if (ProcessType == ProcessTypeCode.Protocol)
         {
-            if (CollectedSample is Sample && ProcessToRun == CollectedSample.Protocol)
-                CollectedSample.State = Components.Sample.States.Complete;
-            SampleLog.Record(message + "\r\n\t" + CollectedSample.LabId);
-        }
+            // Get the samples in work that followed this protocol
+            var samples = Samples.Values.Where(s =>
+                s.State == Sample.States.InProcess
+                && s.Protocol == ProcessToRun
+            );
 
+            foreach (var s in samples)
+            {
+                SampleLog.Record($"{message}\r\n\t {s.LabId}");
+                if (RunCompleted)
+                {
+                    var grs = GraphiteReactors.Where(gr => gr.Sample == s);
+                    if (grs.All(gr => gr.State > GraphiteReactor.States.Start
+                        && gr.State <= GraphiteReactor.States.WaitService)
+                        && (s.d13CPort is null || s.d13CPort.State == LinePort.States.Complete)
+                    )
+                        s.State = Sample.States.Complete;
+                }
+            }
+        }
         Alert(message);
     }
 
@@ -3711,7 +3775,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Reset the active inlet port and Sample states to Loaded.")]
     protected virtual void ResetIpToLoaded()
     {
-        Sample.State = Components.Sample.States.Loaded;
+        Sample.State =Sample.States.Loaded;
         InletPort.State = LinePort.States.Loaded;
     }
 
@@ -3728,7 +3792,7 @@ public class Cegs : ProcessManager, ICegs
         if (NoSample) return;
         if (NoInletPort) return;
         if (InletPort.State == LinePort.States.Prepared) return;    // already done
-        if (Sample is Sample && Sample.State >= Components.Sample.States.Prepared) return;    // already done
+        if (Sample is Sample && Sample.State >= Sample.States.Prepared) return;    // already done
         if (!IpIm(out ISection im)) return;
 
         EvacuateAndCheckIPs(im, [InletPort]);
@@ -3740,7 +3804,7 @@ public class Cegs : ProcessManager, ICegs
             step.End();
         }
         InletPort.State = LinePort.States.Prepared;
-        if (Sample is Sample) Sample.State = Components.Sample.States.Prepared;
+        if (Sample is Sample) Sample.State = Sample.States.Prepared;
     }
 
     /// <summary>
@@ -3801,8 +3865,8 @@ public class Cegs : ProcessManager, ICegs
         if (!IpIm(out ISection im)) return;
 
         InletPort.State = LinePort.States.InProcess;
-        if (Sample is Sample s && s.State < Components.Sample.States.InProcess)
-            s.State = Components.Sample.States.InProcess;
+        if (Sample is Sample s && s.State < Sample.States.InProcess)
+            s.State = Sample.States.InProcess;
         EvacuateIP(0.1);
         Flush(im, 3, InletPort);
 
@@ -3843,7 +3907,7 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void AdmitDeadCO2()
     {
         AdmitDeadCO2(Sample.Micrograms, true);
-        CollectedSample = Sample;
+        EnqueueCollectedSample(Sample);
     }
 
 
@@ -4085,7 +4149,7 @@ public class Cegs : ProcessManager, ICegs
         im_trap.Close();
         InletPort.Open();
         InletPort.State = LinePort.States.InProcess;
-        if (Sample is Sample) Sample.State = Components.Sample.States.InProcess;
+        if (Sample is Sample) Sample.State = Sample.States.InProcess;
         im_trap.Open();
         WaitMinutes((int)CollectionMinutes);
         trap.Isolate();
@@ -4100,11 +4164,19 @@ public class Cegs : ProcessManager, ICegs
     [Description("Transfer collected CO2 from Coil Trap to VTT.")]
     protected virtual void TransferCO2FromCTToVTT()
     {
-        CollectedSample = Sample;
-        if (FirstTrap == VTT) return;   // already there
-        var ct = Find<Section>(CollectedSample.Traps.Split(',').Last().Trim());
-        TransferCO2(ct, VTT, -30);
-        CollectedSample.AddTrap(VTT.Name);
+        var sample = CollectedSample ?? Sample;         // maybe require CollectedSample?
+        var trapNames = (sample?.Traps ?? "")
+            .Split(", ", StringSplitOptions.RemoveEmptyEntries)
+            .Reverse()
+            .ToList();
+
+        var ct = trapNames.Select(Find<Section>)
+            .FirstOrDefault(s => s.Coldfinger is not VTColdfinger)
+            ?? FirstTrap;       // fallback
+
+        TransferCO2(ct, VTT, -30);      // handles ct or VTT null and ct == VTT
+
+        sample?.AddTrap(VTT.Name);
     }
 
     /// <summary>
@@ -4123,7 +4195,7 @@ public class Cegs : ProcessManager, ICegs
     {
         CollectUntilConditionMet();
         StopCollecting();
-        // need to do something here? override this method, or include all these steps in the Protocol.
+        // need to do something here? override this method, or include all of these steps in the Protocol.
         WaitForCegs();
         TransferCO2FromCTToVTT();
         StartExtractEtc();
@@ -4145,8 +4217,8 @@ public class Cegs : ProcessManager, ICegs
             // Re-freeze and start graphite reactor(s) (typically only 1 per split).
             Sample.Aliquots.ForEach(a =>
                 Find<GraphiteReactor>(a.GraphiteReactor).Coldfinger.Raise());
-            GraphitizeAliquots();
 
+            GraphitizeAliquots();
             AddCarrierTo_d13C();
         }
     }
@@ -4353,10 +4425,11 @@ public class Cegs : ProcessManager, ICegs
     [Description("Apportion the MC CO2 into aliquots based on the MC chamber and port volumes.")]
     protected virtual void ApportionAliquots()
     {
-        var ugC = CollectedSample.SelectedMicrogramsCarbon;
+        var sample = CollectedSample ?? Sample;
+        var ugC = sample.SelectedMicrogramsCarbon;
         // if no aliquots were specified, create one
-        if (CollectedSample.AliquotsCount < 1) CollectedSample.AliquotsCount = 1;
-        var n = CollectedSample.AliquotsCount;
+        if (sample.AliquotsCount < 1) sample.AliquotsCount = 1;
+        var n = sample.AliquotsCount;
         var v0 = MC.Chambers[0].MilliLiters;
         var vTotal = v0;
         if (n > 1)
@@ -4367,11 +4440,11 @@ public class Cegs : ProcessManager, ICegs
             {
                 var v2 = MC.Ports[1].MilliLiters;
                 vTotal += v2;
-                CollectedSample.Aliquots[2].MicrogramsCarbon = ugC * v2 / vTotal;
+                sample.Aliquots[2].MicrogramsCarbon = ugC * v2 / vTotal;
             }
-            CollectedSample.Aliquots[1].MicrogramsCarbon = ugC * v1 / vTotal;
+            sample.Aliquots[1].MicrogramsCarbon = ugC * v1 / vTotal;
         }
-        CollectedSample.Aliquots[0].MicrogramsCarbon = ugC * v0 / vTotal;
+        sample.Aliquots[0].MicrogramsCarbon = ugC * v0 / vTotal;
     }
 
     [Description("Measure and record the amount of CO2 in the MC and joined adjacent chambers.")]
@@ -4397,8 +4470,7 @@ public class Cegs : ProcessManager, ICegs
 
         // this is the measurement; a negative sample mass confounds H2 calculation, so it is disallowed
         double ugC = Math.Max(0, ugCinMC.WaitForAverage((int)MeasurementSeconds));
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
+        var sample = CollectedSample ?? Sample;
         if (sample != null)
         {
             sample.SelectedMicrogramsCarbon = ugC;
@@ -4449,8 +4521,7 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void Measure()
     {
         var step = ProcessStep.Start("Prepare to measure MC contents");
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
+        var sample = CollectedSample ?? Sample;
         MC.Isolate();
 
         if (MC.IsActivelyCooling)
@@ -4505,8 +4576,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Discard the contents of the Split chamber.")]
     protected virtual void DiscardSplit()
     {
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
+        var sample = CollectedSample ?? Sample;
 
         var step = ProcessStep.Start("Discard Excess sample");
         while (sample.Aliquots[0].MicrogramsCarbon > MaximumSampleMicrogramsCarbon)
@@ -4570,8 +4640,8 @@ public class Cegs : ProcessManager, ICegs
         // must be re-frozen from MC+MCP0+MCP1 to the MC, and then re-thawed,
         // expanding it into just the MC+MCP0 (i.e., after having closed MCP1).
         // In all other cases, the correct chambers should be opened already.
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
+        var sample = CollectedSample ?? Sample;
+
         if (sample.AliquotsCount == 2 &&
             MC.Ports.Count > 2 &&
             MC.Ports[1].IsOpened) // MC.Ports[0].Opened can be presumed, since AliquotsCount == 2
@@ -4624,8 +4694,8 @@ public class Cegs : ProcessManager, ICegs
     [Description("Use a free graphite reactor to quantitatively remove sulfur from the sample CO2.")]
     protected virtual void RemoveSulfur()
     {
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
+        var sample = CollectedSample ?? Sample;
+        if (sample == null) return;
 
         if (!sample.SulfurSuspected) return;
 
@@ -4634,7 +4704,7 @@ public class Cegs : ProcessManager, ICegs
         IGraphiteReactor gr = NextSulfurTrap(PriorGR);
         gr.Reserve("sulfur");
         gr.Aliquot.ResidualMeasured = true;    // prevent graphitization retry
-        TransferCO2FromMCToGR(gr, 0, true);
+        TransferCO2FromMCToGR(gr, sample.Aliquots[0], true);
         TrapSulfur(gr);
         TransferCO2FromGRToMC(gr, false);
         gr.State = GraphiteReactor.States.WaitService;
@@ -4671,7 +4741,7 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
-        TransferCO2FromMCToGR(gr, aliquot.Sample.AliquotIndex(aliquot));
+        TransferCO2FromMCToGR(gr, aliquot);
     }
 
     protected virtual double[] AdmitGasToPort(IGasSupply gs, double initialTargetPressure, IPort port)
@@ -4705,6 +4775,9 @@ public class Cegs : ProcessManager, ICegs
     {
         var gr = Find<IGraphiteReactor>(aliquot.GraphiteReactor);
         if (!GrGmH2([gr], out ISection gm, out IGasSupply H2)) return;
+
+        if (!gr.Coldfinger.IsActivelyCooling)
+            gr.Coldfinger.RaiseLN();
 
         double mL_GR = gr.MilliLiters;
 
@@ -4797,8 +4870,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Add 14C-free (\"Dead\") CO2 to the sample to increase its size into the AMS-measureable range.")]
     protected virtual void Dilute()
     {
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
+        var sample = CollectedSample ?? Sample;
 
         if (sample == null ||
             DilutedSampleMicrogramsCarbon <= SmallSampleMicrogramsCarbon ||
@@ -4820,10 +4892,11 @@ public class Cegs : ProcessManager, ICegs
     [Description("Transfer all of the sample's aliquots into their graphite reactors.")]
     protected virtual void FreezeAliquots()
     {
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample; if (NoSample) return;
+        var sample = CollectedSample ?? Sample;
+        if (sample == null) return;
         foreach (Aliquot aliquot in sample.Aliquots)
             Freeze(aliquot);
+        DequeueCollectedSample();
     }
 
     /// <summary>
@@ -4832,9 +4905,15 @@ public class Cegs : ProcessManager, ICegs
     [Description("Add hydrogen and graphitize all of the sample's aliquots.")]
     protected virtual void GraphitizeAliquots()
     {
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
-        var grs = sample.Aliquots.Select(a => Find<IGraphiteReactor>(a.GraphiteReactor));
+        // By now, the collected sample is frozen as aliquots in the graphite reactors.
+        var grs =
+            GraphiteReactors
+                .Where(gr =>
+                    gr.State == GraphiteReactor.States.Reserved &&
+                    gr.Aliquot != null &&
+                    gr.Aliquot.Name != "sulfur")
+                .OrderBy(gr => gr.Sample?.Name)
+                .ThenBy(gr => gr.Sample?.AliquotIndex(gr.Aliquot));
 
         var gm = Manifold(grs);
         if (gm == null)
@@ -4845,11 +4924,12 @@ public class Cegs : ProcessManager, ICegs
         }
 
         gm.IsolateFromVacuum();
-        foreach (Aliquot aliquot in sample.Aliquots)
+        foreach (var gr in grs)
         {
+            var aliquot = gr.Aliquot;
             var step = ProcessStep.Start("Graphitize aliquot " + aliquot.Name);
             AddH2ToGR(aliquot);
-            Find<IGraphiteReactor>(aliquot.GraphiteReactor).Start();
+            gr.Start();
             step.End();
         }
         gm.ClosePorts();
@@ -4897,6 +4977,9 @@ public class Cegs : ProcessManager, ICegs
             Dilute();
             DivideAliquots();
             FreezeAliquots();
+            // CollectedSample is cleared automatically after FreezeAliquots.
+            // Hereafter, we must use gr.Aliquot and d13CPort.Aliquot.
+
             if (!HoldSampleAtPorts)
                 GraphitizeAliquots();
         }
@@ -4944,6 +5027,9 @@ public class Cegs : ProcessManager, ICegs
     // fromSection, it must be removed before calling this method).
     protected virtual void TransferCO2(ISection fromSection, ISection toSection, double thawTemperature = double.NaN)
     {
+        // silently ignore invalid requests (for now)
+        if (fromSection is null || toSection is null || fromSection == toSection) return;
+
         var combinedSection = JoinedSection(fromSection, toSection);
         if (combinedSection == null)
         {
@@ -5001,14 +5087,14 @@ public class Cegs : ProcessManager, ICegs
 
     [Description("Transfer the CO2 from the MC to the next available graphite reactor.")]
     protected virtual void TransferCO2FromMCToStandardGR() =>
-        TransferCO2FromMCToGR(NextGR(PriorGR), 0);
+        TransferCO2FromMCToGR(NextGR(PriorGR));
 
     [Description("Transfer the CO2 from the MC to the next available, suitably-sized graphite reactor.")]
     protected virtual void TransferCO2FromMCToGR() =>
         TransferCO2FromMCToGR(NextGR(PriorGR,
             EnableSmallReactors && ugCinMC <= SmallSampleMicrogramsCarbon ?
                 GraphiteReactor.Sizes.Small :
-                GraphiteReactor.Sizes.Standard), 0);
+                GraphiteReactor.Sizes.Standard));
 
     protected virtual void Open_d13CPort(Id13CPort port) => port.Open();
     protected virtual void Close_d13CPort(Id13CPort port) => port.Close();
@@ -5017,17 +5103,15 @@ public class Cegs : ProcessManager, ICegs
     /// Transfers the CO2 aliquot from the MC to the specified graphite reactor.
     /// </summary>
     /// <param name="gr"></param>
-    /// <param name="aliquotIndex"></param>
+    /// <param name="aliquot"></param>
     /// <param name="skip_d13C"></param>
-    protected virtual void TransferCO2FromMCToGR(IGraphiteReactor gr, int aliquotIndex = 0, bool skip_d13C = false)
+    protected virtual void TransferCO2FromMCToGR(IGraphiteReactor gr, Aliquot aliquot = null, bool skip_d13C = false)
     {
         if (gr is null) return;
         if (!GrGm([gr], out ISection gm)) return;
 
-        var mc_gm = JoinedSection(MC, gm);
-
         var holdSampleAtPorts = HoldSampleAtPorts;
-
+        var mc_gm = JoinedSection(MC, gm);
         if (mc_gm == null)
         {
             ConfigurationError($"Can't find Section joining {MC.Name} to {gm.Name}");
@@ -5035,15 +5119,36 @@ public class Cegs : ProcessManager, ICegs
         }
         PriorGR = gr.Name;
 
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
-        IAliquot aliquot = gr.Aliquot;
-        if (aliquot == null && sample != null && sample.AliquotsCount > aliquotIndex)
+        // What are we dealing with?
+        // If no aliquot is provided
+        if (aliquot == null && (CollectedSample ?? Sample) is Sample s)
+            aliquot = s.Aliquots?.FirstOrDefault();
+        // If we have an aliquot, make sure the graphite reactor is reserved for it
+        if (aliquot != null)
         {
-            aliquot = sample.Aliquots[aliquotIndex];
+            // TODO consider whether to warn on overwrite; must take gr.Reserve("sulfur") into account.
+            //if (gr.Aliquot != null && gr.Aliquot != aliquot)
+            //{
+            //    if (!Warn($"{gr.Name} is already reserved",
+            //        $"{gr.Name} is reserved for aliquot {gr.Aliquot.Name}.\r\n" +
+            //        $"Ok to overwrite {gr.Aliquot.Name} with {aliquot.Name}.\r\n" +
+            //        $"Cancel to cancel the transfer.\r\n" +
+            //        $"Restart the application to abort the process.").Ok())
+            //    { return; }
+            //}
             gr.Reserve(aliquot);
         }
 
+        // If the aliquot exists (by now, it should) make sure the sample matches
+        if (aliquot?.Sample != null)
+            sample = aliquot.Sample;
+
+        // At this point, aliquot and sample could still be null; that's
+        // okay--we'll just transfer whatever is in the MC.
+
+        // d13C is always taken only from a sample's first aliquot (index 0)
+        int aliquotIndex = sample?.Aliquots.IndexOf(aliquot) ?? -1;
+        if (aliquotIndex < 0) aliquotIndex = 0;
         var take_d13C = !skip_d13C && (sample?.Take_d13C ?? false) && aliquotIndex == 0;
         if (take_d13C && gr.Aliquot != null && gr.Aliquot.MicrogramsCarbon < MinimumUgCThatPermits_d13CSplit)
         {
@@ -5052,8 +5157,8 @@ public class Cegs : ProcessManager, ICegs
                 $"is too small to take the split (< {MinimumUgCThatPermits_d13CSplit}).");
             take_d13C = false;
         }
-
         Id13CPort d13CPort = take_d13C ? Guess_d13CPort(sample) : null;
+        // hereafter, take_d13C is not used; d13CPort == null serves instead
 
         var step = ProcessStep.Start("Evacuate paths to sample destinations");
         MC.Isolate();
@@ -5071,7 +5176,7 @@ public class Cegs : ProcessManager, ICegs
         {
             if (d13CPort.ShouldBeClosed)
             {
-                Pause($"{d13CPort.Name} is not available",
+                Warn($"{d13CPort.Name} is not available",
                     $"Need to take d13C, but {d13CPort.Name} is not available.\r\n" +
                     $"To abort the process, restart the application.\r\n" +
                     $"Or, make {d13CPort.Name} available (Loaded or Prepared) and\r\n" +
@@ -5132,7 +5237,7 @@ public class Cegs : ProcessManager, ICegs
 
         // release the sample
         var mcPort = aliquotIndex > 0 ? MC.Ports[aliquotIndex - 1] : null;
-        mcPort?.Open();      // take it from from an MC port
+        mcPort?.Open();      // take it from from the appropriate MC port
 
         mc_gm.Open();
 
@@ -5198,7 +5303,6 @@ public class Cegs : ProcessManager, ICegs
             if (!holdSampleAtPorts)
                 AddCarrierTo_d13C();
             d13CPort.Coldfinger.Standby();
-            d13CPort.State = LinePort.States.Complete;
         }
         var tgr = Task.Run(jgr);
         var td13 = Task.Run(jd13);
@@ -5215,18 +5319,35 @@ public class Cegs : ProcessManager, ICegs
         step.End();
     }
 
-    [Description("Add carrier gas to the sample's d13C split.")]
+    /// <summary>
+    /// Add carrier gas to all d13C splits that need it.
+    /// </summary>
+    [Description("Add carrier gas to all d13C splits that need it.")]
     protected virtual void AddCarrierTo_d13C()
     {
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
+        var ports = d13CPorts.Where(p => 
+            p.State == LinePort.States.InProcess
+            && p.Aliquot != null
+        );
+        foreach (var port in ports)
+            AddCarrierTo_d13C(port);
+    }
+
+    /// <summary>
+    /// Add carrier gas to the specified d13C port.
+    /// </summary>
+    /// <remarks>
+    /// When overriding this method, set the port.State to Complete before returning,
+    /// to avoid including this port when subsequent samples run.
+    /// </remarks>
+    /// <param name="port"></param>
+    protected virtual void AddCarrierTo_d13C(Id13CPort port)
+    {
+        if (port == null) return;
+        var sample = port?.Sample;
         if (sample == null || !sample.Take_d13C) return;
 
-        var port = sample.d13CPort;
-        if (port == null) return;
         var manifold = Manifold(port);
-        var gasSupply = InertGasSupply(manifold);
-
         manifold.Evacuate();
         port.Coldfinger.Freeze();
 
@@ -5241,7 +5362,7 @@ public class Cegs : ProcessManager, ICegs
 
         // VPInitialHePressure is found empirically to produce
         // PressureOverAtm inside the vial when it is at room temperature.
-        var pa = AdmitGasToPort(gasSupply, VPInitialPressure, port);
+        var pa = AdmitGasToPort(InertGasSupply(manifold), VPInitialPressure, port);
         var pHeInitial = pa[0];
         var pHeFinal = pa[1];
 
@@ -5273,6 +5394,7 @@ public class Cegs : ProcessManager, ICegs
             Tell($"Vial He pressure error: {pError:0}");
         }
         port.Coldfinger.Thaw();
+        port.State = LinePort.States.Complete;
     }
 
     [Description("Transfer the CO2 from the prior graphite reactor back to the measurement chamber.")]
@@ -5350,8 +5472,9 @@ public class Cegs : ProcessManager, ICegs
     [Description("Transfer the CO2 from the MC to the active inlet port via a transport vessel in a graphite reactor port.")]
     protected virtual void TransferCO2FromMCToIPviaGR()
     {
-        if (CollectedSample is not Sample sample)
-            sample = Sample as Sample;
+        var sample = CollectedSample ?? Sample;
+        if (sample == null) return;
+
         var grName = sample.Aliquots[0].GraphiteReactor;
         var gr = Find<GraphiteReactor>(grName);
         if (gr == null)
@@ -5370,7 +5493,7 @@ public class Cegs : ProcessManager, ICegs
 
         InletPort.State = LinePort.States.Loaded;
         InletPort.Sample = sample;
-        if (sample is Sample) sample.State = Components.Sample.States.Loaded;
+        if (sample is Sample) sample.State =Sample.States.Loaded;
     }
 
     /// <summary>
