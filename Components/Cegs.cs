@@ -628,7 +628,7 @@ public class Cegs : ProcessManager, ICegs
     /// <summary>
     /// Assign a function that selects samples for processing.
     /// </summary>
-    public virtual Func<bool, List<ISample>> SelectSamples { get; set; }
+    public virtual Func<bool, List<Sample>> SelectSamples { get; set; }
 
     #endregion UI Communications
 
@@ -652,7 +652,7 @@ public class Cegs : ProcessManager, ICegs
     [JsonProperty("Sample")]
     string SampleName { get => Sample?.Name; set => sampleName = value; }
     string sampleName;
-    public virtual ISample Sample
+    public virtual Sample Sample
     {
         get => sample;
         set
@@ -666,7 +666,7 @@ public class Cegs : ProcessManager, ICegs
             Ensure(ref sample, value, samplePropertyChanged);
         }
     }
-    ISample sample;
+    Sample sample;
 
     public virtual IInletPort InletPort
     {
@@ -700,7 +700,7 @@ public class Cegs : ProcessManager, ICegs
     protected virtual Id13CPort Guess_d13CPort() =>
         Guess_d13CPort(CollectedSample);
 
-    protected virtual Id13CPort Guess_d13CPort(ISample sample) =>
+    protected virtual Id13CPort Guess_d13CPort(Sample sample) =>
         Guess_d13CPort(collectedSample?.InletPort);
 
     protected virtual Id13CPort Guess_d13CPort(IInletPort inletPort)
@@ -1045,7 +1045,7 @@ public class Cegs : ProcessManager, ICegs
         {
             if (gr.Aliquot != null)
             {
-                IAliquot a = gr.Aliquot;
+                Aliquot a = gr.Aliquot;
                 if (!a.ResidualMeasured)
                 {
                     double ambientTemperature = Manifold(gr).Temperature;
@@ -2270,8 +2270,8 @@ public class Cegs : ProcessManager, ICegs
 
     #endregion Process Steps
 
-    protected virtual void SampleRecord(ISample sample) { }
-    protected virtual void SampleRecord(IAliquot aliquot) { }
+    protected virtual void SampleRecord(Sample sample) { }
+    protected virtual void SampleRecord(Aliquot aliquot) { }
 
 
     /// <summary>
@@ -3177,7 +3177,7 @@ public class Cegs : ProcessManager, ICegs
 
         PressurizeGRsWithInertGas(grs);
 
-        List<IAliquot> toDelete = new List<IAliquot>();
+        List<Aliquot> toDelete = new List<Aliquot>();
         grs.ForEach(gr =>
         {
             toDelete.Add(gr.Aliquot);
@@ -3186,7 +3186,7 @@ public class Cegs : ProcessManager, ICegs
 
         toDelete.ForEach(a =>
         {
-            if (a?.Sample is ISample s)
+            if (a?.Sample is Sample s)
             {
                 s.Aliquots.Remove(a);
                 a.Name = null;          // remove the aliquot from the NamedObject Dictionary.
@@ -3644,8 +3644,8 @@ public class Cegs : ProcessManager, ICegs
     /// <param name="all"></param>
     protected virtual void RunSamples(bool all)
     {
-        if (!(SelectSamples?.Invoke(all) is List<ISample> samples))
-            samples = new List<ISample>();
+        if (!(SelectSamples?.Invoke(all) is List<Sample> samples))
+            samples = new List<Sample>();
         RunSamples(samples);
     }
 
@@ -3653,7 +3653,7 @@ public class Cegs : ProcessManager, ICegs
     /// Run the listed samples.
     /// </summary>
     /// <param name="samples"></param>
-    protected virtual void RunSamples(List<ISample> samples)
+    protected virtual void RunSamples(List<Sample> samples)
     {
         var list = string.Join(", ", samples.Select(p => $"{p.Name} ({p.LabId})"));
         Hacs.SystemLog.Record($"Run samples {list}");
@@ -3665,7 +3665,7 @@ public class Cegs : ProcessManager, ICegs
     /// Run a sample.
     /// </summary>
     /// <param name="sample"></param>
-    protected virtual void RunSample(ISample sample)
+    protected virtual void RunSample(Sample sample)
     {
         Sample = sample;
         RunSample();
@@ -4701,7 +4701,7 @@ public class Cegs : ProcessManager, ICegs
         return [pInitial, pFinal];
     }
 
-    protected virtual void AddH2ToGR(IAliquot aliquot)
+    protected virtual void AddH2ToGR(Aliquot aliquot)
     {
         var gr = Find<IGraphiteReactor>(aliquot.GraphiteReactor);
         if (!GrGmH2([gr], out ISection gm, out IGasSupply H2)) return;

@@ -1395,120 +1395,6 @@ public interface ISampleOwner : INamedObject
     Dictionary<string, Protocol> Protocols { get; set; }
 }
 
-public interface ISample : IHacsComponent
-{
-    /// <summary>
-    /// Typically assigned by the laboratory to identify and track the sample.
-    /// </summary>
-    string LabId { get; set; }
-    DateTime DateTime { get; set; }
-    Sample.States State { get; set; }
-    IInletPort InletPort { get; set; }
-    string Traps { get; set; }
-    void AddTrap(string trapName);
-    Id13CPort d13CPort { get; set; }
-    string Protocol { get; set; }
-    List<Parameter> Parameters { get; set; }
-    double Parameter(string name);
-    bool ParameterTrue(string name);
-    void SetParameter(Parameter parameter);
-    void RemoveParameter(string name);
-    bool SulfurSuspected { get; set; }
-    bool Take_d13C { get; set; }
-    /// <summary>
-    /// Sample size
-    /// </summary>
-    double Grams { get; set; }
-    /// <summary>
-    /// Sample size
-    /// </summary>
-    double Milligrams { get; set; }
-    /// <summary>
-    /// Sample size
-    /// </summary>
-    double Micrograms { get; set; }
-    /// <summary>
-    /// Sample size
-    /// </summary>
-    double Micromoles { get; set; }
-
-    /// <summary>
-    /// A counter indicating which split of the sample this is.
-    /// </summary>
-    int Split { get; set; }
-
-    /// <summary>
-    /// Added dilution (dead) carbon
-    /// </summary>
-    double MicrogramsDilutionCarbon { get; set; }
-    /// <summary>
-    /// Carbon extracted from the sample
-    /// </summary>
-    double TotalMicrogramsCarbon { get; set; }
-    /// <summary>
-    /// Carbon extracted from the sample
-    /// </summary>
-    double TotalMicromolesCarbon { get; set; }
-    /// <summary>
-    /// Number of splits (or "cuts") discarded to reduce sample size.
-    /// </summary>
-    int Discards { get; set; }
-    /// <summary>
-    /// Extracted carbon selected for analysis
-    /// </summary>
-    double SelectedMicrogramsCarbon { get; set; }
-    /// <summary>
-    /// Extracted carbon selected for analysis
-    /// </summary>
-    double SelectedMicromolesCarbon { get; set; }
-    /// <summary>
-    /// Extracted carbon selected for d13C analysis
-    /// </summary>
-    double Micrograms_d13C { get; set; }
-    /// <summary>
-    /// Carbon concentration in the d13C split after adding carrier gas.
-    /// </summary>
-    double d13CPartsPerMillion { get; set; }
-    List<IAliquot> Aliquots { get; set; }
-    List<string> AliquotIds { get; set; }
-    int AliquotsCount { get; set; }
-    int AliquotIndex(IAliquot aliquot);
-
-    /// <summary>
-    /// Creates a new split of the current sample.
-    /// </summary>
-    /// <remarks>The split is a pseudo-sample; its CO2 is obtained from the same material as the
-    /// source sample, but under different conditions.
-    /// The split's <see cref="Split"/> property is set to one more than its source's Split value, 
-    /// so create each split from the prior one to maintain a sane value.
-    /// The <see cref="DateTime"/> property is set to the split creation time; change it in the caller
-    /// if a different value is desired.
-    /// <see cref="State"/> is set to <see cref="States.Loaded"/> in anticipation of collection,
-    /// and the <see cref="InletPort"/>'s <see cref="LinePort.State"/> is set to <see cref="LinePort.States.Loaded"/> as well.
-    /// The <see cref="Parameters"/> are copied from the source
-    /// sample, and a new set of <see cref="Aliquots"/> mirroring the source sample's is created
-    /// </remarks>
-    /// <returns>A new <see cref="Sample"/> instance representing the split.</returns>
-    Sample CreateSplit();
-    Sample Clone();
-}
-
-public interface IAliquot : INamedObject, INotifyPropertyChanged
-{
-    ISample Sample { get; set; }
-    string GraphiteReactor { get; set; }
-    double MicrogramsCarbon { get; set; }
-    double MicromolesCarbon { get; }
-    double InitialGmH2Pressure { get; set; }
-    double FinalGmH2Pressure { get; set; }
-    double GRStartPressure { get; set; }
-    double H2CO2PressureRatio { get; set; }
-    double ExpectedResidualPressure { get; set; }
-    double ResidualPressure { get; set; }
-    bool ResidualMeasured { get; set; }
-    int Tries { get; set; }
-}
-
 
 public interface IChamber : IHacsComponent
 {
@@ -1539,8 +1425,8 @@ public interface IPort : IChamber
 public interface ILinePort : IPort
 {
     LinePort.States State { get; set; }
-    ISample Sample { get; set; }
-    IAliquot Aliquot { get; set; }
+    Sample Sample { get; set; }
+    Aliquot Aliquot { get; set; }
     string Contents { get; }
     void ClearContents();
 }
@@ -1558,8 +1444,8 @@ public interface IGraphiteReactor : IPort
 {
     GraphiteReactor.States State { get; set; }
     GraphiteReactor.Sizes Size { get; set; }
-    ISample Sample { get; set; }
-    IAliquot Aliquot { get; set; }
+    Sample Sample { get; set; }
+    Aliquot Aliquot { get; set; }
     int GraphitizingTemperature { get; set; }
     int SampleTemperatureOffset { get; set; }
     Stopwatch StateStopwatch { get; }
@@ -1580,7 +1466,7 @@ public interface IGraphiteReactor : IPort
     void TurnOff();
     void Start();
     void Stop();
-    void Reserve(IAliquot aliquot);
+    void Reserve(Aliquot aliquot);
     void Reserve(string contents);
     void ServiceComplete();
     void PreparationComplete();
@@ -2289,9 +2175,9 @@ public interface ICegs : IProcessManager, ISampleOwner
     //...
     TimeSpan Uptime { get; }
     bool SampleIsRunning { get; }
-    Func<bool, List<ISample>> SelectSamples { get; set; }
+    Func<bool, List<Sample>> SelectSamples { get; set; }
     IInletPort InletPort { get; set; }
-    ISample Sample { get; set; }
+    Sample Sample { get; set; }
 
     bool AutoFeedEnabled { get; set; }
 }

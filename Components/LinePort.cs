@@ -10,7 +10,7 @@ public class LinePort : Port, ILinePort
     protected override void Connect()
     {
         base.Connect();
-        Sample = Find<ISample>(sampleName);
+        Sample = Find<Sample>(sampleName);
     }
 
     #endregion HacsComponent
@@ -33,12 +33,12 @@ public class LinePort : Port, ILinePort
     [JsonProperty("Sample")]
     string SampleName { get => Sample?.Name; set => sampleName = value; }
     string sampleName;
-    public ISample Sample
+    public Sample Sample
     {
         get => sample;
         set => Ensure(ref sample, value, OnPropertyChanged);
     }
-    ISample sample;
+    Sample sample;
 
     [JsonProperty("Aliquot"), DefaultValue(0)]
     int AliquotIndex
@@ -48,7 +48,7 @@ public class LinePort : Port, ILinePort
     }
     int aliquotIndex = 0;
 
-    public IAliquot Aliquot
+    public Aliquot Aliquot
     {
         get
         {

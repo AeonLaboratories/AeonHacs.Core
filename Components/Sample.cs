@@ -7,7 +7,7 @@ using static AeonHacs.Components.CegsPreferences;
 
 namespace AeonHacs.Components;
 
-public class Sample : HacsComponent, ISample
+public class Sample : HacsComponent
 {
     public enum States { Unknown, Loaded, Prepared, InProcess, Complete }
 
@@ -200,12 +200,18 @@ public class Sample : HacsComponent, ISample
     }
     double grams;
 
+    /// <summary>
+    /// Sample size
+    /// </summary>
     public double Milligrams
     {
         get => Grams * 1000;
         set => Grams = value / 1000;
     }
 
+    /// <summary>
+    /// Sample size
+    /// </summary>
     public double Micrograms
     {
         get => Grams * 1000000;
@@ -226,6 +232,9 @@ public class Sample : HacsComponent, ISample
         set => Micrograms = value * GramsCarbonPerMole;
     }
 
+    /// <summary>
+    /// A counter indicating which split of the sample this is.
+    /// </summary>
     [JsonProperty]
     public int Split
         {
@@ -246,7 +255,7 @@ public class Sample : HacsComponent, ISample
     double microgramsDilutionCarbon;
 
     /// <summary>
-    /// total micrograms carbon from the sample
+    /// Total micrograms carbon extracted from the sample (as CO2)
     /// </summary>
     [JsonProperty]
     public double TotalMicrogramsCarbon
@@ -256,12 +265,18 @@ public class Sample : HacsComponent, ISample
     }
     double totalMicrogramsCarbon;
 
+    /// <summary>
+    /// Total amount of carbon extracted from the sample, in micromoles.
+    /// </summary>
     public double TotalMicromolesCarbon
     {
         get => TotalMicrogramsCarbon / GramsCarbonPerMole;
         set => TotalMicrogramsCarbon = value * GramsCarbonPerMole;
     }
 
+    /// <summary>
+    /// Number of splits (or "cuts") discarded to reduce sample size.
+    /// </summary>
     [JsonProperty]
     public int Discards
     {
@@ -271,7 +286,8 @@ public class Sample : HacsComponent, ISample
     int discards;
 
     /// <summary>
-    /// micrograms carbon (C from the sample + ugDC) selected for analysis
+    /// Extracted carbon selected for analysis, in micrograms
+    /// (ugC from the sample + ugDC)
     /// </summary>
     [JsonProperty]
     public double SelectedMicrogramsCarbon
@@ -281,12 +297,18 @@ public class Sample : HacsComponent, ISample
     }
     double selectedMicrogramsCarbon;
 
+    /// <summary>
+    /// Extracted carbon selected for analysis
+    /// </summary>
     public double SelectedMicromolesCarbon
     {
         get => SelectedMicrogramsCarbon / GramsCarbonPerMole;
         set => SelectedMicrogramsCarbon = value * GramsCarbonPerMole;
     }
 
+    /// <summary>
+    /// Extracted carbon selected for d13C analysis
+    /// </summary>
     [JsonProperty]
     public double Micrograms_d13C
     {
@@ -295,6 +317,9 @@ public class Sample : HacsComponent, ISample
     }
     double micrograms_d13C;
 
+    /// <summary>
+    /// Carbon concentration in the d13C split after adding carrier gas.
+    /// </summary>
     [JsonProperty]
     public double d13CPartsPerMillion
     {
@@ -305,12 +330,12 @@ public class Sample : HacsComponent, ISample
 
 
     [JsonProperty]
-    public List<IAliquot> Aliquots
+    public List<Aliquot> Aliquots
     {
         get => aliquots;
         set => Ensure(ref aliquots, value);
     }
-    List<IAliquot> aliquots = new List<IAliquot>(); // Aliquots is never null
+    List<Aliquot> aliquots = new List<Aliquot>(); // Aliquots is never null
 
     public int AliquotsCount
     {
@@ -375,7 +400,21 @@ public class Sample : HacsComponent, ISample
         Name = GenerateSampleName;
     }
     
-    /// <inheritdoc/>
+    /// <summary>
+    /// Creates a new split of the current sample.
+    /// </summary>
+    /// <remarks>The split is a pseudo-sample; its CO2 is obtained from the same material as the
+    /// source sample, but under different conditions.
+    /// The split's <see cref="Split"/> property is set to one more than its source's Split value, 
+    /// so create each split from the prior one to maintain a sane value.
+    /// The <see cref="DateTime"/> property is set to the split creation time; change it in the caller
+    /// if a different value is desired.
+    /// <see cref="State"/> is set to <see cref="States.Loaded"/> in anticipation of collection,
+    /// and the <see cref="InletPort"/>'s <see cref="LinePort.State"/> is set to <see cref="LinePort.States.Loaded"/> as well.
+    /// The <see cref="Parameters"/> are copied from the source
+    /// sample, and a new set of <see cref="Aliquots"/> mirroring the source sample's is created
+    /// </remarks>
+    /// <returns>A new <see cref="Sample"/> instance representing the split.</returns>
     public Sample CreateSplit()
     {
         Sample splitSample = new()
@@ -389,7 +428,7 @@ public class Sample : HacsComponent, ISample
             Parameters = Parameters.Select(p => p.Clone()).ToList(),
             SulfurSuspected = SulfurSuspected,
             Take_d13C = Take_d13C,
-            Aliquots = Aliquots.Select(a => (new Aliquot(a as Aliquot) as IAliquot)).ToList()
+            Aliquots = Aliquots.Select(a => new Aliquot(a)).ToList()
         };
         splitSample.InletPort.State = LinePort.States.Loaded;
         return splitSample;
@@ -416,13 +455,13 @@ public class Sample : HacsComponent, ISample
             SelectedMicrogramsCarbon = SelectedMicrogramsCarbon,
             Micrograms_d13C = Micrograms_d13C,
             d13CPartsPerMillion = d13CPartsPerMillion,
-            Aliquots = Aliquots.Select(a => (new Aliquot(a as Aliquot) as IAliquot)).ToList()
+            Aliquots = Aliquots.Select(a => new Aliquot(a) ).ToList()
         };
         sample.Aliquots.ForEach(a => a.Sample = sample);
         return sample;
     }
 
-    public int AliquotIndex(IAliquot aliquot)
+    public int AliquotIndex(Aliquot aliquot)
     {
         for (int i = 0; i < Aliquots.Count; ++i)
             if (Aliquots[i] == aliquot)

@@ -5,7 +5,7 @@ using static AeonHacs.Components.CegsPreferences;
 namespace AeonHacs.Components;
 
 [JsonObject(MemberSerialization.OptIn)]
-public class Aliquot : NamedObject, IAliquot
+public class Aliquot : NamedObject
 {
     [JsonProperty("Sample")]
     string SampleName
@@ -15,12 +15,12 @@ public class Aliquot : NamedObject, IAliquot
     }
     string sampleName;
 
-    public ISample Sample
+    public Sample Sample
     {
         get => sample ??= Find<Sample>(sampleName);
         set => Ensure(ref sample, value);
     }
-    ISample sample;
+    Sample sample;
 
     [JsonProperty]
     public string GraphiteReactor { get; set; }

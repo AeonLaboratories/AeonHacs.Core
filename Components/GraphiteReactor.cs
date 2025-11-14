@@ -27,7 +27,7 @@ public class GraphiteReactor : Port, IGraphiteReactor
     protected override void Connect()
     {
         base.Connect();
-        Sample = Find<ISample>(sampleName);
+        Sample = Find<Sample>(sampleName);
     }
 
     #endregion HacsComponent
@@ -70,12 +70,12 @@ public class GraphiteReactor : Port, IGraphiteReactor
     [JsonProperty("Sample")]
     string SampleName { get => Sample?.Name; set => sampleName = value; }
     string sampleName;
-    public ISample Sample
+    public Sample Sample
     {
         get => sample;
         set => Ensure(ref sample, value, OnPropertyChanged);
     }
-    ISample sample;
+    Sample sample;
 
     [JsonProperty("Aliquot"), DefaultValue(0)]
     int AliquotIndex
@@ -85,7 +85,7 @@ public class GraphiteReactor : Port, IGraphiteReactor
     }
     int aliquotIndex = 0;
 
-    public IAliquot Aliquot
+    public Aliquot Aliquot
     {
         get
         {
@@ -190,7 +190,7 @@ public class GraphiteReactor : Port, IGraphiteReactor
 
     public void Start() { if (Aliquot != null) Aliquot.Tries++; State = States.Start; }
     public void Stop() => State = States.Stop;
-    public void Reserve(IAliquot aliquot)
+    public void Reserve(Aliquot aliquot)
     {
         Aliquot = aliquot;
         if (Aliquot != null) Aliquot.GraphiteReactor = Name;
