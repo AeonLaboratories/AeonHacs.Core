@@ -67,20 +67,27 @@ public static class ValveList
     /// <summary>
     /// Open the last valve on the list.
     /// </summary>
-    public static void OpenLast<T>(this IEnumerable<T> valves) where T : IValve =>
+    public static void OpenLast<T>(this IEnumerable<T> valves) where T : IValve
+    {
+        if (valves == null || valves.Count() == 0) return;
         valves.Open(valves.Last());
+    }
 
     /// <summary>
     /// Close the last valve on the list.
     /// </summary>
-    public static void CloseLast<T>(this IEnumerable<T> valves) where T : IValve =>
-        valves.Close(valves.Last());
+    public static void CloseLast<T>(this IEnumerable<T> valves) where T : IValve
+    {
+        if (valves == null || valves.Count() == 0) return;
+        valves.Close(valves.Last()); 
+    }
 
     /// <summary>
     /// Open all the valves on the list.
     /// </summary>
     public static void Open<T>(this IEnumerable<T> valves) where T : IValve
     {
+        if (valves == null || valves.Count() == 0) return;
         foreach (var v in valves)
             valves.Open(v);
         valves.Last()?.WaitForIdle();
@@ -91,11 +98,10 @@ public static class ValveList
     /// </summary>
     public static void Close<T>(this IEnumerable<T> valves) where T : IValve
     {
-        if (valves == null) return;
+        if (valves == null || valves.Count() == 0) return;
         foreach (var v in valves)
             valves.Close(v);
-        if (valves.Any())
-            valves.Last()?.WaitForIdle();
+        valves.Last()?.WaitForIdle();
     }
 
     public static void OpenExcept<T>(this IEnumerable<T> valves, IEnumerable<T> these) where T : IValve
