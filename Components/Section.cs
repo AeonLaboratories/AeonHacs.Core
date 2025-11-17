@@ -437,7 +437,7 @@ public class Section : HacsComponent, ISection
         toBeOpened?.Open();
 
         VacuumSystem.Evacuate(pressure);
-        OpenedVSSectionValves.Open();
+        // OpenedVSSectionValves.Open();
         OpenedVSSectionValves = null;
     }
 
@@ -472,7 +472,7 @@ public class Section : HacsComponent, ISection
         // system, issue a Warning, etc., in case the pressure cannot
         // be reached.
         VacuumSystem.Evacuate(pressure);
-        OpenedVSSectionValves.Open();
+        // OpenedVSSectionValves.Open();
         OpenedVSSectionValves = null;
     }
 
@@ -494,7 +494,7 @@ public class Section : HacsComponent, ISection
         SnapshotOpenedVSSectionValves();
         IsolateAndJoinToVacuum();
         VacuumSystem.Evacuate(pressure);
-        OpenedVSSectionValves.Open();
+        // OpenedVSSectionValves.Open();
         OpenedVSSectionValves = null;
 
     }
