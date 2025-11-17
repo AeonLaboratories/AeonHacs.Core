@@ -80,7 +80,7 @@ public class VTColdfinger : StateManager<VTColdfinger.TargetStates, VTColdfinger
     public IThermometer TopThermometer
     {
         get => topThermometer;
-        set => Ensure(ref topThermometer, value, NotifyPropertyChanged);
+        set => Ensure(ref topThermometer, value);
     }
     IThermometer topThermometer;
 
@@ -93,7 +93,7 @@ public class VTColdfinger : StateManager<VTColdfinger.TargetStates, VTColdfinger
     public IThermometer WireThermometer
     {
         get => wireThermometer;
-        set => Ensure(ref wireThermometer, value, NotifyPropertyChanged);
+        set => Ensure(ref wireThermometer, value);
     }
     IThermometer wireThermometer;
 
@@ -138,7 +138,7 @@ public class VTColdfinger : StateManager<VTColdfinger.TargetStates, VTColdfinger
     public IPidSetup HeaterPid
     {
         get => heaterPid;
-        set => Ensure(ref heaterPid, value, NotifyPropertyChanged);
+        set => Ensure(ref heaterPid, value);
     }
     IPidSetup heaterPid;
 
@@ -162,7 +162,7 @@ public class VTColdfinger : StateManager<VTColdfinger.TargetStates, VTColdfinger
     public IPidSetup WarmHeaterPid
     {
         get => warmHeaterPid;
-        set => Ensure(ref warmHeaterPid, value, NotifyPropertyChanged);
+        set => Ensure(ref warmHeaterPid, value);
     }
     IPidSetup warmHeaterPid;
 

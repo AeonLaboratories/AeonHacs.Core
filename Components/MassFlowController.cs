@@ -86,7 +86,7 @@ public class MassFlowController : AnalogOutput, IMassFlowController,
     IMeter FlowMeter
     {
         get => flowMeter;
-        set => Ensure(ref flowMeter, value, NotifyPropertyChanged);
+        set => Ensure(ref flowMeter, value);
     }
     IMeter flowMeter;
 

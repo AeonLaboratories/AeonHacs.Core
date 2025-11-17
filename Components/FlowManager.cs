@@ -32,7 +32,7 @@ public class FlowManager : HacsComponent, IFlowManager
     public IRS232Valve FlowValve
     {
         get => flowValve;
-        set => Ensure(ref flowValve, value, NotifyPropertyChanged);
+        set => Ensure(ref flowValve, value);
     }
     IRS232Valve flowValve;
 
@@ -45,7 +45,7 @@ public class FlowManager : HacsComponent, IFlowManager
     public IMeter Meter
     {
         get => meter;
-        set => Ensure(ref meter, value, NotifyPropertyChanged);
+        set => Ensure(ref meter, value);
     }
     IMeter meter;
 

@@ -23,7 +23,7 @@ public class Power : HacsComponent, IPower
     public IVoltmeter DC5V
     {
         get => dc5V;
-        set => Ensure(ref dc5V, value, NotifyPropertyChanged);
+        set => Ensure(ref dc5V, value);
     }
     IVoltmeter dc5V;
 
@@ -33,7 +33,7 @@ public class Power : HacsComponent, IPower
     public IVoltmeter MainsDetect
     {
         get => mainsDetect;
-        set => Ensure(ref mainsDetect, value, NotifyPropertyChanged);
+        set => Ensure(ref mainsDetect, value);
     }
     IVoltmeter mainsDetect;
 

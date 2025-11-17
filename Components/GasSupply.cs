@@ -72,7 +72,7 @@ public class GasSupply : HacsComponent, IGasSupply
     public IValve SourceValve
     {
         get => sourceValve;
-        set => Ensure(ref sourceValve, value, NotifyPropertyChanged);
+        set => Ensure(ref sourceValve, value);
     }
     IValve sourceValve;
 
@@ -86,7 +86,7 @@ public class GasSupply : HacsComponent, IGasSupply
     public IRS232Valve FlowValve
     {
         get => flowValve;
-        set => Ensure(ref flowValve, value, NotifyPropertyChanged);
+        set => Ensure(ref flowValve, value);
     }
     IRS232Valve flowValve;
 
@@ -100,7 +100,7 @@ public class GasSupply : HacsComponent, IGasSupply
     public IMeter Meter
     {
         get => meter;
-        set => Ensure(ref meter, value, NotifyPropertyChanged);
+        set => Ensure(ref meter, value);
     }
     IMeter meter;
 
@@ -141,7 +141,7 @@ public class GasSupply : HacsComponent, IGasSupply
     public ISection Destination
     {
         get => destination;
-        set => Ensure(ref destination, value, NotifyPropertyChanged);
+        set => Ensure(ref destination, value);
     }
     ISection destination;
 
@@ -158,7 +158,7 @@ public class GasSupply : HacsComponent, IGasSupply
     public ISection Path
     {
         get => path;
-        set => Ensure(ref path, value, NotifyPropertyChanged);
+        set => Ensure(ref path, value);
     }
     ISection path;
 

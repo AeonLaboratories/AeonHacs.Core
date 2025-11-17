@@ -47,7 +47,7 @@ public class LNManifold : StateManager<LNManifold.TargetStates, LNManifold.State
     public IValve LNSupplyValve
     {
         get => lnSupplyValve;
-        set => Ensure(ref lnSupplyValve, value, NotifyPropertyChanged);
+        set => Ensure(ref lnSupplyValve, value);
     }
     IValve lnSupplyValve;
 
@@ -57,7 +57,7 @@ public class LNManifold : StateManager<LNManifold.TargetStates, LNManifold.State
     public IMeter Liters
     {
         get => liters;
-        set => Ensure(ref liters, value, NotifyPropertyChanged);
+        set => Ensure(ref liters, value);
     }
     IMeter liters;
 
@@ -67,7 +67,7 @@ public class LNManifold : StateManager<LNManifold.TargetStates, LNManifold.State
     public IThermometer LevelSensor
     {
         get => levelSensor;
-        set => Ensure(ref levelSensor, value, NotifyPropertyChanged);
+        set => Ensure(ref levelSensor, value);
     }
     IThermometer levelSensor;
 
@@ -77,7 +77,7 @@ public class LNManifold : StateManager<LNManifold.TargetStates, LNManifold.State
     public IThermometer OverflowSensor
     {
         get => overflowSensor;
-        set => Ensure(ref overflowSensor, value, NotifyPropertyChanged);
+        set => Ensure(ref overflowSensor, value);
     }
     IThermometer overflowSensor;
 

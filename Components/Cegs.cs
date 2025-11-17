@@ -341,7 +341,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual Power Power
     {
         get => power;
-        set => Ensure(ref power, value, NotifyPropertyChanged);
+        set => Ensure(ref power, value);
     }
     Power power;
 
@@ -355,7 +355,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual HacsLog SampleLog
     {
         get => samplelog;
-        set => Ensure(ref samplelog, value, NotifyPropertyChanged);
+        set => Ensure(ref samplelog, value);
     }
     HacsLog samplelog;
 
@@ -368,7 +368,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual HacsLog TestLog
     {
         get => testlog;
-        set => Ensure(ref testlog, value, NotifyPropertyChanged);
+        set => Ensure(ref testlog, value);
     }
     HacsLog testlog;
 
@@ -381,7 +381,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual HacsLog SampleRecords
     {
         get => sampleRecords;
-        set => Ensure(ref sampleRecords, value, NotifyPropertyChanged);
+        set => Ensure(ref sampleRecords, value);
     }
     HacsLog sampleRecords;
     #endregion Data Logs
@@ -395,7 +395,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual IChamber Ambient
     {
         get => ambient;
-        set => Ensure(ref ambient, value, NotifyPropertyChanged);
+        set => Ensure(ref ambient, value);
     }
     IChamber ambient;
 
@@ -408,7 +408,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection IM
     {
         get => im;
-        set => Ensure(ref im, value, NotifyPropertyChanged);
+        set => Ensure(ref im, value);
     }
     ISection im;
 
@@ -421,7 +421,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection CT
     {
         get => ct;
-        set => Ensure(ref ct, value, NotifyPropertyChanged);
+        set => Ensure(ref ct, value);
     }
     ISection ct;
 
@@ -434,7 +434,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection VTT
     {
         get => vtt;
-        set => Ensure(ref vtt, value, NotifyPropertyChanged);
+        set => Ensure(ref vtt, value);
     }
     ISection vtt;
 
@@ -447,7 +447,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection MC
     {
         get => mc;
-        set => Ensure(ref mc, value, NotifyPropertyChanged);
+        set => Ensure(ref mc, value);
     }
     ISection mc;
 
@@ -460,7 +460,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection Split
     {
         get => split;
-        set => Ensure(ref split, value, NotifyPropertyChanged);
+        set => Ensure(ref split, value);
     }
     ISection split;
 
@@ -473,7 +473,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection d13C
     {
         get => _d13C;
-        set => Ensure(ref _d13C, value, NotifyPropertyChanged);
+        set => Ensure(ref _d13C, value);
     }
     ISection _d13C;
 
@@ -486,7 +486,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection GM
     {
         get => gm;
-        set => Ensure(ref gm, value, NotifyPropertyChanged);
+        set => Ensure(ref gm, value);
     }
     ISection gm;
 
@@ -499,7 +499,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection d13CM
     {
         get => _d13CM;
-        set => Ensure(ref _d13CM, value, NotifyPropertyChanged);
+        set => Ensure(ref _d13CM, value);
     }
     ISection _d13CM;
 
@@ -512,7 +512,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection VTT_MC
     {
         get => vtt_mc;
-        set => Ensure(ref vtt_mc, value, NotifyPropertyChanged);
+        set => Ensure(ref vtt_mc, value);
     }
     ISection vtt_mc;
 
@@ -525,7 +525,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual ISection MC_Split
     {
         get => mc_split;
-        set => Ensure(ref mc_split, value, NotifyPropertyChanged);
+        set => Ensure(ref mc_split, value);
     }
     ISection mc_split;
 
@@ -539,7 +539,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual Meter ugCinMC
     {
         get => _ugCinMC;
-        set => Ensure(ref _ugCinMC, value, NotifyPropertyChanged);
+        set => Ensure(ref _ugCinMC, value);
     }
     Meter _ugCinMC;
 
@@ -557,7 +557,7 @@ public class Cegs : ProcessManager, ICegs
     public virtual OvenRamper IpOvenRamper
     {
         get => ipOvenRamper;
-        set => Ensure(ref ipOvenRamper, value, NotifyPropertyChanged);
+        set => Ensure(ref ipOvenRamper, value);
     }
     OvenRamper ipOvenRamper;
 

@@ -290,7 +290,7 @@ public class InductionFurnace : SerialTubeFurnace, IInductionFurnace,
     /// </summary>
     public IPyrometer Pyrometer {
         get => pyrometer;
-        set => Ensure(ref pyrometer, value, NotifyPropertyChanged);
+        set => Ensure(ref pyrometer, value);
     }
     IPyrometer pyrometer;
 
@@ -298,7 +298,7 @@ public class InductionFurnace : SerialTubeFurnace, IInductionFurnace,
     PidControl Pid
     {
         get => pid;
-        set => Ensure(ref pid, value, NotifyPropertyChanged);
+        set => Ensure(ref pid, value);
     }
     PidControl pid;
 

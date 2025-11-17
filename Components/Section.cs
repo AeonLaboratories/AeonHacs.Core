@@ -110,7 +110,7 @@ public class Section : HacsComponent, ISection
         get => chambers;
         set
         {
-            Ensure(ref chambers, value, NotifyPropertyChanged);
+            Ensure(ref chambers, value);
             Manometer = chambers?.Find(x => x?.Manometer != null)?.Manometer;
             Thermometer = chambers?.Find(x => x?.Thermometer != null)?.Thermometer;
             Heater = chambers?.Find(x => x?.Heater != null)?.Heater;
@@ -128,7 +128,7 @@ public class Section : HacsComponent, ISection
     public List<IPort> Ports
     {
         get => ports;
-        set => Ensure(ref ports, value, NotifyPropertyChanged);
+        set => Ensure(ref ports, value);
     }
     List<IPort> ports;
 
@@ -141,7 +141,7 @@ public class Section : HacsComponent, ISection
     public IVacuumSystem VacuumSystem
     {
         get => vacuumSystem;
-        set => Ensure(ref vacuumSystem, value, NotifyPropertyChanged);
+        set => Ensure(ref vacuumSystem, value);
     }
     IVacuumSystem vacuumSystem;
 
@@ -162,7 +162,7 @@ public class Section : HacsComponent, ISection
     public List<IValve> Isolation
     {
         get => isolation;
-        set => Ensure(ref isolation, value, NotifyPropertyChanged);
+        set => Ensure(ref isolation, value);
     }
     List<IValve> isolation;
 
@@ -175,7 +175,7 @@ public class Section : HacsComponent, ISection
     public List<IValve> InternalValves
     {
         get => internalValves;
-        set => Ensure(ref internalValves, value, NotifyPropertyChanged);
+        set => Ensure(ref internalValves, value);
     }
     List<IValve> internalValves;
 
@@ -191,7 +191,7 @@ public class Section : HacsComponent, ISection
     public List<IValve> PathToVacuum
     {
         get => pathToVacuum;
-        set => Ensure(ref pathToVacuum, value, NotifyPropertyChanged);
+        set => Ensure(ref pathToVacuum, value);
     }
     List<IValve> pathToVacuum;
 
@@ -204,7 +204,7 @@ public class Section : HacsComponent, ISection
     public List<IValve> PathToVacuumIsolation
     {
         get => pathToVacuumIsolation;
-        set => Ensure(ref pathToVacuumIsolation, value, NotifyPropertyChanged);
+        set => Ensure(ref pathToVacuumIsolation, value);
     }
     List<IValve> pathToVacuumIsolation;
 
@@ -255,7 +255,7 @@ public class Section : HacsComponent, ISection
     public IManometer Manometer
     {
         get => manometer ?? (Manometer = Chambers?.Find(x => x?.Manometer != null)?.Manometer);
-        set => Ensure(ref manometer, value, NotifyPropertyChanged);
+        set => Ensure(ref manometer, value);
     }
     IManometer manometer;
     public double Pressure => Manometer?.Pressure ?? 0;
@@ -266,7 +266,7 @@ public class Section : HacsComponent, ISection
     public IThermometer Thermometer
     {
         get => thermometer ?? (Thermometer = Chambers?.Find(x => x?.Thermometer != null)?.Thermometer);
-        set => Ensure(ref thermometer, value, NotifyPropertyChanged);
+        set => Ensure(ref thermometer, value);
     }
     IThermometer thermometer;
     public double Temperature => Thermometer?.Temperature ?? 0;

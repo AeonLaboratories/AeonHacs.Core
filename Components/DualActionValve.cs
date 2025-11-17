@@ -47,7 +47,7 @@ public class DualActionValve : HacsDevice, IDualActionValve, DualActionValve.IDe
     public IValve OpenValve
     {
         get => openValve;
-        set => Ensure(ref openValve, value, NotifyPropertyChanged);
+        set => Ensure(ref openValve, value);
     }
     IValve openValve;
 
@@ -57,7 +57,7 @@ public class DualActionValve : HacsDevice, IDualActionValve, DualActionValve.IDe
     // The valve whose fluid powers the DualActionValve's Close operation.
     public IValve CloseValve {
         get => closeValve;
-        set => Ensure(ref closeValve, value, NotifyPropertyChanged);
+        set => Ensure(ref closeValve, value);
     }
     IValve closeValve;
 

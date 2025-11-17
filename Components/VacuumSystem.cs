@@ -84,7 +84,7 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public IOnOff TurboPump
     {
         get => turboPump;
-        set => Ensure(ref turboPump, value, NotifyPropertyChanged);
+        set => Ensure(ref turboPump, value);
     }
     IOnOff turboPump;
     bool turboPumpIsOn => !TurboPump?.IsOff ?? true;
@@ -98,7 +98,7 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public IOnOff RoughingPump
     {
         get => roughingPump;
-        set => Ensure(ref roughingPump, value, NotifyPropertyChanged);
+        set => Ensure(ref roughingPump, value);
     }
     IOnOff roughingPump;
     bool roughingPumpIsOn => !RoughingPump?.IsOff ?? true;
@@ -112,7 +112,7 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public IManometer Manometer
     {
         get => manometer;
-        set => Ensure(ref manometer, value, NotifyPropertyChanged);
+        set => Ensure(ref manometer, value);
     }
     IManometer manometer;
     public double Pressure => Manometer.Pressure;
@@ -126,7 +126,7 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public IManometer ForelineManometer
     {
         get => forelineManometer;
-        set => Ensure(ref forelineManometer, value, NotifyPropertyChanged);
+        set => Ensure(ref forelineManometer, value);
     }
     IManometer forelineManometer;
 
@@ -139,7 +139,7 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public IValve HighVacuumValve
     {
         get => highVacuumValve;
-        set => Ensure(ref highVacuumValve, value, NotifyPropertyChanged);
+        set => Ensure(ref highVacuumValve, value);
     }
     IValve highVacuumValve;
 
@@ -152,7 +152,7 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public IValve LowVacuumValve
     {
         get => lowVacuumValve;
-        set => Ensure(ref lowVacuumValve, value, NotifyPropertyChanged);
+        set => Ensure(ref lowVacuumValve, value);
     }
     IValve lowVacuumValve;
 
@@ -165,7 +165,7 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public IValve BackingValve
     {
         get => backingValve;
-        set => Ensure(ref backingValve, value, NotifyPropertyChanged);
+        set => Ensure(ref backingValve, value);
     }
     IValve backingValve;
 
@@ -178,7 +178,7 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public IValve RoughingValve
     {
         get => roughingValve;
-        set => Ensure(ref roughingValve, value, NotifyPropertyChanged);
+        set => Ensure(ref roughingValve, value);
     }
     IValve roughingValve;
 

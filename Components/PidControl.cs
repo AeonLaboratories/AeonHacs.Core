@@ -31,7 +31,7 @@ public class PidControl : HacsComponent, IPidControl
     public IPidSetup PidSetup
     {
         get => pidSetup;
-        set => Ensure(ref pidSetup, value, NotifyPropertyChanged);
+        set => Ensure(ref pidSetup, value);
     }
     IPidSetup pidSetup;
 

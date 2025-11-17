@@ -135,7 +135,7 @@ public class ManagedMFC : Auto, IMassFlowController, IManagedDevice,
     public IValve ShutoffValve
     {
         get => shutoffValve;
-        set => Ensure(ref shutoffValve, value, NotifyPropertyChanged);
+        set => Ensure(ref shutoffValve, value);
     }
     IValve shutoffValve;
 

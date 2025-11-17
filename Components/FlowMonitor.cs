@@ -36,7 +36,7 @@ public class FlowMonitor : HacsComponent
     public IMeter FlowRateMeter
     {
         get => flowRateMeter;
-        set => Ensure(ref flowRateMeter, value, NotifyPropertyChanged);
+        set => Ensure(ref flowRateMeter, value);
     }
     IMeter flowRateMeter;
 

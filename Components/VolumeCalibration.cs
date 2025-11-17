@@ -26,7 +26,7 @@ public class VolumeCalibration : HacsComponent, IVolumeCalibration
     public IGasSupply GasSupply
     {
         get => gasSupply;
-        set => Ensure(ref gasSupply, value, NotifyPropertyChanged);
+        set => Ensure(ref gasSupply, value);
     }
     IGasSupply gasSupply;
 

@@ -76,7 +76,7 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
     public IThermometer LevelSensor
     {
         get => levelSensor;
-        set => Ensure(ref levelSensor, value, NotifyPropertyChanged);
+        set => Ensure(ref levelSensor, value);
     }
     IThermometer levelSensor;
 
@@ -89,7 +89,7 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
     public IValve LNValve
     {
         get => lnValve;
-        set => Ensure(ref lnValve, value, NotifyPropertyChanged);
+        set => Ensure(ref lnValve, value);
     }
     IValve lnValve;
 
@@ -100,7 +100,7 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
     public string Trickle
     {
         get => trickle;
-        set => Ensure(ref trickle, value, NotifyPropertyChanged);
+        set => Ensure(ref trickle, value);
     }
     string trickle;
 
@@ -114,7 +114,7 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
     public IValve AirValve
     {
         get => airValve;
-        set => Ensure(ref airValve, value, NotifyPropertyChanged);
+        set => Ensure(ref airValve, value);
     }
     IValve airValve;
 
@@ -135,7 +135,7 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
     public IHacsComponent AirThermometer
     {
         get => airThermometer;
-        set => Ensure(ref airThermometer, value, NotifyPropertyChanged);
+        set => Ensure(ref airThermometer, value);
     }
     IHacsComponent airThermometer;
 
