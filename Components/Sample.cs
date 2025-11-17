@@ -470,8 +470,12 @@ public class Sample : HacsComponent
         return -1;
     }
 
+    string toString(Sample sample) =>
+        $"{sample.LabId}{(sample.Split > 0 ? $" Split {sample.Split}" : "")} [{sample.InletPort?.Name ?? "---"}] {{{sample.Name}}}";
+
     public override string ToString()
     {
-        return $"{LabId}{(Split > 0 ? $" Split {Split}":"")} [{InletPort?.Name ?? "---"}] {{{Name}}}";
+        var list = FindAll<Sample>().Where(s => s.LabId == LabId).OrderBy(s => s.Split).Select(toString);
+        return string.Join("\r\n", list);
     }
 }

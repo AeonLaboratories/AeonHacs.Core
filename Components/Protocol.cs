@@ -214,32 +214,12 @@ public class ParameterStep : ParameterizedStep, IParameterStep
 
     public override string ToString()
     {
-        return $"{Name} = {Value}\r\n";
+        var basic = $"{Name} = {Value}";
+        var desc = !Description.IsBlank() ? Description :
+            NamedObject.FirstOrDefault<CegsPreferences>()?
+            .DefaultParameters?.Find(x => x.ParameterName == Name)
+            .Description;
+        return desc.IsBlank() ? basic : $"{basic}\r\n{desc}";
     }
 }
 
-//public class ParametersStep : ParameterizedStep, IParametersStep
-//{
-//    [JsonProperty]
-//    public List<Parameter> Parameters { get; set; }
-
-//    public ParametersStep()
-//    {
-//        Name = "Set Parameters";
-//        Parameters = new List<Parameter>();
-//    }
-//    public ParametersStep(List<Parameter> parameters)
-//    {
-//        Parameters = parameters ?? new List<Parameter>();
-//    }
-
-//    public override ProtocolStep Clone() => new ParametersStep(Parameters);
-
-//    public override string ToString()
-//    {
-//        var sb = new StringBuilder();
-//        foreach (var p in Parameters)
-//            sb.Append($"{p.ParameterName} = {p.Value}\r\n");
-//        return sb.ToString().TrimEnd();
-//    }
-//}
