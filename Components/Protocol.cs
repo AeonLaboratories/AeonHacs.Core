@@ -217,7 +217,7 @@ public class ParameterStep : ParameterizedStep, IParameterStep
         var basic = $"{Name} = {Value}";
         var desc = !Description.IsBlank() ? Description :
             NamedObject.FirstOrDefault<CegsPreferences>()?
-            .DefaultParameters?.Find(x => x.ParameterName == Name)
+            .DefaultParameters?.Find(x => x.ParameterName == Name)?
             .Description;
         return desc.IsBlank() ? basic : $"{basic}\r\n{desc}";
     }
