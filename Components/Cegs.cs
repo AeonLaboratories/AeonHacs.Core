@@ -1356,19 +1356,34 @@ public class Cegs : ProcessManager, ICegs
     protected void SetParameter(string name, double value) =>
         SetParameter(new Parameter() { ParameterName = name, Value = value });
 
-
     /// <summary>
     /// Sets a process control parameter for the current Sample. Ignored if
     /// Sample is null.
     /// </summary>
     /// <param name="parameter"></param>
-    public override void SetParameter(Parameter parameter) =>
-        Sample?.SetParameter(parameter);
+    public override void SetParameter(Parameter parameter)
+    {
+        if (Sample == null) return;
+        Sample.SetParameter(parameter);
 
+        // Handle parameters that require action to take effect
+        var name = parameter?.ParameterName;
+        if (name == nameof(IpSetpoint))
+            AdjustIpSetpoint();
+        else if (name == nameof(IpRampRate))
+            AdjustIpRampRate();
+        else if (name == nameof(EnableIpSetpointRamp))
+        {
+            if (ParameterTrue(nameof(EnableIpSetpointRamp)))
+                EnableIpRamp();
+            else
+                DisableIpRamp();
+        }
+    }
 
     /// <summary>
-    /// Return the current value of the Sample's process control parameter with the given name,
-    /// unless Sample is null, in which case return the value from CegsPreferences instead.
+    /// Returns the current value of the Sample's process control parameter with the given name.
+    /// If Sample is null, returns the value from CegsPreferences instead.
     /// </summary>
     /// <param name="name"></param>
     /// <returns></returns>
@@ -1482,6 +1497,11 @@ public class Cegs : ProcessManager, ICegs
     /// DilutedSampleMicrogramsCarbon > SmallSampleMicrogramsCarbon
     /// </summary>
     public double DilutedSampleMicrogramsCarbon => GetParameter(nameof(DilutedSampleMicrogramsCarbon));
+
+    /// <summary>
+    /// Enable the setpoint ramper for the active inlet port's sample furnace.
+    /// </summary>
+    public bool EnableIpSetpointRamp => ParameterTrue(nameof(EnableIpSetpointRamp));
 
     /// <summary>
     /// Time to spend extracting CO2 from the VTT into the MC.
@@ -1773,12 +1793,6 @@ public class Cegs : ProcessManager, ICegs
     #region Process Control Properties
 
     /// <summary>
-    /// Change the InletPort Sample furnace setpoint at a controlled
-    /// ramp rate, rather than immediately to the given value.
-    /// </summary>
-    public virtual bool EnableIpSetpointRamp { get; set; } = false;
-
-    /// <summary>
     /// Monitors the time elapsed since the current sample collection phase began.
     /// </summary>
     public Stopwatch CollectStopwatch { get; set; } = new Stopwatch();
@@ -1860,7 +1874,6 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void WaitIpFallToSetpoint()
     {
         if (NoInletPort) return;
-        AdjustIpSetpoint();
         double longEnough = MaximumMinutesIpToReachTemperature;
         if (IpOvenRamper is OvenRamper ramper && ramper.Enabled)
         {
@@ -1892,7 +1905,6 @@ public class Cegs : ProcessManager, ICegs
     [Description("Turn on the active inlet port sample furnace.")]
     protected virtual void TurnOnIpSampleFurnace()
     {
-        AdjustIpSetpoint();
         InletPort?.SampleFurnace?.TurnOn();
     }
 
@@ -1903,7 +1915,6 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void WaitIpRiseToSetpoint()
     {
         if (NoInletPort) return;
-        AdjustIpSetpoint();
         var closeEnough = IpSetpoint - IpTemperatureCushion;
         double longEnough = MaximumMinutesIpToReachTemperature;
         if (IpOvenRamper is OvenRamper ramper && ramper.Enabled)
@@ -4232,95 +4243,73 @@ public class Cegs : ProcessManager, ICegs
     [Description("Collect distinct sample splits and graphitize them individually.")]
     protected virtual void SplitSampleProtocolExample()
     {
+        // *** Stepped Combustion ***
         // ** Process Configuration **
-        // * Stepped Combustion * and * Ramped Oxidation *
         SetParameter(nameof(ThawColdfingersWhenOpeningLine), 0);
         SetParameter(nameof(ThawVttAfterExtract), 0);
         SetParameter(nameof(HoldSampleAtPorts), 1);
         SetParameter(nameof(WaitForBleedDown), 1);
-        EnableIpRamp();
-
-        // * Ramped Oxidation *
-        //SetParameter(nameof(MaximumSampleTemperature), 1000);
-        //SetParameter(nameof(MinutesAtMaximumTemperature), 10);
-        //IncludeCO2Analyzer();
-        //SelectCT1();
-        //UseIpFlow();
+        SetParameter(nameof(EnableIpSetpointRamp), 1);
 
         OpenLineIM();
         PrepareInletPort();
         EvacuateIP();
         HeatQuartz();
 
-        // * Stepped Combustion *
         // Discard Split 0?
-        //SetParameter(nameof(IpRampRate), 50);
-        //SetParameter(nameof(IpSetpoint), 150);
-        //AdjustIpSetpoint();
-        //AdmitIPO2();
-        //TurnOnIpSampleFurnace();
-        //WaitIpRiseToSetpoint();
-        //SetParameter(nameof(IpMinutes), 15);
-        //WaitIpMinutes();
-        //DiscardIPGases();
-
-        // ** Start Collecting **
-        // * Stepped Combustion *
-        // Split 1: 380 °C
         SetParameter(nameof(IpRampRate), 50);
-        SetParameter(nameof(IpSetpoint), 380);
+        SetParameter(nameof(IpSetpoint), 150);
         SetParameter(nameof(IpMinutes), 15);
-        AdjustIpSetpoint();
         AdmitIPO2();
         TurnOnIpSampleFurnace();
         WaitIpRiseToSetpoint();
         WaitIpMinutes();
-        PrepareForCollection();
-        StartCollecting();
+        DiscardIPGases();
 
-        // * Ramped Oxidation *
-        //SetParameter(nameof(IpRampRate), 10);
-        //SetParameter(nameof(IpSetpoint), 1000);
-        //AdjustIpSetpoint();
-        //StartFlowThroughToTrap();
-        //TurnOnIpSampleFurnace();
-
-        // ** Set Stop Conditions **
-        // * Stepped Combustion *
-        // use already-defined stop conditions
-
-        // * Ramped Oxidation *
-        //ClearCollectionConditions();
-        //ResetUgcTracking();
-        //SetParameter("CollectUntilMinutes", 60);
-        //SetParameter("CollectUntilUgc", 120);
-
-        CollectAndLaunchExtractEtc();
-
-        // Split 2: 625 °C
-        CreateSampleSplit();
-        SetParameter("IpRampRate", 75);
-        SetParameter("IpSetpoint", 625);
-        SetParameter("IpMinutes", 60);
-        AdjustIpSetpoint();
+        // Start Split 1
+        SetParameter(nameof(IpSetpoint), 380);
+        SetParameter(nameof(IpMinutes), 15);
         AdmitIPO2();
+        TurnOnIpSampleFurnace();
         WaitIpRiseToSetpoint();
         WaitIpMinutes();
-        PrepareForCollection();
-        StartCollecting();
-        CollectAndLaunchExtractEtc();
+        Collect();
+        
+        WaitForCegs();              // should be instantaneous
+        TransferCO2FromCTToVTT();   // save Split 1 in VTT
 
-        // Split 3: 850 °C
+        // Start Split 2
         CreateSampleSplit();
-        SetParameter("IpSetpoint", 850);
-        SetParameter("IpMinutes", 60);
-        AdjustIpSetpoint();
-        AdmitIPO2();
+        AdmitIPO2();                // requires VacuumSystem
+
+        StartExtractEtc();          // Begin Split 1 extraction
+
+        // Start Split 2 combustion during ExtractEtc for Split 1
+        SetParameter(nameof(IpRampRate), 75);
+        SetParameter(nameof(IpSetpoint), 625);
+        SetParameter(nameof(IpMinutes), 60);
         WaitIpRiseToSetpoint();
         WaitIpMinutes();
-        PrepareForCollection();
-        StartCollecting();
-        CollectAndLaunchExtractEtc();
+        Collect();
+
+        WaitForCegs();
+        TransferCO2FromCTToVTT();   // save Split 2 in VTT
+
+        // Start Split 3
+        CreateSampleSplit();
+        AdmitIPO2();                // requires VacuumSystem
+        StartExtractEtc();          // Begin Split 2 extraction
+        ClearParameter(nameof(EnableIpSetpointRamp));  // disable ramp for top speed
+        SetParameter(nameof(IpSetpoint), 850);
+        SetParameter(nameof(IpMinutes), 60);
+        WaitIpRiseToSetpoint();
+        WaitIpMinutes();
+        Collect();
+
+        WaitForCegs();
+        TransferCO2FromCTToVTT();   // save Split 3 in VTT
+        StartExtractEtc();          // Begin Split 3 extraction
+        WaitForCegs();
 
         GraphitizeSplits();
         OpenLine();
