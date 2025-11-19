@@ -695,7 +695,7 @@ public class Cegs : ProcessManager, ICegs
     [JsonProperty("CollectedSamples")]
     public ConcurrentQueue<string> CollectedSamples
     {
-        get => collectedSamples;
+        get => collectedSamples ?? [];
         set => Ensure(ref collectedSamples, value);
     }
     ConcurrentQueue<string> collectedSamples;
