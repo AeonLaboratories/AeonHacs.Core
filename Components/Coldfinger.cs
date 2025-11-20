@@ -76,9 +76,15 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
     public IThermometer LevelSensor
     {
         get => levelSensor;
-        set => Ensure(ref levelSensor, value);
+        set => Ensure(ref levelSensor, value, OnLevelSensorPropertyChanged);
     }
     IThermometer levelSensor;
+
+    void OnLevelSensorPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(IThermometer.Temperature))
+            NotifyPropertyChanged(nameof(Temperature));
+    }
 
     [JsonProperty("LNValve")]
     string LNValveName { get => LNValve?.Name; set => lnValveName = value; }
