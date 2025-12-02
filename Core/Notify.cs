@@ -78,7 +78,7 @@ public static class Notify
             if (notice.Responses.Any())
             {
                 var tasks = OnPrompt?.GetInvocationList().Cast<PromptHandler>().Select(h => Task.Run(() => h(notice)));
-                var response = await tasks.WhenAny().Result;
+                var response = await tasks.FirstResponse();
 
                 cts.Cancel();
 

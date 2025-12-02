@@ -248,19 +248,12 @@ public static class Extensions
         }
     }
 
-    extension(Task<Notice>)
-    {
-        public static Task<Notice> NoResponse =>
-            Task.FromResult(Notice.NoResponse);
-    }
-
     extension(IEnumerable<Task<Notice>> tasks)
     {
-        // TODO: Change to FirstResponse()
-        public async Task<Task<Notice>> WhenAny(Predicate<Notice> condition = null)
+        public async Task<Notice> FirstResponse(Predicate<Notice> condition = null)
         {
             if (tasks is null || !tasks.Any())
-                return Task<Notice>.NoResponse;
+                return Notice.NoResponse;
 
             condition ??= _ => true;
             var tasklist = tasks.ToList();
@@ -268,12 +261,12 @@ public static class Extensions
             {
                 var task = await Task.WhenAny(tasklist);
                 var result = await task;
-                if (!result.Equals(Notice.NoResponse) && condition(task.Result))
-                    return task;
+                if (!result.Equals(Notice.NoResponse) && condition(result))
+                    return result;
                 tasklist.Remove(task);
             }
 
-            return Task<Notice>.NoResponse;
+            return Notice.NoResponse;
         }
     }
 
