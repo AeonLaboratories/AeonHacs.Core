@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Numerics;
 using System.Text;
 using System.Threading;
 
@@ -269,26 +268,6 @@ public class Utility
     { for (int i = 0; i < a.Length; ++i) a[i] = k * a[i]; return a; }
 
     public static double[] Negate(double[] a) { Multiply(a, -1); return a; }
-
-    // evaluate polynomial in x
-    public static double EvaluatePolynomial(double[] coeffs, double x)
-    {
-        int i = coeffs.Length;
-        double sum = coeffs[--i];
-        while (i > 0)
-            sum = x * sum + coeffs[--i];
-        return sum;
-    }
-
-    // evaluate polynomial in z
-    public static Complex EvaluatePolynomial(Complex[] coeffs, Complex z)
-    {
-        int i = coeffs.Length;
-        Complex sum = coeffs[--i];
-        while (i > 0)
-            sum = z * sum + coeffs[--i];
-        return sum;
-    }
 
     public static bool IsList(object o)
     {

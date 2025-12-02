@@ -323,7 +323,7 @@ public class ButterworthFilter : DigitalFilter
 
     // evaluate response at z
     double evaluate_ratio(double[] topcoeffs, double[] botcoeffs, double x)
-    { return Utility.EvaluatePolynomial(topcoeffs, x) / Utility.EvaluatePolynomial(botcoeffs, x); }
+    { return topcoeffs.EvaluatePolynomial(x) / botcoeffs.EvaluatePolynomial(x); }
 
     protected virtual void ConfigurationChanged(object sender, PropertyChangedEventArgs e) =>
         Initialized = false;

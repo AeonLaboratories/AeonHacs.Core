@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -187,6 +188,18 @@ public static class Extensions
         /// </summary>
         public byte[] ToASCII8ByteArray() =>
             Encoding.ASCII8.GetBytes(str);
+    }
+
+    extension<T>(T[] coefficients) where T : IAdditionOperators<T, T, T>, IMultiplyOperators<T, T, T>
+    {
+        public T EvaluatePolynomial(T x)
+        {
+            int i = coefficients.Length;
+            T sum = coefficients[--i];
+            while (i > 0)
+                sum = x * sum + coefficients[--i];
+            return sum;
+        }
     }
 
     extension(byte[] bytes)
