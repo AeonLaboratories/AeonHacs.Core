@@ -546,12 +546,12 @@ public class LabJackU6 : DeviceManager, ILabJackU6,
 
         if (d is IDigitalOutput dout && arg == nameof(IDigitalOutput.Config.State))
         {
-            serviceQ.Enqueue(new ObjectPair(d, dout.Config.State.IsOn()));
+            serviceQ.Enqueue((d, dout.Config.State.IsOn()));
             StopWaiting();
         }
         else if (d is IAnalogOutput aout && arg == nameof(IAnalogOutput.Config.Voltage))
         {
-            serviceQ.Enqueue(new ObjectPair(d, aout.Config.Voltage));
+            serviceQ.Enqueue((d, aout.Config.Voltage));
             StopWaiting();
         }
         else if (d is IAnalogInput &&
@@ -713,7 +713,7 @@ public class LabJackU6 : DeviceManager, ILabJackU6,
         }
     }
 
-    ConcurrentQueue<ObjectPair> serviceQ = new ConcurrentQueue<ObjectPair>();
+    ConcurrentQueue<(object Device, object Request)> serviceQ = [];
 
     double CheckStatus(LJUD.CHANNEL configChannel)
     {
@@ -739,9 +739,9 @@ public class LabJackU6 : DeviceManager, ILabJackU6,
     bool SetOutput()
     {
         if (LogEverything) Log?.Record("Setting outputs...");
-        if (!ConnectedToDaq || !serviceQ.TryDequeue(out ObjectPair op))
+        if (!ConnectedToDaq || !serviceQ.TryDequeue(out var op))
             return false;
-        if (!(op.x is IManagedDevice d)) return false;
+        if (!(op.Device is IManagedDevice d)) return false;
         if (!Keys.ContainsKey(d)) return false;
         int ch = ExtractChannelNumber(Keys[d]);
         if (ch < 0) return false;

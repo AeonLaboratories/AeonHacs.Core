@@ -1,5 +1,4 @@
-﻿using AeonHacs.Utilities;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
@@ -80,7 +79,7 @@ public class SerialDeviceManager : DeviceManager, ISerialDeviceManager,
     #endregion Class interface properties and methods
 
 
-    ConcurrentQueue<ObjectPair> serviceQ = new ConcurrentQueue<ObjectPair>();
+    ConcurrentQueue<(object Device, object Request)> serviceQ = [];
     protected IManagedDevice ServiceDevice = null;
     public string ServiceRequest { get; protected set; } = "";
     public string ServiceCommand { get; protected set; } = "";
@@ -103,7 +102,7 @@ public class SerialDeviceManager : DeviceManager, ISerialDeviceManager,
         {
             if (LogEverything)
                 Log.Record($"SerialDeviceManager {Name}: Noticed {d.Name}'s {e.PropertyName} event.");
-            serviceQ.Enqueue(new ObjectPair(d, e.PropertyName));
+            serviceQ.Enqueue((d, e.PropertyName));
             if (SerialController != null)
                 SerialController.Hurry = true;
             StopWaiting();
@@ -167,15 +166,14 @@ public class SerialDeviceManager : DeviceManager, ISerialDeviceManager,
             else if (ServiceDevice != null)
                 SelectDeviceService();
 
-            ObjectPair request;
-            while (ServiceCommand.IsBlank() && serviceQ.TryDequeue(out request))
+            while (ServiceCommand.IsBlank() && serviceQ.TryDequeue(out var service))
             {
-                ServiceDevice = request.x as IManagedDevice;
-                ServiceRequest = request.y as string;
+                ServiceDevice = service.Device as IManagedDevice;
+                ServiceRequest = service.Request as string;
                 if (LogEverything)
                 {
-                    var o = request.x as NamedObject;
-                    Log.Record($"SerialDeviceManager {Name}: Dequeued {o.GetType()} {o.Name} for service \"{request.y}\".");
+                    var o = service.Device as NamedObject;
+                    Log.Record($"SerialDeviceManager {Name}: Dequeued {o.GetType()} {o.Name} for service \"{service.Request}\".");
                     if (ServiceDevice == null)
                         Log.Record($"SerialDeviceManager {o.Name} is not {nameof(IManagedDevice)}.");
                 }

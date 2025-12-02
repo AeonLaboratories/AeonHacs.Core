@@ -275,18 +275,6 @@ public class Utility
     }
 }
 
-public struct ObjectPair
-{
-    public object x;
-    public object y;
-
-    public ObjectPair(object x, object y)
-    {
-        this.x = x;
-        this.y = y;
-    }
-}
-
 public enum Services { MessageBox, TitledMessageBox, PlaySound }
 
 public class Request : EventArgs
