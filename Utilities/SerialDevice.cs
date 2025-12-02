@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.IO.Ports;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using static AeonHacs.Notify;
@@ -369,7 +370,7 @@ public class SerialDevice : INotifyPropertyChanged
                 ReceivedBytesThreshold = 1,     // redundant; the default is 1
                 ReadTimeout = 20,
                 WriteTimeout = 20,
-                Encoding = EncodingType.ASCII8
+                Encoding = Encoding.ASCII8
             };
 
             port.DataReceived += new
