@@ -7,11 +7,6 @@ using System.Threading.Tasks;
 
 namespace AeonHacs;
 
-public static class MoreEncoding
-{
-    public static readonly Encoding ASCII8 = Encoding.GetEncoding("iso-8859-1");
-}
-
 public static class Extensions
 {
     extension(int i)
@@ -103,15 +98,6 @@ public static class Extensions
         public bool IsVowel() => "aeiou".Contains(c);
     }
 
-    extension(Encoding)
-    {
-        /// <summary>
-        /// ASCII uses only 7 bits; use this 8-bit "extended ASCII" encoding
-        /// </summary>
-        public static Encoding ASCII8 =>
-            MoreEncoding.ASCII8;
-    }
-
     extension(string str)
     {
         /// <summary>
@@ -187,7 +173,7 @@ public static class Extensions
         /// Convert the string into an ASCII8 byte array.
         /// </summary>
         public byte[] ToASCII8ByteArray() =>
-            Encoding.ASCII8.GetBytes(str);
+            Encoding.UTF8.GetBytes(str);
     }
 
     extension<T>(T[] coefficients) where T : IAdditionOperators<T, T, T>, IMultiplyOperators<T, T, T>
@@ -222,7 +208,7 @@ public static class Extensions
             if (bytes == null || startIndex < 0 || length < 1 || startIndex >= bytes.Length)
                 return "";
 
-            return Encoding.ASCII8.GetString(bytes, startIndex, length);
+            return Encoding.UTF8.GetString(bytes, startIndex, length);
         }
     }
 

@@ -370,7 +370,7 @@ public class SerialDevice : INotifyPropertyChanged
                 ReceivedBytesThreshold = 1,     // redundant; the default is 1
                 ReadTimeout = 20,
                 WriteTimeout = 20,
-                Encoding = Encoding.ASCII8
+                Encoding = Encoding.UTF8
             };
 
             port.DataReceived += new
