@@ -458,7 +458,10 @@ public class VacuumSystem : HacsComponent, IVacuumSystem
     public void Evacuate(double pressure)
     {
         Evacuate();
-        WaitFor(() => State == StateCode.Roughing || State == StateCode.HighVacuum || Stopping, -1, 35);
+        if (pressure > HighVacuumPreferredPressure)
+            WaitFor(() => State is StateCode.Roughing or StateCode.HighVacuum || Stopping, -1, 35);
+        else
+            WaitFor(() => State is StateCode.HighVacuum || Stopping, -1, 35);
         WaitForPressure(pressure);
     }
 
