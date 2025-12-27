@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <AssemblyVersion>4.0.0.0</AssemblyVersion>
+        <AssemblyVersion>4.1.0.0</AssemblyVersion>
         <PackageVersion>$(AssemblyVersion)</PackageVersion>
         <Title>Aeon Laboratories Hardware Automation Control System application framework</Title>
         <Description>Hardware abstraction classes for process control systems</Description>
@@ -13,7 +13,7 @@
 
         <UseWPF>false</UseWPF>
         <OutputType>Library</OutputType>
-        <TargetFramework>net8.0-windows</TargetFramework>
+        <TargetFramework>net10.0-windows</TargetFramework>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <Deterministic>true</Deterministic>
@@ -23,7 +23,7 @@
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 
-        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
         <PackageId>$(AssemblyName)</PackageId>
         <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
         <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -37,12 +37,13 @@
       <DebugType>full</DebugType>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="MailKit" Version="4.3.0" />
+        <PackageReference Include="MailKit" Version="4.14.1" />
         <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
         <PackageReference Include="System.Data.DataSetExtensions" Version="4.6.0-preview3.19128.7" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-        <PackageReference Include="System.IO.Ports" Version="8.0.0" />
-        <PackageReference Include="System.Management" Version="8.0.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+        <PackageReference Include="System.Drawing.Common" Version="10.0.1" />
+        <PackageReference Include="System.IO.Ports" Version="10.0.1" />
+        <PackageReference Include="System.Management" Version="10.0.1" />
     </ItemGroup>
     <ItemGroup>
       <Reference Include="LJUDDotNet">
