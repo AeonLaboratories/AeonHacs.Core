@@ -720,7 +720,7 @@ public class Cegs : ProcessManager, ICegs
     /// Clears the list of collected samples.
     /// </summary>
     [Description("Clears the list of collected samples.")]
-    protected virtual void ClearCollectedSamplesQueue() => CollectedSamples.Clear();
+    protected virtual void ClearCollectedSamplesQueue() => CollectedSamples?.Clear();
 
     /// <summary>
     /// The already collected sample currently being processed. This is the item at
