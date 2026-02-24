@@ -456,6 +456,7 @@ public class VTColdfinger : StateManager<VTColdfinger.TargetStates, VTColdfinger
         Freeze();
         var status = StatusChannel.Default?.Start($"Wait for {Name} < {ColdTemperature} °C");
         WaitFor(() => Hacs.Stopping || Frozen, interval: 1000); // timeout handled in ManageState
+        WaitSeconds(Coldfinger.SecondsToWaitAfterFreezing, $"Waiting {Coldfinger.SecondsToWaitAfterFreezing} seconds for {Name} to completely freeze.");
         status?.End();
     }
 

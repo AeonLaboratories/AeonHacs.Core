@@ -1383,12 +1383,17 @@ public class Cegs : ProcessManager, ICegs
 
     /// <summary>
     /// Returns the current value of the Sample's process control parameter with the given name.
-    /// If Sample is null, returns the value from CegsPreferences instead.
+    /// If Sample is null or doesn't have the Parameter, returns the value from CegsPreferences 
+    /// instead.
     /// </summary>
     /// <param name="name"></param>
     /// <returns></returns>
-    public double GetParameter(string name) =>
-        Sample?.Parameter(name) ?? CegsPreferences.Parameter(name);
+    public double GetParameter(string name)
+    {
+        if (Sample?.HasParameter(name) ?? false)
+            return Sample.Parameter(name);
+        return CegsPreferences.Parameter(name);
+    }
 
 
     /// <summary>
@@ -2028,10 +2033,7 @@ public class Cegs : ProcessManager, ICegs
             InletPort.State = LinePort.States.InProcess;
         }
         if (Sample is not null)
-        {
-            Sample.State =Sample.States.InProcess;
-            Sample.AddTrap(trap.Name);
-        }
+            Sample.State = Sample.States.InProcess;
         CollectStopwatch.Restart();
         collectionPath.FlowManager?.Start(FirstTrapBleedPressure);
 
@@ -2283,6 +2285,7 @@ public class Cegs : ProcessManager, ICegs
             FinishCollecting();
         collectionPath?.Close();
         FirstTrap?.Isolate();
+        Sample.AddTrap(FirstTrap.Name);
         EnqueueCollectedSample(Sample);
         collectionPath?.FlowValve?.CloseWait();
         step.End();

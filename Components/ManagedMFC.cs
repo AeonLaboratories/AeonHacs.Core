@@ -242,7 +242,7 @@ public class ManagedMFC : Auto, IMassFlowController, IManagedDevice,
                 {
                     if (IsOn)
                     {
-                        // Wathc for backflow (emulate check valve)
+                        // Watch for backflow (emulate check valve)
                         if (ShutoffValve.IsOpened && FlowRate < -0.5)
                             Task.Run(ShutoffValve.CloseWait);
                         else if (ShutoffValve.IsClosed && FlowRate > -0.25)     // TODO: accommodate zero-drift
@@ -475,7 +475,7 @@ public class ManagedMFC : Auto, IMassFlowController, IManagedDevice,
 
     public override string ToString()
     {
-        return $"{Name}: {FlowRate:0.00} sccm ({TrackedFlow:0} scc total)" +
+        return $"{Name}{(IsOn ? " (On)" : " (Off)")}: {FlowRate:0.00} sccm ({TrackedFlow:0} scc total)" +
             $"\r\nSP = {Setpoint:0.00} sccm, Max = {MaximumSetpoint:0.00}, Gas = {ProgrammedGas}" +
             IndentLines(ManagedDevice.ManagerString(this));
     }

@@ -232,6 +232,17 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
     }
     int secondsToWaitAfterRaised = 15;
 
+    /// <summary>
+    /// How many seconds to wait for the coldfinger to completely freeze after the level sensor
+    /// detects liquid nitrogen.
+    /// </summary>
+    [JsonProperty, DefaultValue(10)]
+    public int SecondsToWaitAfterFreezing
+    {
+        get => secondsToWaitAfterFreezing;
+        set => Ensure(ref secondsToWaitAfterFreezing, value);
+    }
+    int secondsToWaitAfterFreezing = 10;
 
     /// <summary>
     /// The FTC is "near" air temperature if it is within this
@@ -634,6 +645,7 @@ public class Coldfinger : StateManager<Coldfinger.TargetStates, Coldfinger.State
             Freeze();
         var step = StatusChannel.Default?.Start($"Wait for {Name} < {FrozenTemperature + FreezeTrigger} °C");
         WaitFor(() => Frozen || Hacs.Stopping, interval: 1000); // timeout handled in ManageState
+        WaitSeconds(SecondsToWaitAfterFreezing, $"Waiting {SecondsToWaitAfterFreezing} seconds for {Name} to completely freeze.");
         step?.End();
     }
 

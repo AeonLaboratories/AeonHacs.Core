@@ -122,6 +122,9 @@ public class Sample : HacsComponent
     private Parameter CegsParameter(string name) =>
         CegsParameters.Find(x => x.ParameterName == name);
 
+    public bool HasParameter(string name) =>
+        Parameters?.Find(x => x.ParameterName == name) != default;
+
     /// <summary>
     /// Returns the value of the named parameter.
     /// </summary>
