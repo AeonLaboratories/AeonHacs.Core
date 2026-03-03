@@ -320,7 +320,7 @@ public class Cegs : ProcessManager, ICegs
     [JsonProperty]
     public Dictionary<string, Sample> Samples
     {
-        get => FindAll<Sample>().ToDictionary(s => s.Name, s => s);
+        get => FindAll<Sample>().OrderBy(s => s.Name).ToDictionary(s => s.Name, s => s);
         set { }
     }
 
@@ -659,7 +659,9 @@ public class Cegs : ProcessManager, ICegs
         {
             void samplePropertyChanged(object sender, PropertyChangedEventArgs e)
             {
+                if (!Connected) return;
                 InletPort = sample?.InletPort;
+                InletPort.Sample = sample;
                 NotifyPropertyChanged(nameof(Sample));
             }
 
@@ -670,7 +672,7 @@ public class Cegs : ProcessManager, ICegs
 
     public virtual IInletPort InletPort
     {
-        get => inletPort;
+        get => inletPort ?? (InletPort = Sample?.InletPort);
         set
         {
             if (value != null)
@@ -1374,7 +1376,7 @@ public class Cegs : ProcessManager, ICegs
             AdjustIpRampRate();
         else if (name == nameof(EnableIpSetpointRamp))
         {
-            if (ParameterTrue(nameof(EnableIpSetpointRamp)))
+            if (EnableIpSetpointRamp)
                 EnableIpRamp();
             else
                 DisableIpRamp();
@@ -2020,7 +2022,6 @@ public class Cegs : ProcessManager, ICegs
 
         var step = ProcessStep.Start(status);
 
-        trap.Evacuate();
         if (freezeTrap)
             trap.FreezeWait();
         collectionPath.Isolate();
@@ -2278,16 +2279,18 @@ public class Cegs : ProcessManager, ICegs
         var collectionPath = IM_FirstTrap;
 
         collectionPath?.FlowManager?.Stop();
-        InletPort?.Close();
+        
         if (InletPort is not null)
+        {
+            InletPort.Close();
             InletPort.State = LinePort.States.Complete;
+        }
         if (!immediately)
             FinishCollecting();
-        collectionPath?.Close();
         FirstTrap?.Isolate();
+        collectionPath?.FlowValve?.CloseWait();
         Sample.AddTrap(FirstTrap.Name);
         EnqueueCollectedSample(Sample);
-        collectionPath?.FlowValve?.CloseWait();
         step.End();
     }
 
@@ -4199,7 +4202,7 @@ public class Cegs : ProcessManager, ICegs
     /// <remarks>This method invokes the <see cref="Sample.CreateSplit"/> method to generate the new split.
     /// </remarks>
     [Description("Create a new split of the current sample and make it the current sample.")]
-    protected virtual void CreateSampleSplit() => Sample = Sample.CreateSplit();
+    protected virtual void CreateSampleSplit() => Sample = Sample?.CreateSplit();
 
     /// <summary>
     /// Collect gas from the active sample and send it to the VTT to complete processing.
@@ -4209,9 +4212,7 @@ public class Cegs : ProcessManager, ICegs
     {
         CollectUntilConditionMet();
         StopCollecting();
-        // need to do something here? override this method, or include all of these steps in the Protocol.
         WaitForCegs();
-        TransferCO2FromCTToVTT();
         StartExtractEtc();
     }
 
@@ -4717,6 +4718,8 @@ public class Cegs : ProcessManager, ICegs
             aliquot.Name = NextGraphiteNumber.ToString();
             NextGraphiteNumber++;
         }
+        if (aliquot.Sample.Split != 0)
+            aliquot.Name += $".{aliquot.Sample.Split}";
 
         var size = EnableSmallReactors && aliquot.MicrogramsCarbon <= SmallSampleMicrogramsCarbon ?
             GraphiteReactor.Sizes.Small :
@@ -5065,9 +5068,10 @@ public class Cegs : ProcessManager, ICegs
 
         toSection.RaiseLN();
 
-        substep = ProcessSubStep.Start($"Isolate {toSection.Name}");
-        toSection.Isolate();
-        toSection.Freeze();     // raise no longer needed
+        substep = ProcessSubStep.Start($"Close path to {toSection.Name}");
+        combinedSection.InternalValves.CloseExcept(toSection.InternalValves);
+
+        toSection.Freeze();     // raise is no longer needed
         substep.End();
 
         step.End();
@@ -5568,13 +5572,17 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    /// Run the ExtractEtc process step, then evacuate VTT_GM.
+    /// Transfer the sample to the VTT, run ExtractEtc, keeping all LN manifolds active for speed, then evacuate VTT_GM.
     /// </summary>
-    [Description("Run 'Extract, etc.', keeping all LN manifolds active for speed, then evacuate VTT-GM.")]
+    [Description("Transfer to VTT, run 'Extract, etc.', keeping all LN manifolds active for speed, then evacuate VTT-GM.")]
     protected virtual void ExtractEtcThenEvacuate()
     {
         KeepAllLNManifoldsActive();
-        try { ExtractEtc(); }
+        try
+        {
+            TransferCO2FromCTToVTT();    // TODO: Move this into its own step?
+            ExtractEtc();
+        }
         catch (Exception e)
         {
             ResumeAllLNManifoldsMonitoring();
