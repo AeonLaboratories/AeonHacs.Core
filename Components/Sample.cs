@@ -402,6 +402,7 @@ public class Sample : HacsComponent
     public Sample()
     {
         Name = GenerateSampleName;
+        DateTime = DateTime.Now;       // generally this is overwritten when the sample is run.
     }
 
     /// <summary>
@@ -424,6 +425,7 @@ public class Sample : HacsComponent
         Sample splitSample = new()
         {
             LabId = LabId,
+            Grams = Grams,
             Split = Split + 1,
             DateTime = DateTime.Now,
             State = States.Loaded,
@@ -432,8 +434,9 @@ public class Sample : HacsComponent
             Parameters = Parameters.Select(p => p.Clone()).ToList(),
             SulfurSuspected = SulfurSuspected,
             Take_d13C = Take_d13C,
-            Aliquots = Aliquots.Select(a => new Aliquot(a)).ToList()
+            AliquotIds = AliquotIds
         };
+        InletPort.Sample = splitSample;
         splitSample.InletPort.State = LinePort.States.Loaded;
         return splitSample;
     }
