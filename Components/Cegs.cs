@@ -2751,8 +2751,8 @@ public class Cegs : ProcessManager, ICegs
             port.Open();
             WaitSeconds(2);
             port.Close();
-            substep.End();
             WaitSeconds(5);
+            substep.End();
         }
     }
 
@@ -3305,7 +3305,7 @@ public class Cegs : ProcessManager, ICegs
             gr.Close();
 
         var count = grs.Count;
-        step = ProcessStep.Start(measureVolumes ?
+        var step2 = ProcessStep.Start(measureVolumes ?
             $"Calibrate GR {"manometer".Plurality(count)} and {"volume".Plurality(count)}" :
             "Leak check GR".Plurality(count)
         );
@@ -3350,12 +3350,12 @@ public class Cegs : ProcessManager, ICegs
             gm.OpenAndEvacuate(OkPressure);
         }
 
-        step.End();
+        step2.End();
 
-        step = ProcessStep.Start($"Flush GRs with {gsFlush.GasName}");
+        step2 = ProcessStep.Start($"Flush GRs with {gsFlush.GasName}");
         gsFlush.Flush(PressureOverAtm, 0.1, measureVolumes ? flushes - 1 : flushes);
         gm.VacuumSystem.WaitForPressure(OkPressure);
-        step.End();
+        step2.End();
 
         if (IronPreconditioningMinutes > 0)
         {
@@ -4583,9 +4583,9 @@ public class Cegs : ProcessManager, ICegs
             MC_Split.Open();
 
             var seconds = (int)SplitEquilibrationSeconds;
-            substep = ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
+            var substep2 = ProcessSubStep.Start($"Wait {SecondsString(seconds)} for sample to equilibrate.");
             WaitSeconds(seconds);
-            substep.End();
+            substep2.End();
 
             MC_Split.Close();
             substep.End();
@@ -5052,14 +5052,14 @@ public class Cegs : ProcessManager, ICegs
         else
             fromSection.Thaw();
 
-        step = ProcessStep.Start("Wait for transfer start conditions.");
+        var substep = ProcessStep.Start("Wait for transfer start conditions.");
         WaitFor(() =>
             toSection.Frozen &&
             fromSection.Temperature > CO2TransferStartTemperature,
             interval: 1000); // timeout checked by coldfinger
-        step.End();
+        substep.End();
 
-        var substep = ProcessSubStep.Start($"Join {toSection.Name} to {fromSection.Name}");
+        substep = ProcessSubStep.Start($"Join {toSection.Name} to {fromSection.Name}");
         combinedSection.Isolate();
         combinedSection.Open();
         substep.End();
@@ -5772,9 +5772,7 @@ public class Cegs : ProcessManager, ICegs
 
         var step = ProcessStep.Start("Freeze graphite reactors");
         grs.ForEach(gr => gr.Coldfinger.Freeze());
-
         WaitFor(() => grs.All(gr => gr.Coldfinger.Frozen), interval: 1000);
-
         step.End();
 
         TestLog.WriteLine();
@@ -5787,6 +5785,7 @@ public class Cegs : ProcessManager, ICegs
         gm.ClosePorts();
         gm.Isolate();
         step.End();
+
         for (int pH2 = 850; pH2 > 100; pH2 /= 2)
         {
             step = ProcessStep.Start($"Measure density ratios starting with {pH2:0} Torr");
@@ -5805,6 +5804,7 @@ public class Cegs : ProcessManager, ICegs
             gs.Pressurize(pH2);
             gs.IsolateFromVacuum();
             substep.End();
+
             grs.ForEach(gr =>
             {
                 WaitSeconds(10);        // was 30 -- why?
@@ -6100,6 +6100,7 @@ public class Cegs : ProcessManager, ICegs
                 Announce("Calibration thermocouple is too hot.",
                     "And it hasn't cooled sufficiently after over a minute.\r\n" +
                     $"Is it in {h.Name}?", NoticeType.Error);
+                step.End();
                 return;
             }
             substep.End();
@@ -6135,6 +6136,7 @@ public class Cegs : ProcessManager, ICegs
             else
             {
                 substep.End();
+                step.End();
                 return;
             }
         }
