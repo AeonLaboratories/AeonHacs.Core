@@ -63,11 +63,6 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void Connect()
     {
         Sample = Find<Sample>(sampleName);
-        if (inletPort == null)
-            inletPort = FirstOrDefault<IInletPort>();
-        if (inletPort == null)
-            ConfigurationError("No InletPort exists; a CEGS must have at least one.");
-
         Power = Find<Power>(powerName);
         Ambient = Find<Chamber>(ambientName);
 
@@ -586,7 +581,11 @@ public class Cegs : ProcessManager, ICegs
 
             return im_trap;
         }
-        set => Ensure(ref im_FirstTrap, value);
+        set
+        {
+            if (Ensure(ref im_FirstTrap, value))
+                Hacs.SystemLog.Record($"{nameof(IM_FirstTrap)} was changed to {im_FirstTrap?.Name ?? "<default>"}");
+        }
     }
     ISection im_FirstTrap = null;
 
