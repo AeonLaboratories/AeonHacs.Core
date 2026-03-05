@@ -46,7 +46,7 @@ public class CpwValve : CpwActuator, ICpwValve, CpwValve.IDevice, CpwValve.IConf
     public virtual void Close() => DoOperation("Close");
     public virtual void OpenWait() { Open(); WaitForIdle(); }
     public virtual void CloseWait() { Close(); WaitForIdle(); }
-    public virtual void DoWait(ActuatorOperation operation) { DoOperation(operation) ; WaitForIdle(); }
+    public virtual void DoWait(ActuatorOperation operation) { DoOperation(operation); WaitForIdle(); }
     public virtual void DoWait(string operation) { DoOperation(operation); WaitForIdle(); }
 
     public virtual void Exercise()
@@ -284,9 +284,9 @@ public class CpwValve : CpwActuator, ICpwValve, CpwValve.IDevice, CpwValve.IConf
 
 public static class CpwValveExtensions
 {
-    private static void CloseBy(this ICpwValve valve, int amount)
+    public static void AdjustClose(this ICpwValve valve, int amount)
     {
-        var operation = valve.FindOperation("Close");
+        var operation = valve?.FindOperation("Close");
         if (operation == null)
             return; // something went wrong
 
@@ -299,9 +299,9 @@ public static class CpwValveExtensions
         valve.CloseWait();
     }
 
-    private static void OpenBy(this ICpwValve valve, int amount)
+    public static void AdjustOpen(this ICpwValve valve, int amount)
     {
-        var operation = valve.FindOperation("Open");
+        var operation = valve?.FindOperation("Open");
         if (operation == null)
             return; // something went wrong
 
@@ -313,28 +313,4 @@ public static class CpwValveExtensions
             valve.CloseWait();
         valve.OpenWait();
     }
-
-    public static void CloseABitMore(this ICpwValve valve) =>
-        valve.CloseBy(10);
-
-    public static void CloseMore(this ICpwValve valve) =>
-        valve.CloseBy(50);
-
-    public static void CloseABitLess(this ICpwValve valve) =>
-        valve.CloseBy(-10);
-
-    public static void CloseLess(this ICpwValve valve) =>
-        valve.CloseBy(-50);
-
-    public static void OpenABitMore(this ICpwValve valve) =>
-        valve.OpenBy(10);
-
-    public static void OpenMore(this ICpwValve valve) =>
-        valve.OpenBy(50);
-
-    public static void OpenABitLess(this ICpwValve valve) =>
-        valve.OpenBy(-10);
-
-    public static void OpenLess(this ICpwValve valve) =>
-        valve.OpenBy(-50);
 }
