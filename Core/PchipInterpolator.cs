@@ -1,9 +1,9 @@
 ﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
+
+using Datum = (double Input, double Output, double Slope);
 
 namespace AeonHacs;
 
@@ -13,51 +13,36 @@ namespace AeonHacs;
 /// </summary>
 public class PchipInterpolator : Operation
 {
-    /// <summary>
-    /// List of (double X, double Y) tuples of calibration data points, where
-    /// X is a scale output and Y is the corresponding true kilograms.
-    /// </summary>
     [JsonProperty]
-    public ImmutableList<(double X, double Y)> CalibrationData
-    {
-        get => points.Select(p => (p.X, p.Y)).ToImmutableList();
-        set => Initialize(value);
-    }
+    public SortedObservableList<DataPoint> CalibrationData { get; } = new(Comparer<DataPoint>.Create((a, b) => a.Input.CompareTo(b.Input)));
 
-    private List<(double X, double Y, double D)> points = [];
+    private Datum[] points = [];
 
     /// <summary>
     /// Creates a new instance of the <see cref="PchipInterpolator"/> class.
     /// </summary>
-    public PchipInterpolator() { }
+    public PchipInterpolator() : this([]) { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PchipInterpolator"/> class.
     /// </summary>
-    /// <param name="dataPoints">The data points for interpolation. Each point must have an X and Y value.</param>
-    /// <exception cref="ArgumentException">Thrown when fewer than two data points are provided.</exception>
-    public PchipInterpolator(IList<(double X, double Y)> dataPoints)
+    /// <param name="calibrationData">The data points for interpolation. Each point must have an Input and Output value.</param>
+    public PchipInterpolator(params DataPoint[] calibrationData)
     {
-        Initialize(dataPoints);
-    }
-
-    private void Initialize(IList<(double X, double Y)> dataPoints)
-    {
-        if (dataPoints == null || dataPoints.Count < 2)
-            throw new ArgumentException("At least two points are required for interpolation.", nameof(dataPoints));
-
-        // Sort by X and initialize derivative (D) at 0.0
-        points = dataPoints
-            .OrderBy(p => p.X)
-            .Select(p => (p.X, p.Y, D: 0.0))
-            .ToList();
-
+        foreach (var point in calibrationData)
+            CalibrationData.Add(point);
+        CalibrationData.CollectionChanged += (_, _) => CalculateSlopes();
         CalculateSlopes();
     }
 
-    public void Zero(double X)
+    public void Zero(double zero)
     {
-        points[0] = (X, points[0].Y, (points[1].Y - points[0].Y) / (points[1].X - X));
+        if (CalibrationData.Count > 0)
+        {
+            var first = CalibrationData[0];
+            CalibrationData.Remove(first);
+            CalibrationData.Add(first with { Input = zero });
+        }
     }
 
     /// <summary>
@@ -66,33 +51,44 @@ public class PchipInterpolator : Operation
     /// </summary>
     private void CalculateSlopes()
     {
-        int n = points.Count;
-        double[] delta = new double[n - 1];
-
-        // Calculate initial slopes between each pair of points
-        for (int i = 0; i < n - 1; i++)
+        Datum[] data = [..CalibrationData.Select(p => new Datum(p.Input, p.Output, 0))];
+        if (data.Length < 2)
         {
-            delta[i] = (points[i + 1].Y - points[i].Y) / (points[i + 1].X - points[i].X);
+            points = data;
+            return;
         }
 
-        // Set the derivative for the first point
-        points[0] = (points[0].X, points[0].Y, delta[0]);
+        double[] delta = new double[data.Length - 1];
+
+        for (int i = 0; i < delta.Length; i++)
+        {
+            var left = data[i];
+            var right = data[i + 1];
+            delta[i] = (right.Output - left.Output) / (right.Input - left.Input);
+        }
+
+        data[0].Slope = delta[0];
 
         // Calculate and assign derivatives for the middle points
-        for (int i = 1; i < n - 1; i++)
+        for (int i = 1; i < delta.Length; i++)
         {
-            double d = 0;
+            var prev = data[i - 1];
+            var curr = data[i];
+            var next = data[i + 1];
             if (delta[i - 1] * delta[i] > 0) // Check if consecutive slopes have the same sign
             {
-                double w1 = 2 * (points[i + 1].X - points[i].X) + (points[i].X - points[i - 1].X);
-                double w2 = (points[i + 1].X - points[i].X) + 2 * (points[i].X - points[i - 1].X);
-                d = (w1 + w2) / (w1 / delta[i - 1] + w2 / delta[i]);
+                double w1 = 2 * (next.Input - curr.Input) + (curr.Input - prev.Input);
+                double w2 = (next.Input - curr.Input) + 2 * (curr.Input - prev.Input);
+                data[i].Slope = (w1 + w2) / (w1 / delta[i - 1] + w2 / delta[i]);
             }
-            points[i] = (points[i].X, points[i].Y, d);
+            else
+                data[i].Slope = 0;
         }
 
         // Set the derivative for the last point
-        points[n - 1] = (points[n - 1].X, points[n - 1].Y, delta[n - 2]);
+        data[^1].Slope = delta[^1];
+
+        points = data;
     }
 
     /// <summary>
@@ -105,35 +101,29 @@ public class PchipInterpolator : Operation
     /// <returns>The interpolated Y value at the specified X.</returns>
     public double Interpolate(double x)
     {
-        if (points.Count < 2)
+        if (points.Length == 1 && points[0].Input == x)
+            return points[0].Output;
+        if (points.Length < 2)
             return double.NaN; // Not enough points to interpolate
 
         // Handle extrapolation on the left side
-        if (x < points.First().X)
+        if (x < points[0].Input)
         {
-            var first = points.First();
-            double slope = first.D; // Derivative at the first point
-            return first.Y + slope * (x - first.X); // Linear extrapolation using the first slope
+            return points[0].Output + points[0].Slope * (x - points[0].Input); // Linear extrapolation using the first slope
         }
 
         // Handle extrapolation on the right side
-        if (x > points.Last().X)
+        if (x >= points[^1].Input)
         {
-            var last = points.Last();
-            double slope = last.D; // Derivative at the last point
-            return last.Y + slope * (x - last.X); // Linear extrapolation using the last slope
+            return points[^1].Output + points[^1].Slope * (x - points[^1].Input); // Linear extrapolation using the last slope
         }
 
-        var left = points.LastOrDefault(p => x >= p.X);
-        var right = points.FirstOrDefault(p => x < p.X);
-        if (right.Equals(default) || right.X == left.X)
-            right = left;
+        var left = points.Last(d => x >= d.Input);
+        var right = points.First(p => x < p.Input);
 
-        double span = right.X - left.X;
-        if (span == 0)
-            return left.Y;
+        double span = right.Input - left.Input;
 
-        double t = (x - left.X) / span;
+        double t = (x - left.Input) / span;
 
         // Hermite interpolation polynomials
         double h00 = (1 + 2 * t) * (1 - t) * (1 - t);
@@ -141,7 +131,7 @@ public class PchipInterpolator : Operation
         double h01 = t * t * (3 - 2 * t);
         double h11 = t * t * (t - 1) * span;
 
-        return h00 * left.Y + h01 * right.Y + h10 * left.D + h11 * right.D;
+        return h00 * left.Output + h01 * right.Output + h10 * left.Slope + h11 * right.Slope;
     }
 
     public override double Execute(double input) => Interpolate(input);
