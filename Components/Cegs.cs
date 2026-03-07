@@ -4263,12 +4263,12 @@ public class Cegs : ProcessManager, ICegs
     /// Collect gas from the active sample and send it to the VTT to complete processing.
     /// </summary>
     [Description("Collect gas from the active sample and send it to the VTT to complete processing.")]
-    protected virtual void CollectAndLaunchExtractEtc()
+    protected virtual void CollectAndLaunchTransferEtc()
     {
         CollectUntilConditionMet();
         StopCollecting();
         WaitForCegs();
-        StartExtractEtc();
+        LaunchTransferEtc();
     }
 
     /// <summary>
@@ -4318,7 +4318,7 @@ public class Cegs : ProcessManager, ICegs
         CreateSampleSplit();
         AdmitIPO2();                // requires VacuumSystem
 
-        StartExtractEtc();          // Begin Split 1 extraction
+        LaunchTransferEtc();          // Begin Split 1 extraction
 
         // Start Split 2 combustion during ExtractEtc for Split 1
         SetParameter(nameof(IpRampRate), 75);
@@ -4334,7 +4334,7 @@ public class Cegs : ProcessManager, ICegs
         // Start Split 3
         CreateSampleSplit();
         AdmitIPO2();                // requires VacuumSystem
-        StartExtractEtc();          // Begin Split 2 extraction
+        LaunchTransferEtc();          // Begin Split 2 extraction
         ClearParameter(nameof(EnableIpSetpointRamp));  // disable ramp for top speed
         SetParameter(nameof(IpSetpoint), 850);
         SetParameter(nameof(IpMinutes), 60);
@@ -4344,7 +4344,7 @@ public class Cegs : ProcessManager, ICegs
 
         WaitForCegs();
         TransferCO2FromCTToVTT();   // save Split 3 in VTT
-        StartExtractEtc();          // Begin Split 3 extraction
+        LaunchTransferEtc();          // Begin Split 3 extraction
         WaitForCegs();
 
         GraphitizeAliquots();
@@ -5609,26 +5609,25 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    /// Initiate the ExtractEtc process step, followed by evacuating VTT_GM,
+    /// Initiate the TransferEtc process step, followed by evacuating VTT_GM,
     /// to run concurrently while the Collection process continues.
     /// </summary>
-    [Description("Run 'Extract, etc.' on the thus-far-collected sample, while further collection continues concurrently.")]
-    protected virtual void StartExtractEtc()
+    [Description("Run 'Transfer, etc.' on the thus-far-collected sample, while further collection continues concurrently.")]
+    protected virtual void LaunchTransferEtc()
     {
-        CegsTask = Task.Run(ExtractEtcThenEvacuate);
+        CegsTask = Task.Run(TransferEtcThenEvacuate);
     }
 
     /// <summary>
-    /// Transfer the sample to the VTT, run ExtractEtc, keeping all LN manifolds active for speed, then evacuate VTT_GM.
+    /// Run TransferEtc, keeping all LN manifolds active for speed, then evacuate VTT_GM.
     /// </summary>
-    [Description("Transfer to VTT, run 'Extract, etc.', keeping all LN manifolds active for speed, then evacuate VTT-GM.")]
-    protected virtual void ExtractEtcThenEvacuate()
+    [Description("Run 'Transfer, etc.', keeping all LN manifolds active for speed, then evacuate VTT-GM.")]
+    protected virtual void TransferEtcThenEvacuate()
     {
         KeepAllLNManifoldsActive();
         try
         {
-            TransferCO2FromCTToVTT();
-            ExtractEtc();
+            TransferCO2FromCTToVttEtc();
         }
         catch (Exception e)
         {
