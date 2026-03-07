@@ -677,24 +677,20 @@ public class Cegs : ProcessManager, ICegs
     }
     IInletPort inletPort;
 
-    // This is a persistent queue of collected samples, because with sample splits, more than
-    // one may be active simultaneously. To unify the code for ordinary and split-sample
-    // protocols, the queue simply holds the single Sample in the former case. The Sample in
-    // progress is added to the queue when collection stops. The CollectedSample property
-    // simply peeks at the head of the queue. A sample is removed from the queue once it has
-    // been transferred into a graphite reactor or discarded. It may be necessary to manage
-    // the queue manually after a process abort or manual sample operations. Because the
-    // queue is intended to track samples (splits) created during the execution of a single
-    // sample-processing protocol, it is cleared prior to running a any sample. It is
-    // persisted only to simplify state recovery following a system restart.
+    // This is a persistent queue of collected samples, allowing more than one to be present
+    // simultaneously, as split samples require. The Sample in progress is added to the queue
+    // when collection stops. The CollectedSample property usually only peeks at the head,
+    // but if that item names a sample that has been deleted (which only happens via operator
+    // intervention), it silently dequeues the item and peeks at the next. Once a sample has
+    // been transferred into a graphite reactor or discarded, it is removed from the queue.
     /// <summary>
     /// The names of samples already collected for processing.
     /// </summary>
     [JsonProperty("CollectedSamples")]
     public ConcurrentQueue<string> CollectedSamples
     {
-        get { if (collectedSamples == null) CollectedSamples = []; return collectedSamples; }
-        set => Ensure(ref collectedSamples, value);
+        get => collectedSamples ??= [];
+        set => Ensure(ref collectedSamples, value ?? []);
     }
     ConcurrentQueue<string> collectedSamples;
 
@@ -706,31 +702,46 @@ public class Cegs : ProcessManager, ICegs
     {
         if (sample == null) return;
         CollectedSamples.Enqueue(sample.Name);
+        Hacs.SystemLog.Record($"Collected Sample added: {sample.Name}.");
     }
 
     /// <summary>
     /// Removes an item from the collected samples queue.
     /// </summary>
     [Description("Removes an item from the collected samples queue.")]
-    protected virtual void DequeueCollectedSample() => CollectedSamples.TryDequeue(out _);
+    protected virtual void DequeueCollectedSample()
+    {
+        CollectedSamples.TryDequeue(out string sampleName);
+        Hacs.SystemLog.Record($"Collected Sample dequeued: {sampleName}.");
+    }
 
     /// <summary>
     /// Clears the list of collected samples.
     /// </summary>
     [Description("Clears the list of collected samples.")]
-    protected virtual void ClearCollectedSamplesQueue() => CollectedSamples?.Clear();
+    protected virtual void ClearCollectedSamplesQueue()
+    {
+        CollectedSamples?.Clear();
+        Hacs.SystemLog.Record($"Collected Sample queue was cleared.");
+    }
 
     /// <summary>
     /// The already collected sample currently being processed. This is the item at
-    /// the head of the queue.
+    /// the head of the queue. (Invalidated samples are removed silently when they reach
+    /// the head.
     /// </summary>
     public Sample CollectedSample
     {
         get
         {
-            if (CollectedSamples is not null && CollectedSamples.TryPeek(out string sampleName))
-                return Find<Sample>(sampleName);
-            else
+            while (CollectedSamples?.TryPeek(out string sampleName) ?? false)
+            {
+                if (Find<Sample>(sampleName) is Sample sample)
+                    return sample;
+                // invalid sample name; remove it and try again
+                DequeueCollectedSample();
+            }
+            // queue is null or empty
                 return Sample;
         }
     }
@@ -2795,7 +2806,7 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void DiscardMCGases()
     {
         var step = ProcessStep.Start("Discard sample from MC");
-        SampleRecord(CollectedSample ?? Sample);
+        SampleRecord(CollectedSample);
         MC?.Evacuate();
         DequeueCollectedSample();
         step.End();
@@ -4177,7 +4188,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Transfer collected CO2 from Coil Trap to VTT.")]
     protected virtual void TransferCO2FromCTToVTT()
     {
-        var sample = CollectedSample ?? Sample;         // maybe require CollectedSample?
+        var sample = CollectedSample;
         var trapNames = (sample?.Traps ?? "")
             .Split(", ", StringSplitOptions.RemoveEmptyEntries)
             .Reverse()
@@ -4414,7 +4425,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Apportion the MC CO2 into aliquots based on the MC chamber and port volumes.")]
     protected virtual void ApportionAliquots()
     {
-        var sample = CollectedSample ?? Sample;
+        var sample = CollectedSample;
         var ugC = sample.SelectedMicrogramsCarbon;
         // if no aliquots were specified, create one
         if (sample.AliquotsCount < 1) sample.AliquotsCount = 1;
@@ -4459,7 +4470,8 @@ public class Cegs : ProcessManager, ICegs
 
         // this is the measurement; a negative sample mass confounds H2 calculation, so it is disallowed
         double ugC = Math.Max(0, ugCinMC.WaitForAverage((int)MeasurementSeconds));
-        var sample = CollectedSample ?? Sample;
+
+        var sample = CollectedSample;
         if (sample != null)
         {
             sample.SelectedMicrogramsCarbon = ugC;
@@ -4510,7 +4522,7 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void Measure()
     {
         var step = ProcessStep.Start("Prepare to measure MC contents");
-        var sample = CollectedSample ?? Sample;
+        var sample = CollectedSample;
         MC.Isolate();
 
         if (MC.IsActivelyCooling)
@@ -4565,7 +4577,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Discard the contents of the Split chamber.")]
     protected virtual void DiscardSplit()
     {
-        var sample = CollectedSample ?? Sample;
+        var sample = CollectedSample;
 
         var step = ProcessStep.Start("Discard Excess sample");
         while (sample.Aliquots[0].MicrogramsCarbon > MaximumSampleMicrogramsCarbon)
@@ -4629,7 +4641,7 @@ public class Cegs : ProcessManager, ICegs
         // must be re-frozen from MC+MCP0+MCP1 to the MC, and then re-thawed,
         // expanding it into just the MC+MCP0 (i.e., after having closed MCP1).
         // In all other cases, the correct chambers should be opened already.
-        var sample = CollectedSample ?? Sample;
+        var sample = CollectedSample;
 
         if (sample.AliquotsCount == 2 &&
             MC.Ports.Count > 2 &&
@@ -4683,7 +4695,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Use a free graphite reactor to quantitatively remove sulfur from the sample CO2.")]
     protected virtual void RemoveSulfur()
     {
-        var sample = CollectedSample ?? Sample;
+        var sample = CollectedSample;
         if (sample == null) return;
 
         if (!sample.SulfurSuspected) return;
@@ -4861,7 +4873,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Add 14C-free (\"Dead\") CO2 to the sample to increase its size into the AMS-measureable range.")]
     protected virtual void Dilute()
     {
-        var sample = CollectedSample ?? Sample;
+        var sample = CollectedSample;
 
         if (sample == null ||
             DilutedSampleMicrogramsCarbon <= SmallSampleMicrogramsCarbon ||
@@ -4883,7 +4895,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Transfer all of the sample's aliquots into their graphite reactors.")]
     protected virtual void FreezeAliquots()
     {
-        var sample = CollectedSample ?? Sample;
+        var sample = CollectedSample;
         if (sample == null) return;
         foreach (Aliquot aliquot in sample.Aliquots)
             Freeze(aliquot);
@@ -5113,7 +5125,7 @@ public class Cegs : ProcessManager, ICegs
 
         // What are we dealing with?
         // If no aliquot is provided
-        if (aliquot == null && (CollectedSample ?? Sample) is Sample s)
+        if (aliquot == null && (CollectedSample) is Sample s)
             aliquot = s.Aliquots?.FirstOrDefault();
         // If we have an aliquot, make sure the graphite reactor is reserved for it
         if (aliquot != null)
@@ -5462,7 +5474,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Transfer the CO2 from the MC to the active inlet port via a transport vessel in a graphite reactor port.")]
     protected virtual void TransferCO2FromMCToIPviaGR()
     {
-        var sample = CollectedSample ?? Sample;
+        var sample = CollectedSample;
         if (sample == null) return;
 
         var grName = sample.Aliquots[0].GraphiteReactor;
