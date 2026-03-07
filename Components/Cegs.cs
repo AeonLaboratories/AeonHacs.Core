@@ -1320,6 +1320,8 @@ public class Cegs : ProcessManager, ICegs
         if (s == Sample)                    // if it's the currently selected sample,
             Sample = null;                  //     clear the the currently selected sample
         s.Name = null;                      // remove it from the NamedObject Dictionary.
+
+        NotifyPropertyChanged(nameof(Sample));  // in case of a split being deleted
     }
 
 
@@ -3685,6 +3687,8 @@ public class Cegs : ProcessManager, ICegs
             return;
         }
 
+        StartingSample = Sample;
+
         SampleLog.WriteLine("");
         Sample.DateTime = DateTime.Now;
         SampleLog.Record(
@@ -3696,6 +3700,8 @@ public class Cegs : ProcessManager, ICegs
         base.RunProcess(Sample.Protocol);
         WaitFor(() => !base.Busy, -1, 1000);
     }
+    public Sample StartingSample;
+
 
     /// <summary>
     /// Present the sample selector with all samples initially unselected.
@@ -3759,22 +3765,21 @@ public class Cegs : ProcessManager, ICegs
     {
         if (message.IsBlank())
         {
-            var protocol = ProcessType == ProcessTypeCode.Protocol ? "protocol " : "";
+            var process = ProcessType == ProcessTypeCode.Protocol ? "Sample protocol " : "Process step ";
             var happened = RunCompleted ? "completed" : "aborted";
-            message = $"Process {protocol}{happened}: {ProcessToRun}";
+            message = $"{process}{happened}: {ProcessToRun}";
         }
 
         if (ProcessType == ProcessTypeCode.Protocol)
         {
-            // Get the samples in work that followed this protocol
+            var ss = StartingSample; // the run started with this sample;
             var samples = Samples.Values.Where(s =>
-                s.State == Sample.States.InProcess
-                && s.Protocol == ProcessToRun
-            );
+                s.LabId == ss.LabId
+            ).OrderBy(s => s.DateTime);
 
             foreach (var s in samples)
             {
-                SampleLog.Record($"{message}\r\n\t {s.LabId}");
+                SampleLog.Record($"{message}: {s.LabId}{(s.Split > 0 ? $" (split {s.Split})" : "")}");
                 if (RunCompleted)
                 {
                     var grs = GraphiteReactors.Where(gr => gr.Sample == s);
