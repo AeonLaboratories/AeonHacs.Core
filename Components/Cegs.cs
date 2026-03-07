@@ -4272,29 +4272,6 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    /// Graphitize all collected splits.
-    /// </summary>
-    [Description("Graphitize all collected splits.")]
-    protected virtual void GraphitizeSplits()
-    {
-        if (NoSample) return;
-        var sampleId = Sample.LabId;
-        // Start the deferred graphitizations and add carrier gas to the d13C vessels.
-        foreach (var s in Samples.Values.Where(s => s.LabId == sampleId))
-        {
-            Sample = s;
-
-            // Re-freeze and start graphite reactor(s) (typically only 1 per split).
-            Sample.Aliquots.ForEach(a =>
-                Find<GraphiteReactor>(a.GraphiteReactor).Coldfinger.Raise());
-
-            GraphitizeAliquots();
-            AddCarrierTo_d13C();
-        }
-    }
-
-
-    /// <summary>
     /// A protocol example that collects distinct sample splits and graphitizes them individually.
     /// The example implements a stepped combustion protocol with suggestions for a ramped oxidation
     /// protocol in comments.
@@ -4370,7 +4347,8 @@ public class Cegs : ProcessManager, ICegs
         StartExtractEtc();          // Begin Split 3 extraction
         WaitForCegs();
 
-        GraphitizeSplits();
+        GraphitizeAliquots();
+        AddCarrierTo_d13C();
         OpenLine();
     }
 
@@ -4950,12 +4928,13 @@ public class Cegs : ProcessManager, ICegs
     }
 
     /// <summary>
-    /// Add hydrogen and graphitize all of the sample's aliquots.
+    /// Add hydrogen and graphitize all of the pending aliquots.
     /// </summary>
     [Description("Add hydrogen and graphitize all of the sample's aliquots.")]
     protected virtual void GraphitizeAliquots()
     {
-        // By now, the collected sample is frozen as aliquots in the graphite reactors.
+        var step = ProcessStep.Start("Ensure all reserved GRs are frozen.");
+        // By now, the collected samples are waiting as aliquots in the graphite reactors.
         var grs =
             GraphiteReactors
                 .Where(gr =>
@@ -4963,7 +4942,22 @@ public class Cegs : ProcessManager, ICegs
                     gr.Aliquot != null &&
                     gr.Aliquot.Name != "sulfur")
                 .OrderBy(gr => gr.Sample?.Name)
-                .ThenBy(gr => gr.Sample?.AliquotIndex(gr.Aliquot));
+                .ThenBy(gr => gr.Sample?.Split)
+                .ThenBy(gr => gr.Sample?.AliquotIndex(gr.Aliquot)).ToList();
+
+        // make sure they are actively cooling
+        foreach (var gr in grs)
+            gr.Coldfinger.Freeze();
+
+        // set of grs to watch, remove gr when seen frozen
+        var waitingFor = new HashSet<IGraphiteReactor>(grs);
+        WaitFor(() =>
+        {
+            waitingFor.RemoveWhere(gr => gr.Coldfinger.Frozen);
+            return waitingFor.Count == 0;
+        }, -1, 1000);
+
+        step.End();
 
         var gm = Manifold(grs);
         if (gm == null)
