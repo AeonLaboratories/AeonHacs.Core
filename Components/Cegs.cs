@@ -656,15 +656,12 @@ public class Cegs : ProcessManager, ICegs
         get => sample;
         set
         {
-            void samplePropertyChanged(object sender, PropertyChangedEventArgs e)
+            if (Ensure(ref sample, value))
             {
-                if (!Connected) return;
                 InletPort = sample?.InletPort;
-                InletPort.Sample = sample;
-                NotifyPropertyChanged(nameof(Sample));
+                InletPort?.Sample = sample;
+                Hacs.SystemLog.Record($"Sample changed to \"{sample?.Name}\".");
             }
-
-            Ensure(ref sample, value, samplePropertyChanged);
         }
     }
     Sample sample;
@@ -5134,9 +5131,7 @@ public class Cegs : ProcessManager, ICegs
             gr.Reserve(aliquot);
         }
 
-        // If the aliquot exists (by now, it should) make sure the sample matches
-        if (aliquot?.Sample != null)
-            sample = aliquot.Sample;
+        var sample = aliquot?.Sample ?? CollectedSample;
 
         // At this point, aliquot and sample could still be null; that's
         // okay--we'll just transfer whatever is in the MC.
