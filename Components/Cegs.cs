@@ -3738,7 +3738,7 @@ public class Cegs : ProcessManager, ICegs
             $"\t{Sample.LabId}\t{Sample.Milligrams:0.0000}\tmg\r\n" +
             $"\t{Sample.AliquotsCount}\t{"aliquot".Plurality(Sample.AliquotsCount)}");
 
-        ClearCollectedSamplesQueue();
+        //ClearCollectedSamplesQueue();
         base.RunProcess(Sample.Protocol);
         WaitFor(() => !base.Busy, -1, 1000);
     }
