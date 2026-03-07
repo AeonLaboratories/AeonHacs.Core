@@ -1480,6 +1480,18 @@ public class Cegs : ProcessManager, ICegs
     public double CollectCloseIpAtPressure => GetParameter(nameof(CollectCloseIpAtPressure));
 
     /// <summary>
+    /// During sample collection, start freezing the VTT when the Inlet Manifold pressure falls to this value,
+    /// provided that it is a number (i.e., not NaN).
+    /// </summary>
+    public double CollectFreezeVttAtImFallsToPressure => GetParameter(nameof(CollectFreezeVttAtImFallsToPressure));
+
+    /// <summary>
+    /// During sample collection, start freezing the VTT when the InletPort temperature rises to this value,
+    /// provided that it is a number (i.e., not NaN).
+    /// </summary>
+    public double CollectFreezeVttAtIpRisesToTemperature => GetParameter(nameof(CollectFreezeVttAtIpRisesToTemperature));
+
+    /// <summary>
     /// Stop collecting when the Coil Trap pressure falls to or below this value,
     /// provided that it is a number (i.e., not NaN).
     /// </summary>
@@ -2160,6 +2172,36 @@ public class Cegs : ProcessManager, ICegs
                 {
                     InletPort.Close();
                     SampleLog.Record($"{Sample.LabId}\tClosed {InletPort.Name} at {IM_FirstTrap.Manometer.Name} = {pressure:0} Torr");
+                }
+            });
+        }
+
+        p = CollectFreezeVttAtIpRisesToTemperature;
+        if (p.IsANumber() && InletPort is not null && VTT is not null)
+        {
+            var value = p;
+            CollectionActions.Add(() =>
+            {
+                var temperature = InletPort.Temperature;
+                if (!VTT.IsActivelyCooling && (CegsTask?.IsCompleted ?? true) && temperature >= value)
+                {
+                    VTT.Freeze();
+                    SampleLog.Record($"{Sample.LabId}\tStarted freezing {VTT.Name} at {InletPort.Name} >= {temperature:0} °C");
+                }
+            });
+        }
+
+        p = CollectFreezeVttAtImFallsToPressure;
+        if (p.IsANumber() && InletPort is not null)
+        {
+            var value = p;
+            CollectionActions.Add(() =>
+            {
+                var pressure = im.Pressure;
+                if (!VTT.IsActivelyCooling && (CegsTask?.IsCompleted ?? true) && pressure <= value)
+                {
+                    VTT.Freeze();
+                    SampleLog?.Record($"{Sample?.LabId}\tStarted freezing {VTT.Name} at {im.Manometer?.Name} <= {pressure:0} Torr");
                 }
             });
         }
@@ -3750,6 +3792,7 @@ public class Cegs : ProcessManager, ICegs
         RunSample();
     }
 
+
     protected override void ProcessStarting(string message = "")
     {
         if (message.IsBlank())
@@ -4338,7 +4381,6 @@ public class Cegs : ProcessManager, ICegs
     protected virtual void ExtractAt(int targetTemp)
     {
         var step = ProcessStep.Start($"Extract CO2 at {targetTemp:0} °C");
-        //SampleLog.Record($"\tCO2 extraction temperature:\t{targetTemp:0}\t°C");
 
         VTT_MC.Isolate();
         VTT_MC.Close();
@@ -4533,7 +4575,7 @@ public class Cegs : ProcessManager, ICegs
         if (MC.IsActivelyCooling)
         {
             #region release incondensables
-            step = ProcessStep.Start("Release incondensables");
+            var step2 = ProcessStep.Start("Release incondensables");
 
             MC.OpenPorts();
             MC.RaiseLN();
@@ -4547,7 +4589,7 @@ public class Cegs : ProcessManager, ICegs
                 if ((sample?.AliquotsCount ?? 1) < 2) MC.Ports[0].Close();
                 WaitSeconds(5);
             }
-            step.End();
+            step2.End();
             #endregion release incondensables
 
             MC.Isolate();
@@ -4935,7 +4977,7 @@ public class Cegs : ProcessManager, ICegs
         foreach (var gr in grs)
         {
             var aliquot = gr.Aliquot;
-            var step = ProcessStep.Start("Graphitize aliquot " + aliquot.Name);
+            step = ProcessStep.Start("Graphitize aliquot " + aliquot.Name);
             AddH2ToGR(aliquot);
             gr.Start();
             step.End();
@@ -5591,7 +5633,7 @@ public class Cegs : ProcessManager, ICegs
         KeepAllLNManifoldsActive();
         try
         {
-            TransferCO2FromCTToVTT();    // TODO: Move this into its own step?
+            TransferCO2FromCTToVTT();
             ExtractEtc();
         }
         catch (Exception e)
