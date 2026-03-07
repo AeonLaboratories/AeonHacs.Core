@@ -23,35 +23,30 @@ public class Section : HacsComponent, ISection
         if (common == null) return null;
 
         var s = new Section();
-        s.Chambers = a?.Chambers?.SafeUnion(b.Chambers);
+        s.Chambers = a?.Chambers.SafeUnion(b.Chambers);
         s.Ports = a?.Ports.SafeUnion(b.Ports);
 
-        if (a.PathToVacuum != null)
-        {
-            s.VacuumSystem = a.VacuumSystem;
-            s.PathToVacuum = a.PathToVacuum;
-            s.PathToVacuumIsolation = a.PathToVacuumIsolation;
-        }
-        else
-        {
-            s.VacuumSystem = b.VacuumSystem;
-            s.PathToVacuum = b.PathToVacuum;
-            s.PathToVacuumIsolation = b.PathToVacuumIsolation;
-        }
+        // section with preferred vacuum path: try to pick the more direct route
+        var vp = b.PathToVacuum != null && (a.PathToVacuum == null || a.PathToVacuum.Count < b.PathToVacuum.Count) ? a : b;
+        s.VacuumSystem = vp.VacuumSystem;
+        s.PathToVacuum = vp.PathToVacuum;
+        s.PathToVacuumIsolation = vp.PathToVacuumIsolation;
 
-        s.InternalValves = a.InternalValves?.SafeUnion(b.InternalValves);
-        s.InternalValves = s.InternalValves?.SafeUnion(common);
+        s.InternalValves = a.InternalValves.SafeUnion(common);          // n.b. NOT a.InternalValves?.SafeUnion(...
+        s.InternalValves = s.InternalValves.SafeUnion(b.InternalValves);
 
-        s.Isolation = b.Isolation?.SafeUnion(a.Isolation);
+        s.Isolation = a.Isolation.SafeUnion(b.Isolation);
 
         // remove all the internal valves from Isolation
         s.InternalValves?.ForEach(v => s.Isolation?.Remove(v));
 
         // remove all the common valves from PathToVacuum
         common.ForEach(v => s.PathToVacuum?.Remove(v));
+        if (s.PathToVacuum != null && s.PathToVacuum.Count == 0) s.PathToVacuum = null;
 
         // remove all Isolation valves from PathToVacuumIsolation
         s.Isolation?.ForEach(v => s.PathToVacuumIsolation?.Remove(v));
+        if (s.PathToVacuumIsolation != null && s.PathToVacuumIsolation.Count == 0) s.PathToVacuumIsolation = null;
 
         return s;
     }
@@ -64,9 +59,9 @@ public class Section : HacsComponent, ISection
     {
         // Find the valves that each Isolation list has in common
         // with the other's Isolation or InternalValves lists.
-        var c1 = a?.Isolation?.SafeIntersect(b?.Isolation?.SafeUnion(b?.InternalValves));
-        var c2 = b?.Isolation?.SafeIntersect(a?.Isolation?.SafeUnion(a?.InternalValves));
-        var common = c1?.SafeUnion(c2);
+        var c1 = a?.Isolation.SafeIntersect(b?.Isolation.SafeUnion(b?.InternalValves));
+        var c2 = b?.Isolation.SafeIntersect(a?.Isolation.SafeUnion(a?.InternalValves));
+        var common = c1.SafeUnion(c2);
 
         return common == null || common.Count == 0 ? null: common;
     }
@@ -87,12 +82,6 @@ public class Section : HacsComponent, ISection
         PathToVacuumIsolation = FindAll<IValve>(pathToVacuumIsolationValveNames);
         FlowManager = Find<IFlowManager>(flowManagerName);
 
-    }
-
-    [HacsPostConnect]
-    protected virtual void PostConnect()
-    {
-        allGasValves = new HashSet<IValve>(FindAll<IGasSupply>().Select(gs => gs.SourceValve));
     }
 
     #endregion HacsComponent
@@ -364,18 +353,6 @@ public class Section : HacsComponent, ISection
             VacuumSystem.Evacuate();
     }
 
-    HashSet<IValve> allGasValves;
-    List<IValve> OpenedVSSectionValves;
-    void SnapshotOpenedVSSectionValves()
-    {
-        OpenedVSSectionValves = VacuumSystem.VacuumManifold.Isolation.Where(v =>
-            v != VacuumSystem.HighVacuumValve &&
-            v != VacuumSystem.LowVacuumValve &&
-            v.IsOpened &&
-            !allGasValves.Contains(v))
-            .ToList();
-    }
-
     /// <summary>
     /// Isolate the section and connect it to the Vacuum Manifold
     /// if possible. If there is no PathToVacuum, isolate the
@@ -388,7 +365,6 @@ public class Section : HacsComponent, ISection
 
         var firstIsolateVacuumSystem = toBeOpened != null && toBeOpened.Any();
 
-        SnapshotOpenedVSSectionValves();
         if (firstIsolateVacuumSystem)
             VacuumSystem.Isolate();
 
@@ -422,7 +398,6 @@ public class Section : HacsComponent, ISection
 
         var firstIsolateVacuumSystem = toBeOpened != null && toBeOpened.Any();
 
-        SnapshotOpenedVSSectionValves();
         if (firstIsolateVacuumSystem) VacuumSystem.Isolate();
 
         VacuumSystem.IsolateExcept(toBeOpened);
@@ -437,8 +412,6 @@ public class Section : HacsComponent, ISection
         toBeOpened?.Open();
 
         VacuumSystem.Evacuate(pressure);
-        // OpenedVSSectionValves.Open();
-        OpenedVSSectionValves = null;
     }
 
     /// <summary>
@@ -472,8 +445,6 @@ public class Section : HacsComponent, ISection
         // system, issue a Warning, etc., in case the pressure cannot
         // be reached.
         VacuumSystem.Evacuate(pressure);
-        // OpenedVSSectionValves.Open();
-        OpenedVSSectionValves = null;
     }
 
 
@@ -491,12 +462,8 @@ public class Section : HacsComponent, ISection
     /// <param name="pressure">wait until this pressure is reached</param>
     public void Evacuate(double pressure)
     {
-        SnapshotOpenedVSSectionValves();
         IsolateAndJoinToVacuum();
         VacuumSystem.Evacuate(pressure);
-        // OpenedVSSectionValves.Open();
-        OpenedVSSectionValves = null;
-
     }
 
     /// <summary>

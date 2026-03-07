@@ -5651,7 +5651,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Open and evacuate the VTT-GM section of the CEGS.")]
     protected virtual void OpenAndEvacuateVttToGM()
     {
-        var vtt_gm = Find<Section>("VTT_GM") ?? Section.Combine(Section.Combine(GM, Split), VTT_MC);
+        var vtt_gm = Find<Section>("VTT_GM") ?? Section.Combine(VTT_MC, Section.Combine(Split, GM));
         vtt_gm.OpenAndEvacuate(OkPressure);
     }
 
