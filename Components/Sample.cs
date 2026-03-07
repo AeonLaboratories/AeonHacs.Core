@@ -477,7 +477,7 @@ public class Sample : HacsComponent
     }
 
     string toString(Sample sample) =>
-        $"{sample.LabId}{(sample.Split > 0 ? $" Split {sample.Split}" : "")} [{sample.InletPort?.Name ?? "---"}] {{{sample.Name}}}";
+        $"{sample.LabId}{(sample.Split > 0 ? $" (split {sample.Split})" : "")} [{sample.InletPort?.Name ?? "---"}] {{{sample.Name}}} {(sample == this && Split > 0 ? "*":"")}";
 
     public override string ToString()
     {
