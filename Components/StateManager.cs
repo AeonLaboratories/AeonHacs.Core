@@ -257,8 +257,8 @@ public class StateManager<TargetStates, States> : StateManager
         get => state;
         protected set
         {
-            Ensure(ref state, value);
-            StateStopwatch.Restart();
+            if (Ensure(ref state, value))
+                StateStopwatch.Restart();
         }
     }
     States state;
