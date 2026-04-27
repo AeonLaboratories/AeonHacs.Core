@@ -137,8 +137,8 @@ public class HacsBridge
 
     private void saveJson(string filename)
     {
-        using (var stream = File.CreateText(filename))
-            JsonSerializer?.Serialize(stream, HacsImplementation, typeof(HacsBase));
+        using var writer = new JsonTextWriter(File.CreateText(filename)) { Indentation = 2 };
+        JsonSerializer?.Serialize(writer, HacsImplementation, typeof(HacsBase));
     }
 
     protected virtual void SaveSettings() { SaveSettings(SettingsFilename); }
