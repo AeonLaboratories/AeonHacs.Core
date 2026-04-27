@@ -1915,6 +1915,8 @@ public interface IVacuumSystem : IHacsComponent
     /// </summary>
     double LowVacuumRequiredPressure { get; set; }
 
+    // No setter because TargetState should be set via ChangeState.
+    VacuumSystem.TargetStateCode TargetState { get; }
     VacuumSystem.StateCode State { get; }
     long MillisecondsInState { get; }
 
