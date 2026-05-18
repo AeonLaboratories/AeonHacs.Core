@@ -742,7 +742,7 @@ public class Cegs : ProcessManager, ICegs
                 DequeueCollectedSample();
             }
             // queue is null or empty
-                return Sample;
+            return Sample;
         }
     }
 
@@ -1337,7 +1337,7 @@ public class Cegs : ProcessManager, ICegs
             return false;       // it still has a split in a d13CPort
         if (s.InletPort?.Sample == s && s.InletPort.State != LinePort.States.Complete)
             return false;       // it still incomplete in its InletPort...
-        if (s.State !=Sample.States.Complete)
+        if (s.State != Sample.States.Complete)
             return false;       // it hasn't completed a protocol run
         return true;
     }
@@ -2330,7 +2330,7 @@ public class Cegs : ProcessManager, ICegs
         var collectionPath = IM_FirstTrap;
 
         collectionPath?.FlowManager?.Stop();
-        
+
         if (InletPort is not null)
         {
             InletPort.Close();
@@ -3847,7 +3847,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Reset the active inlet port and Sample states to Loaded.")]
     protected virtual void ResetIpToLoaded()
     {
-        Sample.State =Sample.States.Loaded;
+        Sample.State = Sample.States.Loaded;
         InletPort.State = LinePort.States.Loaded;
     }
 
@@ -4691,6 +4691,41 @@ public class Cegs : ProcessManager, ICegs
         TransferCO2FromMCToGR(gr, aliquot);
     }
 
+    /// <summary>
+    /// Add hydrogen and graphitize the aliquot.
+    /// </summary>
+    /// <param name="aliquot"></param>
+    protected virtual void Graphitize(Aliquot aliquot)
+    {
+        if (aliquot.Name is "sulfur")
+            return;
+
+        var gr = GraphiteReactors.Find(gr => gr.Name == aliquot.GraphiteReactor);
+        if (gr is null || gr.Aliquot != aliquot || gr.State is not GraphiteReactor.States.Reserved)
+            return;
+
+        // make sure the coldfinger is actively cooling
+        var step = ProcessStep.Start("Ensure the aliquot's GR is frozen.");
+        gr.Coldfinger.FreezeWait();
+        step.End();
+
+        if (Manifold(gr) is not { } gm)
+        {
+            ConfigurationError($"Can't find graphite manifold for {gr.Name}.");
+            return;
+        }
+
+        gm.IsolateFromVacuum();
+
+        step = ProcessStep.Start($"Graphitize aliquot {aliquot.Name}.");
+        AddH2ToGR(aliquot);
+        gr.Start();
+        step.End();
+
+        gm.ClosePorts();
+        gm.OpenAndEvacuate(OkPressure);
+    }
+
     protected virtual double[] AdmitGasToPort(IGasSupply gs, double initialTargetPressure, IPort port)
     {
         if (!(gs?.FlowManager?.Meter is IMeter meter))
@@ -4836,13 +4871,18 @@ public class Cegs : ProcessManager, ICegs
     /// <summary>
     /// Transfer all of the sample's aliquots into their graphite reactors.
     /// </summary>
+    /// <remarks>Starts the reactor if <see cref="HoldSampleAtPorts" /> is <see langword="false"/>.</remarks>
     [Description("Transfer all of the sample's aliquots into their graphite reactors.")]
     protected virtual void FreezeAliquots()
     {
         var sample = CollectedSample;
         if (sample == null) return;
         foreach (Aliquot aliquot in sample.Aliquots)
+        {
             Freeze(aliquot);
+            if (!HoldSampleAtPorts)
+                Graphitize(aliquot);
+        }
         DequeueCollectedSample();
     }
 
@@ -4852,8 +4892,6 @@ public class Cegs : ProcessManager, ICegs
     [Description("Add hydrogen and graphitize all of the sample's aliquots.")]
     protected virtual void GraphitizeAliquots()
     {
-        var step = ProcessStep.Start("Ensure all reserved GRs are frozen.");
-        // By now, the collected samples are waiting as aliquots in the graphite reactors.
         var grs =
             GraphiteReactors
                 .Where(gr =>
@@ -4864,41 +4902,9 @@ public class Cegs : ProcessManager, ICegs
                 .ThenBy(gr => gr.Sample?.Split)
                 .ThenBy(gr => gr.Sample?.AliquotIndex(gr.Aliquot)).ToList();
 
-        // make sure they are actively cooling
         foreach (var gr in grs)
-            gr.Coldfinger.Freeze();
-
-        // set of grs to watch, remove gr when seen frozen
-        var waitingFor = new HashSet<IGraphiteReactor>(grs);
-        WaitFor(() =>
-        {
-            waitingFor.RemoveWhere(gr => gr.Coldfinger.Frozen);
-            return waitingFor.Count == 0;
-        }, -1, 1000);
-
-        step.End();
-
-        var gm = Manifold(grs);
-        if (gm == null)
-        {
-            var grList = string.Join(", ", grs.Select(gr => gr.Name));
-            ConfigurationError($"Can't find graphite manifold for {grList}.");
-            return;
-        }
-
-        gm.IsolateFromVacuum();
-        foreach (var gr in grs)
-        {
-            var aliquot = gr.Aliquot;
-            step = ProcessStep.Start("Graphitize aliquot " + aliquot.Name);
-            AddH2ToGR(aliquot);
-            gr.Start();
-            step.End();
-        }
-        gm.ClosePorts();
-        gm.OpenAndEvacuate(OkPressure);
+            Graphitize(gr.Aliquot);
     }
-
 
     #endregion Graphitize
 
@@ -6637,7 +6643,7 @@ public class Cegs : ProcessManager, ICegs
         gs?.Admit(pressure);
         WaitSeconds(10);
 
-        TestLog.Record($"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Latest.Elapsed:m':'ss}");
+        TestLog.Record($"Admit test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###}");
         gs?.Destination?.OpenAndEvacuate();
     }
 
@@ -6649,7 +6655,7 @@ public class Cegs : ProcessManager, ICegs
         gs?.Pressurize(pressure);
         WaitSeconds(15);
 
-        TestLog.Record($"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###} in {ProcessStep.Latest.Elapsed:m':'ss}");
+        TestLog.Record($"Pressurize test: {gasSupply}, target: {pressure:0.###}, stabilized: {gs.Meter.Value:0.###}");
         gs?.Destination?.OpenAndEvacuate();
     }
 
