@@ -112,6 +112,7 @@ public class Actuator : ManagedDevice, IActuator, Actuator.IDevice, Actuator.ICo
     protected virtual void OperationStarting()
     {
         StopRequested = false;
+        TimeoutDetected = false;
         ActionSucceeded = false;
         OperationFailed = false;
         Device.UpdatesReceived = 0;
@@ -170,7 +171,12 @@ public class Actuator : ManagedDevice, IActuator, Actuator.IDevice, Actuator.ICo
     double IDevice.Elapsed
     {
         get => Elapsed;
-        set => Elapsed = value;
+        set
+        {
+            Elapsed = value;
+            if (TimeLimitDetected)
+                TimeoutDetected = true;
+        }
     }
 
     public virtual double TimeLimit { get; set; }
@@ -187,6 +193,8 @@ public class Actuator : ManagedDevice, IActuator, Actuator.IDevice, Actuator.ICo
             Elapsed >= TimeLimit;
         protected set { }
     }
+
+    public virtual bool TimeoutDetected { get; set; } = false;
 
     public virtual bool InMotion
     {

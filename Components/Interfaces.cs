@@ -1027,6 +1027,11 @@ public interface IActuator : IManagedDevice, IOperatable
     bool TimeLimitDetected { get; }
 
     /// <summary>
+    /// TimeLimitDetected became true during the last operation.
+    /// </summary>
+    bool TimeoutDetected { get; }
+
+    /// <summary>
     /// The actuator is currently moving.
     /// </summary>
     bool InMotion { get; }
@@ -1151,9 +1156,14 @@ public interface ICpwActuator : IActuator
     int IdleCurrentLimit { get; set; }
 
     /// <summary>
-    /// The current limit was detected.
+    /// The present current exceeds its limit.
     /// </summary>
     bool CurrentLimitDetected { get; }
+
+    /// <summary>
+    /// The current limit was detected during the last operation.
+    /// </summary>
+    bool OvercurrentDetected { get; }
 
     /// <summary>
     /// Error codes reported by the controller.

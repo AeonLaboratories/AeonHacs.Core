@@ -225,7 +225,12 @@ public class CpwActuator : Actuator, ICpwActuator, CpwActuator.IDevice, CpwActua
     int IDevice.Current
     {
         get => Current;
-        set => Current = value;
+        set
+        {
+            Current = value;
+            if (CurrentLimitDetected)
+                OvercurrentDetected = true;
+        }
     }
 
     /// <summary>
@@ -284,6 +289,17 @@ public class CpwActuator : Actuator, ICpwActuator, CpwActuator.IDevice, CpwActua
             Device.Settings.CurrentLimit > 0 &&
             Current >= Device.Settings.CurrentLimit;
         protected set { }
+    }
+
+    /// <summary>
+    /// An overcurrent condition was detected during the operation.
+    /// </summary>
+    public virtual bool OvercurrentDetected { get; set; } = false;
+
+    protected override void OperationStarting()
+    {
+        base.OperationStarting();
+        OvercurrentDetected = false;
     }
 
     /// <summary>
