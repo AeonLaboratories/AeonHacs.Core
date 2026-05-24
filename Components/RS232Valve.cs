@@ -261,8 +261,18 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
 
     protected override void UpdateValveState()
     {
+        ValveState movementDirection()
+        {
+            // While in motion, avoid showing states Other and Unknown.
+            var dir = OperationDirection(Operation);
+            if ((dir == ValveState.Other || dir == ValveState.Unknown) &&
+                ValveState != ValveState.Other && ValveState != ValveState.Unknown)
+                dir = ValveState;
+            return dir;
+        }
+
         ValveState =
-            Active ? OperationDirection(Operation) :
+            Active ? movementDirection() :
             Position == OpenedValue ? ValveState.Opened :
             Position == ClosedValue ? ValveState.Closed :
             ValveState.Other;
