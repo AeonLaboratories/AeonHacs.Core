@@ -87,7 +87,9 @@ public class SerialDeviceManager : DeviceManager, ISerialDeviceManager,
     protected int ResponsesExpected = 0;
 
     /// <summary>
-    /// Returns the positive integer found at the end of the current
+    /// The channel number of the ServiceDevice, which is the
+    /// device currently being serviced by this device manager.
+    /// The channel number is the whole number at the end of the
     /// ServiceDevice's key. Returns -1 on failure.
     /// </summary>
     protected virtual int ChannelNumber =>
