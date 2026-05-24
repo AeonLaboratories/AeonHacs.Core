@@ -350,9 +350,9 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
             CloseWait();
 
         var multiplier = 1;
-        while (multiplier < 8 && (!CurrentLimitDetected || multiplier > 3))
+        while (multiplier < 8 && (!OvercurrentDetected || multiplier > 3))
         {
-            if (CurrentLimitDetected)
+            if (OvercurrentDetected)
             {
                 multiplier = 1;
                 Configure(operation, value, currentLimit, timeLimit, -3);
@@ -362,7 +362,7 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
                     ActuatorOperations.Remove(operation);
                     return;
                 }
-                if (CurrentLimitDetected || TimeLimitDetected)
+                if (OvercurrentDetected || TimeoutDetected)
                 {
                     // The valve is stuck trying to open. Calibrate() cannot continue
                     // because there is no way to tell whether it is stuck opened or closed
@@ -378,11 +378,11 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
                 ActuatorOperations.Remove(operation);
                 return;
             }
-            if (!CurrentLimitDetected)
+            if (!OvercurrentDetected)
                 ++multiplier;
         }
 
-        if (!CurrentLimitDetected)
+        if (!OvercurrentDetected)
         {
             Warn($"{Name} Calibration Failed", "Cannot find closed position.");
             ActuatorOperations.Remove(operation);
@@ -414,7 +414,7 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
     /// <summary>
     ///    Tries to find the closed position of the valve by the current required
     ///    to turn it. Success (i.e., the closed position was found) is indicated
-    ///    by CurrentLimitDetected, not by the return value.
+    ///    by OvercurrentDetected, not by the return value.
     /// </summary>
     /// <returns>True if the operation was not externally interrupted.</returns>
     protected virtual bool FindClosedPosition(ActuatorOperation operation, int maxTries = 5)
@@ -426,10 +426,10 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
             ClosedValue = MaximumPosition = Position + operation.Value + 1;
             DoWait(operation);
             ++tries;
-            if (TimeLimitDetected) operation.Value += 1;
+            if (TimeoutDetected) operation.Value += 1;
             if (!ActionSucceeded) isCalibrating = false;    // can't calibrate if we can't move it.
             if (StopRequested || !isCalibrating) return false;
-        } while (tries < maxTries && !CurrentLimitDetected);
+        } while (tries < maxTries && !OvercurrentDetected);
         return true;
     }
 
