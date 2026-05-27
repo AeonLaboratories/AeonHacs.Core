@@ -481,7 +481,18 @@ public class Sample : HacsComponent
 
     public override string ToString()
     {
-        var list = FindAll<Sample>().Where(s => s.LabId == LabId).OrderBy(s => s.Split).Select(toString);
-        return string.Join("\r\n", list);
+        var siblings = FindAll<Sample>()
+            .Where(s => s.LabId == LabId)
+            .OrderBy(s => s.Split)
+            .ThenBy(s => s.Name)
+            .ToList();
+
+        bool isSplitFamily =
+            siblings.Select(s => s.Split).Distinct().Count() > 1;
+
+        if (!isSplitFamily)
+            return toString(this);
+
+        return string.Join("\r\n", siblings.Select(toString));
     }
 }
