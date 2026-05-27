@@ -676,7 +676,7 @@ public class GasSupply : HacsComponent, IGasSupply
                 return true;
             }
             double anticipatedValue = Meter.Value + Meter.RateOfChange * SecondsSettlingTime;
-            if (anticipatedValue > targetValue + 15)  // TODO: magic number
+            if (anticipatedValue > targetValue + (FlowValve.IsClosed ? 0 : 5))  // TODO: magic number, 1/3 of excessive overshoot.
             {
                 reason = $"{Name} Stopped to avoid overshoot ({anticipatedValue:0.0} > {targetValue:0.0}).";
                 return true;
