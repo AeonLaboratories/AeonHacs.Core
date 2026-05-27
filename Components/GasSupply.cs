@@ -624,7 +624,7 @@ public class GasSupply : HacsComponent, IGasSupply
         majorStep.End();
 
         majorStep = MajorStep?.Start("Drain flow-supply volume");
-        bool success = WaitFor(() => vacuumSystem.Pressure <= PurgePressure, SecondsToPurge * 1000);
+        bool success = WaitFor(() => Math.Min(Meter?.Value ?? double.MaxValue, vacuumSystem.Pressure) <= PurgePressure, SecondsToPurge * 1000);
         SourceValve.CloseWait();
         IsolateFromVacuum();
         majorStep.End();
