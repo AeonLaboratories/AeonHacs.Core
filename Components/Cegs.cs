@@ -4762,6 +4762,15 @@ public class Cegs : ProcessManager, ICegs
             gr.Coldfinger.RaiseLN();
 
         double mL_GR = gr.MilliLiters;
+        if (mL_GR < 0.5 || mL_GR > 5)
+        {
+            if (Warn($"The {gr.Name} chamber volume is suspiciously out of range ({mL_GR:0.00} mL).",
+                $"Choose Ok to use standard value instead (3.33 mL) or Cancel to continue with {mL_GR:0.00}.\r\n" +
+                "Restart the application to abort the process.").Ok())
+            {
+                mL_GR = gr.MilliLiters = 3.33;
+            }
+        }
 
         double nCO2 = aliquot.MicrogramsCarbon * CarbonAtomsPerMicrogram;  // number of CO2 particles in the aliquot
         double nH2target = H2_CO2GraphitizationRatio * nCO2;   // ideal number of H2 particles for the reaction
