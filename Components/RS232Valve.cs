@@ -247,6 +247,7 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
     public virtual void MoveBy(int delta)
     {
         if (Disabled) return;
+        var operationName = $"_{(delta > 0 ? "Close " : "Open ")} {Math.Abs(delta)}/96 turn";
         var operation = FindOperation(operationName) as ActuatorOperation;
         if (operation != null) ActuatorOperations.Remove(operation);
         var closeOp = FindOperation("Close");
@@ -301,7 +302,7 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
     {
         operation.Value = multiplier * value;
         // assuming 2 seconds per turn, add time for movement past the minimum "value"
-        timeLimit += 2 / PositionsPerTurn * (Math.Abs(multiplier)-1) * value;
+        timeLimit += 2 / PositionsPerTurn * (Math.Abs(multiplier) - 1) * value;
         operation.Configuration = $"i{currentLimit} t{timeLimit:0.00}";
     }
 
@@ -380,7 +381,7 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
                 {
                     // The valve is stuck trying to open. Calibrate() cannot continue
                     // because there is no way to tell whether it is stuck opened or closed
-                    
+
                     Warn($"{Name} is stuck open or closed.",
                         "Manually free it, then click OK to continue.");
                 }
@@ -486,7 +487,8 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
     public override string ToString()
     {
         var sb = new StringBuilder($"{Name}: {ValveStateString(ValveState)}, Position = {Position}");
-        if (isCalibrating)
+
+        if (!Calibrated && isCalibrating)
             sb.Append(" (Calibrating)");
         else if (!Calibrated)
             sb.Append(" (Calibration needed)");
@@ -524,6 +526,6 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
             sb2.Append($"\r\nServo ControlOutput: {ControlOutput}, Updates: {RS232UpdatesReceived}");
 
         sb.Append(Utility.IndentLines(sb2.ToString()));
-            return sb.ToString();
+        return sb.ToString();
     }
 }
