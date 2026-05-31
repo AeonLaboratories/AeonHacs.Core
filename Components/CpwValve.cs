@@ -51,6 +51,7 @@ public class CpwValve : CpwActuator, ICpwValve, CpwValve.IDevice, CpwValve.IConf
 
     public virtual void Exercise()
     {
+        if (Disabled) return;
         if (Idle)
         {
             if (IsOpened)

@@ -277,6 +277,7 @@ public class Actuator : ManagedDevice, IActuator, Actuator.IDevice, Actuator.ICo
 
     public virtual void DoOperation(IActuatorOperation operation)
     {
+        if (Disabled) return;
         // If the actuator has no operations pending, short-cut
         // the validation check.
         if (Idle && ValidateOperation(operation) == null) return;

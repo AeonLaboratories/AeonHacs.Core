@@ -205,6 +205,8 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
 
     public override void DoOperation(string operationName)
     {
+        if (Disabled) return;
+
         if (operationName == "Stop")
         {
             Stop();
@@ -225,6 +227,7 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
 
     public virtual void MoveTo(int position)
     {
+        if (Disabled) return;
         var operationName = "_MoveTo";   // temporary
         var operation = FindOperation(operationName) as ActuatorOperation;
         if (operation != null) ActuatorOperations.Remove(operation);
@@ -243,7 +246,7 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
 
     public virtual void MoveBy(int delta)
     {
-        var operationName = $"_{(delta > 0 ? "Close ": "Open ")} {Math.Abs(delta)}/96 turn";
+        if (Disabled) return;
         var operation = FindOperation(operationName) as ActuatorOperation;
         if (operation != null) ActuatorOperations.Remove(operation);
         var closeOp = FindOperation("Close");
@@ -308,6 +311,7 @@ public class RS232Valve : CpwValve, IRS232Valve, RS232Valve.IDevice, RS232Valve.
     /// </summary>
     public void Calibrate()
     {
+        if (Disabled) return;
         int value = 1;
         int currentLimit = 400;
         double timeLimit = 0.4;
