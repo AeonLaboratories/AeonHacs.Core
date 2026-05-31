@@ -352,7 +352,7 @@ public class SerialController : StateManager, ISerialController
     /// <summary>
     /// The Command message from the selected service.
     /// </summary>
-    public string ServiceCommand { get; private set; }  = "";
+    public string ServiceCommand { get; private set; } = "";
 
     /// <summary>
     /// The number of device messages expected in response
@@ -387,6 +387,9 @@ public class SerialController : StateManager, ISerialController
     }
 
     private int priorAwaitingResponses = -1;
+
+    bool ClearCommands = false;
+    public virtual void Clear() => ClearCommands = true;
 
     /// <summary>
     ///
@@ -427,6 +430,15 @@ public class SerialController : StateManager, ISerialController
         if (ServiceCommand.IsBlank())
         {
             AwaitingResponses = 0;
+        }
+        else if (ClearCommands)
+        {
+            ServiceCommand = "";
+            CommandMessage = "";
+            CommandMessages = null;
+            AwaitingResponses = 0;
+            priorAwaitingResponses = 0;
+            ClearCommands = false;
         }
         else
         {
@@ -537,6 +549,7 @@ public class SerialController : StateManager, ISerialController
     /// <returns>true if the SerialDevice is Ready</returns>
     protected virtual bool Send(string message)
     {
+        if (ClearCommands) return true;
 
         if (LogCommands || LogEverything)
         {
