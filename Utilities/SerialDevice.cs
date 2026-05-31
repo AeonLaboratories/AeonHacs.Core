@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using static AeonHacs.Notify;
+using static AeonHacs.Utilities.Utility;
 
 namespace AeonHacs.Utilities;
 
@@ -184,9 +185,11 @@ public class SerialDevice : INotifyPropertyChanged
         get => log;
         set
         {
-            log?.Record($"SerialDevice Log = {value?.FileName}, was {log.FileName}");
+            var was = log?.FileName;
+            log?.Record($"SerialDevice @{PortSettings?.PortName} Log = {value?.FileName}");
             log?.Close();
             log = value;
+            log?.Record($"SerialDevice @{PortSettings?.PortName} Log was {was}");
         }
     }
     LogFile log;
@@ -249,7 +252,7 @@ public class SerialDevice : INotifyPropertyChanged
     {
         if (string.IsNullOrEmpty(command))
             return false;
-        Log?.Record($"SerialDevice received Command \"{Escape(command)}\"");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} received Command \"{Escape(command)}\"");
         commandQ.Enqueue(command);
         txThreadSignal.Set();   // release txThread block
         return Ready;
@@ -266,19 +269,7 @@ public class SerialDevice : INotifyPropertyChanged
     /// <summary>
     /// Wait until the device is disconnected or has nothing to do.
     /// </summary>
-    public void WaitForIdle() { while (!Idle) Thread.Sleep(5); }
-
-    /// <summary>
-    /// Disconnects and reconnects the serial port.
-    /// </summary>
-    public void Reset()
-    {
-        Log?.Record($"Resetting SerialDevice on {PortSettings?.PortName}...");
-        Disconnect();
-        Resets++;
-        Connect();
-        Log?.Record($"...{PortSettings?.PortName} reset complete.");
-    }
+    public void WaitForIdle() => WaitFor(() => Idle, -1, 5);
 
     /// <summary>
     /// A utility method that tries to make the string
@@ -296,7 +287,6 @@ public class SerialDevice : INotifyPropertyChanged
         else
             return s;
     }
-
 
 
     public SerialDevice()
@@ -347,13 +337,98 @@ public class SerialDevice : INotifyPropertyChanged
     Stopwatch txSw = new Stopwatch();
     Stopwatch rxSw = new Stopwatch();
 
+    /// <summary>
+    /// Creates a new communications session, including buffers,
+    /// queues, protocol engines, timers, parser state, and other
+    /// transient per-connection data.
+    /// 
+    /// Discards all in-flight communication, queued commands, 
+    /// parser state, transient error conditions, and timing data.
+    ///
+    /// Does not modify configuration, event subscriptions,
+    /// response handlers, logging, or lifetime diagnostics.
+    /// </summary>
+    void CreateCommsSession()
+    {
+        commandQ = new ConcurrentQueue<string>();
+        transmitting = false;
 
+        rx = new byte[RXBUF_SIZE];
+        Rxb_write = 0;
+        Rxb_head = 0;
+
+        rxCrc = CrcConfig == null ? null : new Crc(CrcConfig);
+        txCrc = CrcConfig == null ? null : new Crc(CrcConfig);
+
+        ErrorBufferOverflow = false;
+        ErrorCrc = false;
+        RxCrcCode = 0;
+        ResponseCount = 0;
+
+        txSw.Reset();
+        rxSw.Reset();
+
+        while (txThreadSignal.WaitOne(0)) { }
+        while (rxThreadSignal.WaitOne(0)) { }
+        while (prxThreadSignal.WaitOne(0)) { }
+    }
+
+
+    /// <summary>
+    /// Raises the Connected event while isolating SerialDevice
+    /// from subscriber exceptions, which could otherwise interrupt
+    /// connection initialization.
+    /// </summary>
+    void DispatchConnected()
+    {
+        try
+        {
+            Connected?.Invoke(this, null);
+        }
+        catch (Exception e)
+        {
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} Connected handler exception: {e}");
+
+            Announce($"SerialDevice {PortSettings?.PortName}: Connected event handler failed.",
+                e.ToString(), type: NoticeType.Error);
+        }
+    }
+
+    /// <summary>
+    /// Raises the Disconnecting event while isolating SerialDevice
+    /// from subscriber exceptions, which could otherwise interrupt
+    /// disconnection and recovery operations.
+    /// </summary>
+    void DispatchDisconnecting()
+    {
+        try
+        {
+            Disconnecting?.Invoke(this, null);
+        }
+        catch (Exception e)
+        {
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} Disconnecting handler exception: {e}");
+
+            Announce($"SerialDevice {PortSettings?.PortName}: Disconnecting event handler failed.",
+                e.ToString(), type: NoticeType.Error);
+        }
+    }
+
+    /// <summary>
+    /// Opens and configures the serial port, creates a new
+    /// communications session, and starts the worker threads
+    /// responsible for transmitting, receiving, and processing
+    /// messages.
+    ///
+    /// Returns true if the port was successfully opened and the
+    /// communications session was started; otherwise, returns false.
+    /// </summary>
     public bool Connect()
     {
         try
         {
             if (connected) return true;
-            Log?.Record("SerialDevice connecting...");
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} connecting...");
 
             SerialPortMonitor.PortArrived -= OnPortConnected;   // avoid duplicates
             SerialPortMonitor.PortRemoved -= OnPortRemoved;
@@ -391,12 +466,7 @@ public class SerialDevice : INotifyPropertyChanged
                     port.SetRtsControlToggle();
                 port.DtrEnable = true;
 
-                ClearRxb();
-                rxCrc = CrcConfig == null ? null : new Crc(CrcConfig);
-                txCrc = CrcConfig == null ? null : new Crc(CrcConfig);
-                CRCErrors = 0;
-                ResponseCount = 0;
-
+                CreateCommsSession();
                 active = true;  // keep the threads alive
 
                 // enable this thread to retrieve SerialPort data asynchronously
@@ -415,44 +485,125 @@ public class SerialDevice : INotifyPropertyChanged
                 SerialPortMonitor.PortArrived += OnPortConnected;
                 SerialPortMonitor.PortRemoved += OnPortRemoved;
                 connected = true;
-                Log?.Record("...SerialDevice connected.");
-                Connected?.Invoke(this, null);
+                Log?.Record($"...SerialDevice connected to @{PortSettings?.PortName}.");
+                DispatchConnected();
                 return true;
             }
             else
-                Log?.Record($"Failed to connect to {port.PortName}.");
+            {
+                Log?.Record($"SerialDevice @{PortSettings?.PortName}: port did not open.");
+                Announce($"SerialDevice {PortSettings?.PortName}: Connect failed.",
+                    "The serial port did not open.",
+                    type: NoticeType.Error);
+            }
         }
-        catch { Disconnect(); }
+        catch (Exception e)
+        {
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} Connect exception: {e}");
+            Announce($"SerialDevice {PortSettings?.PortName}: Connect failed.",
+                e.ToString(), type: NoticeType.Error);
+            Disconnect();
+        }
         return false;
     }
 
-    // Disposing the USBSerialPort makes sure it is registered by Windows
-    // in HKEY_LOCAL_MACHINE\HARDWARE\DEVICEMAP\SERIALCOMM, so that
-    // SerialPort.GetPortNames() can re-detect the port.
-    public void Disconnect()
+    /// <summary>
+    /// Stops the communications session, closes and disposes the
+    /// serial port, and waits a limited time for the worker threads
+    /// to terminate.
+    ///
+    /// Returns true unless errors occurred during disconnection
+    /// that may have left resources unreclaimed. Such errors are
+    /// logged. A false return may indicate that one or more worker 
+    /// threads are still running.
+    /// 
+    /// Despite any errors, SerialDevice attempts to close the port
+    /// and release as many resources as possible. Reconnection may
+    /// safely be re-attempted.
+    /// </summary>
+    public bool Disconnect()
     {
-        Log?.Record("SerialDevice disconnecting...");
-        if (connected) Disconnecting?.Invoke(this, null);
+        var errors = 0;
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} disconnecting...");
+        if (connected) DispatchDisconnecting();
         connected = false;
         active = false;
 
         SerialPortMonitor.PortArrived -= OnPortConnected;
         SerialPortMonitor.PortRemoved -= OnPortRemoved;
 
-        port?.ClearRtsControlToggle();
-        port?.Close();
-        port?.Dispose();
-        port = null;
-
         txThreadSignal?.Set();
         rxThreadSignal?.Set();
         prxThreadSignal?.Set();
-        while (
-            (txThread?.IsAlive ?? false) ||
-            (rxThread?.IsAlive ?? false) ||
-            (prxThread?.IsAlive ?? false)) Thread.Sleep(5);
-        Log?.Record("...SerialDevice disconnected.");
+
+        try { port?.ClearRtsControlToggle(); }
+        catch (Exception e) { errors++; Log?.Record($"SerialDevice @{PortSettings?.PortName} ClearRtsControlToggle exception: {e}"); }
+
+        try { port?.Close(); }
+        catch (Exception e) { errors++; Log?.Record($"SerialDevice @{PortSettings?.PortName} port close exception: {e}"); }
+
+        // Disposing the USBSerialPort makes sure it is registered by Windows
+        // in HKEY_LOCAL_MACHINE\HARDWARE\DEVICEMAP\SERIALCOMM, so that
+        // SerialPort.GetPortNames() can re-detect the port.
+        try { port?.Dispose(); }
+        catch (Exception e) { errors++; Log?.Record($"SerialDevice @{PortSettings?.PortName} port dispose exception: {e}"); }
+
+        port = null;
+
+        bool allStopped = WaitFor(() =>
+            !(txThread?.IsAlive ?? false) &&
+            !(rxThread?.IsAlive ?? false) &&
+            !(prxThread?.IsAlive ?? false),
+            100, 5);
+
+        if (!allStopped)
+        {
+            errors++;
+            var hungThreads =
+                $"{((txThread?.IsAlive ?? false) ? "Transmit " : "")}" +
+                $"{((rxThread?.IsAlive ?? false) ? "Receive " : "")}" +
+                $"{((prxThread?.IsAlive ?? false) ? "ProcessRx " : "")}";
+            Log?.Record($"SerialDevice @{PortSettings?.PortName}: worker thread shutdown timeouts: {hungThreads.Trim()}");
+
+            Announce($"SerialDevice {PortSettings?.PortName}: worker thread shutdown timeout.",
+                $"The following thread(s) failed to terminate: {hungThreads.Trim()}",
+                type: NoticeType.Warning);
+        }
+
+        Log?.Record($"...SerialDevice @{PortSettings?.PortName} disconnected.");
+
+        return errors == 0;
     }
+
+    /// <summary>
+    /// Rebuilds the communications session by disconnecting and
+    /// reconnecting the serial port while preserving configuration,
+    /// event subscriptions, response handlers, logging, and
+    /// lifetime diagnostics.
+    ///
+    /// All in-flight communication, queued commands, parser state,
+    /// transient error conditions, and timing data are discarded.
+    ///
+    /// Returns true if a new communications session was successfully
+    /// established; otherwise, returns false.
+    ///
+    /// The previous communications session is terminated to the best
+    /// of SerialDevice's ability. Failure to cleanly terminate the
+    /// previous session does not necessarily prevent a successful
+    /// reset.
+    /// </summary>
+    public bool Reset()
+    {
+        Log?.Record($"Resetting SerialDevice on {PortSettings?.PortName}...");
+        Disconnect();
+        Resets++;
+        var connected = Connect();
+        Log?.Record(connected
+            ? $"...{PortSettings?.PortName} reset complete."
+            : $"...{PortSettings?.PortName} reset failed.");
+        return connected;
+    }
+
 
     void OnPortConnected(string portName)
     {
@@ -472,7 +623,7 @@ public class SerialDevice : INotifyPropertyChanged
     // of baud rate.)
     void Transmit()
     {
-        Log?.Record($"SerialDevice starting Transmit thread.");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} starting Transmit thread.");
         try
         {
             byte[] tx = { };                        // transmit data buffer
@@ -490,7 +641,7 @@ public class SerialDevice : INotifyPropertyChanged
                         {
                             if (MillisecondsSinceLastTx >= MillisecondsBetweenMessages)
                             {
-                                Log?.Record($"SerialDevice Transmit ({MillisecondsSinceLastTx:0} ms since last): \"{Escape(command)}\"");
+                                Log?.Record($"SerialDevice @{PortSettings?.PortName} Transmit ({MillisecondsSinceLastTx:0} ms since last): \"{Escape(command)}\"");
                                 port.Write(tx, 0, tx.Length);
                                 txSw.Restart();
                                 txbOut = tx.Length;
@@ -502,7 +653,7 @@ public class SerialDevice : INotifyPropertyChanged
                         {
                             if (MillisecondsSinceLastTx >= MillisecondsBetweenBytes)
                             {
-                                Log?.Record($"SerialDevice Transmit ({MillisecondsSinceLastTx:0} ms since last) 0x{tx[txbOut]:x2} (\'{tx[txbOut]}\')");
+                                Log?.Record($"SerialDevice @{PortSettings?.PortName} Transmit ({MillisecondsSinceLastTx:0} ms since last) 0x{tx[txbOut]:x2} (\'{tx[txbOut]}\')");
                                 port.Write(tx, txbOut++, 1);
                                 txSw.Restart();
                             }
@@ -513,7 +664,7 @@ public class SerialDevice : INotifyPropertyChanged
                     catch (Exception e)
                     {
                         // ignore port write errors?
-                        Log?.Record("SerialDevice (transmit) exception: " + e.ToString());
+                        Log?.Record($"SerialDevice @{PortSettings?.PortName} (transmit) exception: {e}");
                         // but take a breather
                         Thread.Sleep(Math.Max(20, MillisecondsBetweenMessages));
                     }
@@ -546,10 +697,14 @@ public class SerialDevice : INotifyPropertyChanged
         }
         catch (Exception e)
         {
-            Announce("Exception in SerialDevice.Transmit()", 
-                $"{e}\r\nPort: {PortSettings?.PortName}", type: NoticeType.Error);
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} fatal Transmit exception: {e}");
+            Announce($"SerialDevice {PortSettings?.PortName}: Transmit thread failed.",
+                e.ToString(), type: NoticeType.Error);
         }
-        Log?.Record($"SerialDevice ending Transmit thread.");
+        finally
+        {
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} ending Transmit thread.");
+        }
     }
 
     #region process received bytes
@@ -562,7 +717,6 @@ public class SerialDevice : INotifyPropertyChanged
     // ring buffer pointer movement and state
     int Advance(int p) { return ((p + 1) % RXBUF_SIZE); }
     int Retreat2(int p) { return ((p + RXBUF_SIZE - 2) % RXBUF_SIZE); }
-
     int ClearRxb() { Rxb_head = Rxb_write; return Rxb_head; }
 
     string RxbSequence(int tail)
@@ -584,13 +738,45 @@ public class SerialDevice : INotifyPropertyChanged
         CRCErrors++;
     }
 
+    /// <summary>
+    /// Replace the last 'tail' characters of s with their byte codes enclosed with [].
+    /// E.g., HexifyTail("A line\r\n", 2) returns "A line[13 10]"
+    /// tail is 5 by default because messages often end with \r\n[CRC1 CRC2][ETX].
+    /// </summary>
+    string HexifyTail(string s, int tail = 5)
+    {
+        if (s.Length < tail) return s;
+        return $"{Escape(s[..^tail])} [{s[^tail..].ToByteString()}]";
+    }
+
+    /// <summary>
+    /// Invokes ResponseReceivedHandler while isolating SerialDevice
+    /// from handler exceptions, which could otherwise terminate
+    /// ProcessRx() or ProcessRx2().
+    /// </summary>
+    bool DispatchResponse(string s)
+    {
+        try
+        {
+            ResponseReceivedHandler?.Invoke(s);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} ResponseReceivedHandler exception: {e}");
+            Announce($"SerialDevice @{PortSettings?.PortName} response handler failed.",
+                e.ToString(), type: NoticeType.Error);
+            return false;
+        }
+    }
+
     // Scans through the rx buffer, extracts CRC-validated messages,
     // and sends them to the ResponseReceived delegate.
     // Runs in its own thread, prxThread.
     // Requires a valid (non-null) CrcConfig
     void ProcessRx()
     {
-        Log?.Record($"SerialDevice starting ProcessRx thread.");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} starting ProcessRx thread.");
 
         try
         {
@@ -610,9 +796,9 @@ public class SerialDevice : INotifyPropertyChanged
                         ETXCount++;
                         if (rxCrc.Good())
                         {
-                            string s = RxbSequence(Retreat2(rxb_read)); // don't include CRC code
-                            Log?.Record("SerialDevice.ProcessRx: " + Escape(s.TrimEnd()));   // remove trailing whitespace
-                            ResponseReceivedHandler?.Invoke(s);
+                            string s = RxbSequence(Retreat2(rxb_read)); // don't include CRC code (or TermChar)
+                            Log?.Record($"SerialDevice @{PortSettings?.PortName}.ProcessRx: {Escape(s.TrimEnd())}");   // remove trailing whitespace
+                            DispatchResponse(s);
                             ResponseCount++;
                         }
                         else bwuTermChar = 1;
@@ -621,11 +807,11 @@ public class SerialDevice : INotifyPropertyChanged
                         {
                             if (ErrorCrc)
                             {
-                                string s = RxbSequence(rxb_read);
-                                Log?.Record("SerialDevice.ProcessRx: " + Escape(s) + " [CRC Error]");
+                                var s = HexifyTail(RxbSequence(rxb_read));
+                                Log?.Record($"SerialDevice @{PortSettings?.PortName}.ProcessRx: {s} [CRC Error]");
                                 if (IgnoreCRCErrors)
                                 {
-                                    ResponseReceivedHandler?.Invoke(s);
+                                    DispatchResponse(s);
                                     ResponseCount++;
                                 }
                             }
@@ -644,7 +830,18 @@ public class SerialDevice : INotifyPropertyChanged
                     if (!ErrorCrc && bwuTermChar > 2)
                     {
                         HandleCrcError();
-                        Log?.Record("SerialDevice.ProcessRx: " + Escape(RxbSequence(rxb_read)) + " [CRC Error]");
+
+                        // Assume the TermChar was the end of a message with a bad CRC
+                        // and the byte following it is the start of a new message.
+                        rxb_read = Retreat2(rxb_read);
+
+                        var s = HexifyTail(RxbSequence(rxb_read), 5);
+                        Log?.Record($"SerialDevice @{PortSettings?.PortName}.ProcessRx: {s} [CRC Error b]");
+
+                        Rxb_head = rxb_read;
+                        bwuTermChar = 0;
+                        rxCrc.Init();
+                        ErrorCrc = false;
                     }
                 }
                 if (ErrorBufferOverflow)
@@ -659,17 +856,18 @@ public class SerialDevice : INotifyPropertyChanged
         }
         catch (Exception e)
         {
-            Announce($"Unable to process messages from {PortSettings.PortName}.",
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} fatal ProcessRx exception: {e}");
+            Announce($"SerialDevice {PortSettings?.PortName}: ProcessRx thread failed.",
                 e.ToString(), type: NoticeType.Error);
         }
-        Log?.Record($"SerialDevice ending ProcessRx thread.");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} ending ProcessRx thread.");
     }
 
     // No TermChar; this version detects end of message by a period of silence.
     // the rx buffer is expected to contain a whole message
     void ProcessRx2()
     {
-        Log?.Record($"SerialDevice starting ProcessRx2 thread.");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} starting ProcessRx2 thread.");
         try
         {
             while (prxThreadSignal.WaitOne() && active)
@@ -698,24 +896,25 @@ public class SerialDevice : INotifyPropertyChanged
                 {
                     if (s.Length > 0)
                     {
-                        Log?.Record($"SerialDevice.ProcessRx2: {Escape(s.TrimEnd())}");
-                        ResponseReceivedHandler?.Invoke(s);
+                        Log?.Record($"SerialDevice @{PortSettings?.PortName}.ProcessRx2: {Escape(s.TrimEnd())}");
+                        DispatchResponse(s);
                         ResponseCount++;
                     }
                 }
                 else        // !rxCrc.Good()
                 {
                     HandleCrcError();
-                    Log?.Record($"SerialDevice.ProcessRx2: \"{Escape(s)}\" [CRC Error]");
+                    Log?.Record($"SerialDevice @{PortSettings?.PortName}.ProcessRx2: \"{Escape(s)}\" [CRC Error]");
                 }
             }
         }
         catch (Exception e)
         {
-            Announce($"Unable to process messages from {PortSettings.PortName}.",
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} fatal ProcessRx2 exception: {e}");
+            Announce($"SerialDevice {PortSettings?.PortName}: ProcessRx2 thread failed.",
                 e.ToString(), type: NoticeType.Error);
         }
-        Log?.Record($"SerialDevice ending ProcessRx2 thread.");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} ending ProcessRx2 thread.");
     }
 
     #endregion process received bytes
@@ -728,13 +927,13 @@ public class SerialDevice : INotifyPropertyChanged
 
     void GetRxData()
     {
-        Log?.Record($"SerialDevice GetRxData triggered");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} GetRxData triggered");
         int n;
         try { n = port?.Read(xferBuffer, 0, xferBufferSize) ?? 0; }
         catch { n = 0; }
         if (n == 0)
         {
-            Log?.Record($"SerialDevice (GetRxData): Nothing found.");
+            Log?.Record($"SerialDevice @{PortSettings?.PortName} (GetRxData): Nothing found.");
             return;
         }
         rxSw.Restart();
@@ -766,12 +965,11 @@ public class SerialDevice : INotifyPropertyChanged
 
         TotalBytesRead += (uint)n;
         // DEBUG CODE
-        //Log?.Record($"SerialDevice (GetRxData): \"{Escape(RxbSequence(Rxb_write))}\" (TotalBytesRead = {TotalBytesRead})");
-        Log?.Record($"SerialDevice (GetRxData): TotalBytesRead = {TotalBytesRead}");
+        var s = HexifyTail(RxbSequence(Rxb_write), 5);
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} (GetRxData): \"{s}\" (TotalBytesRead = {TotalBytesRead})");
 
         prxThreadSignal.Set();   // process what was received
     }
-
 
     // Serial port data-received signals often arrive several times
     // per millisecond, heralding as few as one byte each. This method
@@ -781,7 +979,7 @@ public class SerialDevice : INotifyPropertyChanged
     // whole messages at a time.
     void Receive()
     {
-        Log?.Record($"SerialDevice starting Receive thread.");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} starting Receive thread.");
 
         bool signalReceived = false;
         while (active)
@@ -795,16 +993,23 @@ public class SerialDevice : INotifyPropertyChanged
 
                 // This version does not call getRxData unless at least one signal arrives.
                 if (rxThreadSignal.WaitOne(signalReceived ? MaximumMillisecondsSilenceInMessage : 500))
+                {
+                    if (!active) break;
                     signalReceived = true;
+                }
                 else if (signalReceived)
                 {
+                    if (!active) break;
                     GetRxData();
                     signalReceived = false;
                 }
             }
-            catch (Exception e) { Log?.Record($"SerialDevice (Receive): {e}"); }
+            catch (Exception e)
+            {
+                Log?.Record($"SerialDevice @{PortSettings?.PortName} Receive exception: {e}"); 
+            }
         }
-        Log?.Record($"SerialDevice ending Receive thread.");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName} ending Receive thread.");
     }
 
 
@@ -819,7 +1024,7 @@ public class SerialDevice : INotifyPropertyChanged
 
     void PinChanged(object sender, SerialPinChangedEventArgs e)
     {
-        Log?.Record($"SerialDevice: A pin changed: {e.EventType}");
+        Log?.Record($"SerialDevice @{PortSettings?.PortName}: A pin changed: {e.EventType}");
     }
 
     /// <summary>
