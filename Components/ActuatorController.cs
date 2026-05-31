@@ -20,6 +20,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
     public enum OperationState
     {
         Free,
+        Initiating,
         Configuring,
         Confirming,
         Going,
@@ -131,6 +132,9 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         /// </summary>
         BadDataLogInterval = 16,
     }
+
+    string AeonServoModel { get; set; }
+    string AeonServoFirmware { get; set; }
 
     //
     // TODO: need to add and use old AeonServoErrorCodes for servos
@@ -412,10 +416,9 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
 
         if (State != priorState)
         {
+            if (LogEverything) Log?.Record($"State: {priorState} => {State}");
             priorState = State;
             operationStateStopwatch.Restart();
-            if (LogEverything)
-                Log?.Record($"State = {State}");
         }
 
         // was premature stop requested by actuator?
@@ -427,6 +430,9 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
             case OperationState.Free:
                 peakCurrent = 0;
                 pushed = false;
+                State = InitiateOperation(a);
+                break;
+            case OperationState.Initiating:
                 State = InitiateOperation(a);
                 break;
             case OperationState.Configuring:
@@ -475,7 +481,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
                 sysLogEntry += ": failed.";
 
             if (pushed || operation?.Name != null)
-                sysLogEntry += $" {(operation.Incremental ? "i":"")}{operation.Value}: {initialCurrent} => {peakCurrent}";
+                sysLogEntry += $" {(operation.Incremental ? "i" : "")}{operation.Value}: {initialCurrent} => {peakCurrent}";
             if (!pushed && operation?.Name != null)
             {
                 sysLogEntry += (peakCurrent > initialCurrent) ? " (small push)" : "(no push?)";
@@ -498,19 +504,51 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
             State = OperationState.Free;
             if (LogEverything) Log?.Record("Operation done.");
         }
-        if (LogEverything && State != priorState) Log?.Record($"State = {State}");
     }
 
-    // OperationState == Free
+    /// <summary>
+    /// The last channel unless it's active, in which case, the one before.
+    /// </summary>
+    int OtherChannel => ChannelNumber == Channels - 1 ? Channels - 2 : Channels - 1;
+
+    // OperationState == Free, Initiating
     OperationState InitiateOperation(ICpwActuator a)
     {
+        // make sure we're working with a fresh report and current state
+        if (LastCommand != "r")
+        {
+            if (LogEverything) Log?.Record($"Waiting {20} ms for the device to act on prior command.");
+            Thread.Sleep(20);       // give the device time to complete the configuration operations
+            SetServiceValues("r", 1);
+            return OperationState.Initiating;
+        }
+
+        // Ensure the correct channel is *not* selected, so the subsequent connection will be 'fresh'
+        if (SelectedActuator == ChannelNumber)
+        {
+            if (LogEverything) Log?.Record($"Selecting 'off'-channel {OtherChannel} to ensure disconnect.");
+            SetServiceValues($"n{OtherChannel}");
+            return OperationState.Initiating;
+        }
+
+        // Re-establish these values whenever an actuator is selected for an operation
+        AeonServoModel = "";
+        AeonServoFirmware = "";
+        DisconnectedAeonServo = false;
+
+        // Now, select the correct channel and validate the operation
+        if (LogEverything) Log?.Record($"Selecting {a.Name} on channel {ChannelNumber} and sending 'clear'.");
         SetServiceValues($"n{ChannelNumber} c");
         operation = a.ValidateOperation(a.FindOperation(ServiceRequest ?? ""));
         if (operation != null)
         {
+            if (LogEverything) Log?.Record($"{a.Name}.{operation.Name} is validated.");
             a.Device.Operation = operation;
             stopping = false;
-            a.Device.Active = true;
+            // Allow remaining active to enable restart without implied failure;
+            // setting Active false triggers an evaluation of the operation.
+            if (LogEverything && a.Device.Active) Log?.Record($"Keeping {a.Name} Active (retry?).");
+            if (!a.Device.Active) a.Device.Active = true;
         }
 
         if (LogEverything)
@@ -518,7 +556,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
             if (operation == null)
                 Log?.Record($"Selecting {a.Name}");
             else
-                Log?.Record($"Initiating \"{operation?.Name}\" for {a.Name}");
+                Log?.Record($"Initiating {a.Name}.{operation?.Name} (channel {ChannelNumber})");
         }
         return OperationState.Configuring;
     }
@@ -537,7 +575,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         return OperationState.Confirming;
     }
 
-        // OperationState == Confirming
+    // OperationState == Confirming
     OperationState ConfirmConfiguration(ICpwActuator a)
     {
         // TODO: Perhaps add a SerialController.StateLoopTimeout callback, and
@@ -551,17 +589,19 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
             return State;
         }
 
+        var v = a as IRS232Valve;
         if (!a.Configured)
             return OperationState.Configuring;  // try again...
-        else
+        else if (a is IRS232Valve && (AeonServoModel.IsBlank() || !AeonServo.Responsive))
         {
-            // The actuator is connected by selecting its channel.
-            DisconnectedAeonServo = false;
-            // Technically, AeonServo only exists when (a is RS232Valve),
-            // but it feels weird to not set this default value in any case.
-            // TODO?: initiate AeonServo connection here (use 'z' to get firmware version.)
-            // This would also establish comms, as up to 3 attempts may be required to get
-            // a response.
+            // After actuator controller is configured, establish AeonServo comms.
+            // Selecting its channel connects the actuator.
+            OperateAeonServo(v, true, 200); // Servo hello/config should take < 100 ms
+            if (AeonServoModel.IsBlank())
+            {
+                Log?.Record($"Timed out trying to establish AeonServo comms.");
+                return OperationState.Initiating;   // Start over from scratch
+            }
         }
 
         // Wait up to 1000 ms for idle current.
@@ -573,9 +613,6 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
             return State;
         }
 
-        if (a is IRS232Valve v && v.Device.RS232UpdatesReceived < 1) // Servo config needed
-            return OperateAeonServo(v, true, 200);     // Servo config should take < 100 ms
-
         return OperationState.Going;
     }
 
@@ -585,7 +622,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         if (a.Device.ControlPulseEnabled)
         {
             if (a is IRS232Valve v && CommandedMovement == 0 && !v.EnoughMatches)
-                return OperateAeonServo(a);
+                return OperateAeonServo(v);
             return OperationState.AwaitingMotion;
         }
 
@@ -607,22 +644,19 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
     }
 
     // OperationState == AwaitingMotion
-    OperationState CheckForMotion(ICpwActuator a)
+    OperationState CheckForMotion(ICpwActuator a) // or find that there won't be any
     {
-        if (a.InMotion || a.MotionInhibited || a is IRS232Valve v && v.EnoughMatches)
-        {
-            StopChecks = 0;
-            return OperationState.AwaitingStopped;
-        }
-
+        var motionDetected = a.InMotion;
         // (CommandedMovement != 0) => MovementNeeded
-        if (a is IRS232Valve && CommandedMovement != 0)
-        {
-            if (AeonServoGoFailed)
-                return OperationState.Going;
-            return OperateAeonServo(a);
-        }
-        return State;
+        var motionExpected = !(a.MotionInhibited || a is IRS232Valve v && (v.EnoughMatches || CommandedMovement == 0));
+        if (motionDetected || !motionExpected)
+            return OperationState.AwaitingStopped;
+
+        if (a is not IRS232Valve || AeonServoGoFailed)
+            return OperationState.Going;    // try again
+
+        if (LogEverything) Log?.Record($"Operating AeonServo.");
+        return OperateAeonServo(a);
     }
 
     // OperationState == Stopping
@@ -630,26 +664,24 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
     {
         stopping = true;
         if (a.Device.ControlPulseEnabled)
-            SetServiceValues("s");      // stopping the actuator controller is enough;
+            SetServiceValues("s");      // Just stop the controller;
                                         // AeonServo is stopped automatically when the controller stops,
                                         // and it may not respond to stop commands if it's stalled.
         return OperationState.AwaitingStopped;
     }
 
     /// <summary>
-    /// Whether AeonServo was disconnected during operation due to an overcurrent detection.
+    /// Whether AeonServo was disconnected during operation (e.g., due to an overcurrent).
     /// </summary>
     bool DisconnectedAeonServo = false;
-    int StopChecks = 0;
 
     // OperationState == AwaitingStopped
     OperationState CheckForStopped(ICpwActuator a)
     {
-        if (LastCommand == "r") StopChecks++;
-        if (LogEverything) Log?.Record($"Waiting {20} ms before checking stop conditions.");
-        Thread.Sleep(20);
-        if (StopChecks < 1)
+        if (LastCommand != "r")
         {
+            if (LogEverything) Log?.Record($"Waiting {20} ms before checking stop conditions.");
+            Thread.Sleep(20);
             SetServiceValues("r", 1);
             return State;
         }
@@ -670,7 +702,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         var vSelected = SelectedActuator == ChannelNumber;
         var vReconnected = DisconnectedAeonServo && vSelected;
         if (vReconnected)   // treat stop-on-current-limit as 'reached intended position'
-            v.Device.ConsecutiveMatches = 10;       // enough to make v.EnoughMatches true
+            v.Device.ConsecutiveMatches = v.Config.ConsecutiveMatches;  // force EnoughMatches true
         var vStopped = v == null || DisconnectedAeonServo || !v.Linked || v.EnoughMatches;
         var vCleared = v == null || (vSelected && vStopped && v.CommandedMovement == 0);
 
@@ -681,17 +713,18 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         if (LogEverything) Log?.Record($"{(vReconnected ? "" : "!")}vReconnected.");
         if (!aStopped)
         {
-            if (v is IRS232Valve && vStopped)
+            if (a is IRS232Valve && vStopped)
                 return OperationState.Stopping; // stop a
 
             // neither a nor v have stopped; monitor state
+            if (LogEverything) Log?.Record($"Neither a nor v have stopped; monitoring state.");
             // current indicates the actuator is doing work
             if (a.Current > peakCurrent) peakCurrent = a.Current;
             SetServiceValues("r", 1);
         }
         else   // aStopped
         {
-            if (v is not IRS232Valve || vCleared || vReconnected)
+            if (a is not IRS232Valve || vCleared || vReconnected)
                 return OperationState.Free;     // operation is complete
 
             if (vSelected)
@@ -710,14 +743,8 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
                     // Note: DisconnectedAeonServo false because vStopped = false and DisconnectedAeonServo => vStopped
                     if (a.OvercurrentDetected)     // remains true even post-operation
                     {
-                        // disconnect AeonServo
                         if (LogEverything) Log?.Record($"Overcurrent detected; deselecting AeonServo.");
-                        // use the last channel unless it's active, in which case, use the one before
-                        var otherChannel = ChannelNumber == Channels - 1 ? Channels - 2 : Channels - 1;
-                        // Select a different channel and get a report to confirm the switch.
-                        // Without an explicit wait here, the report will almost certainly arrive before
-                        // the channel is switched, in which case, the command will be repeated (harmless).
-                        SetServiceValues($"n{otherChannel} r", 1);
+                        SetServiceValues($"n{OtherChannel}");   // Disconnect AeonServo by selecting another channel
                     }
                     else    // stop the AeonServo normally
                     {
@@ -729,8 +756,9 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
             else    // v has been deselected: AeonServo was disconnected due to overcurrent
             {
                 DisconnectedAeonServo = true;
+                AeonServo.Clear();
                 if (LogEverything) Log?.Record($"AeonServo stopped by disconnection. Reconnecting it.");
-                SetServiceValues($"n{ChannelNumber} r", 1); // re-select the correct channel
+                SetServiceValues($"n{ChannelNumber}"); // re-select the correct channel
             }
         }
         return State;
@@ -994,7 +1022,9 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         switch (State)
         {
             case OperationState.Confirming:
-                if (v.Device.RS232UpdatesReceived < 1 || v.CommandedMovement != 0)
+                if (AeonServoModel.IsBlank())
+                    command = "z";          // it can take up to 3 attempts to get a response from AeonServo after selecting the channel.
+                else if (v.Device.RS232UpdatesReceived < 1 || v.CommandedMovement != 0)
                     command = "c r";
                 break;
             case OperationState.Going:
@@ -1043,11 +1073,11 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         }
 
         return command.IsBlank() ? SerialController.DefaultCommand :
-            new SerialController.Command(command, command.EndsWith("r") ? 1 : 0, true);
+            new SerialController.Command(command, command[^1] is 'r' or 'z' ? 1 : 0, true);
     }
 
     int PriorMovement { get; set; } = 0;
-    int CommandedMovement { get; set; }  = 0;
+    int CommandedMovement { get; set; } = 0;
     bool NeedsToMove(IRS232Valve v)
     {
         int tgtpos = v.Operation.Value + (v.Operation.Incremental ? v.Position : 0);
@@ -1076,7 +1106,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
     {
         try
         {
-            if (!(CurrentActuator is IRS232Valve v))
+            if (!(CurrentActuator is IRS232Valve v) || DisconnectedAeonServo)
                 return true;        // ignore the response
 
             var lines = response.GetLines();
@@ -1121,7 +1151,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
                 // StateSignal.Set()?
                 // SerialController.Hurry = true;    // cue the controller, to monitor servo current and time limits
             }
-            else if (command == 'z')       // Controller data
+            else if (command == 'z')       // AeonServo data
             {
                 if (LengthError(lines, 1, "controller data line"))
                     return false;
@@ -1129,9 +1159,10 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
                 if (LengthError(values, 4, "value", "on controller data line 1"))
                     return false;
 
-                Device.Model = values[2];
-                Device.Firmware = values[3];
-                Device.UpdatesReceived++;
+                // values[0] is "Aeon"; values[1] is "Laboratories. Assume correct and ignore.
+                AeonServoModel = values[2];     // e.g. "Servo"
+                AeonServoFirmware = values[3];  // e.g., "V.20220823 - 0000"
+                v.Device.UpdatesReceived++;
             }
             else
             {
