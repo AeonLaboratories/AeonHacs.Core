@@ -907,20 +907,15 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
                     return false;
 
                 var i = int.Parse(values[0]);
-                if (ErrorCheck(i < 0 || i >= Channels,
-                        $"Invalid channel in status report: {i}"))
-                    return false;
+                ErrorCheck(i < 0 || i >= Channels, $"Invalid channel in status report: {i}");
                 Device.SelectedActuator = i;
 
                 // New logic: if the report is for ChannelNumber, update
                 // the device values; otherwise ignore the report, but
                 // return no error
-                if (SelectedActuator != ChannelNumber)
-                {
-                    if (LogEverything)
-                        Log?.Record($"Ignoring report received for channel {i}; current actuator's channel is {ChannelNumber}.");
+                if (ErrorCheck(SelectedActuator != ChannelNumber, 
+                        $"Ignoring report received for channel {i}; current actuator's channel is {ChannelNumber}."))
                     return true;
-                }
 
                 var key = $"{i}";
                 if (ErrorCheck(!Devices.ContainsKey(key),
