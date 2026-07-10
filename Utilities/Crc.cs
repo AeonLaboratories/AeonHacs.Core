@@ -21,8 +21,8 @@ public class CrcOptions
 
     // Residue, residual, remainder: what we should get if the
     // CRC matches the message.
-    [JsonProperty, DefaultValue(0x820)]
-    public UInt16 ExpectedResidue { get; set; } = 0x820;
+    [JsonProperty, DefaultValue(0x82C0)]
+    public UInt16 ExpectedResidue { get; set; } = 0x82C0;
 
 
     [JsonProperty, DefaultValue(true)]
