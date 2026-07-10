@@ -426,7 +426,7 @@ public class Sample : HacsComponent
         {
             LabId = LabId,
             Grams = Grams,
-            Split = Split + 1,
+            Split = Math.Max(Split, 1) + 1,
             DateTime = DateTime.Now,
             State = States.Loaded,
             InletPort = InletPort,

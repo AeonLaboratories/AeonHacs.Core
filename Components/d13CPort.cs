@@ -11,7 +11,7 @@ public class d13CPort : LinePort, Id13CPort
         State != States.Loaded &&
         State != States.Prepared;
 
-    string mass
+    string Mass
     {
         get
         {
@@ -24,9 +24,10 @@ public class d13CPort : LinePort, Id13CPort
     {
         get
         {
-            if (Sample?.LabId is string contents)
-                return contents + mass;
-            return "";
+            var id = Sample?.LabId ?? "";
+            var split = (Sample?.Split ?? 0) > 0 ? $".{Sample.Split}" : "";
+            var mass = id.IsBlank() ? "" : Mass;
+            return $"{id}{split}{mass}";
         }
     }
 }
