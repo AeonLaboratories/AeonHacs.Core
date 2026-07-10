@@ -300,9 +300,10 @@ public class SerialController : StateManager, ISerialController
         get
         {
             int timeout;
-            if (SerialDevice == null || SerialDevice.ResponseCount < 1)    // give some extra time at start-up
+            if (IdleTimeout > 0 && (SerialDevice == null || SerialDevice.ResponseCount < 1))    // give some extra time at start-up
             {
                 // TODO: magic number "FirstTimeout"? "StartupTimeout"? "Wake..."?
+                // some multiple of IdleTimeout?
                 timeout = 2000;
             }
             else if (Hurry)
@@ -474,6 +475,8 @@ public class SerialController : StateManager, ISerialController
 
     #region Responses
 
+    private object responseLocker = new object();
+
     /// <summary>
     ///
     /// </summary>
@@ -490,9 +493,13 @@ public class SerialController : StateManager, ISerialController
             }
 
             bool invalidResponse;
-            lock (Response)
+            lock (responseLocker)
             {
+                if (LogEverything)
+                    Log?.Record($"SerialController {Name}: Received response: \"{Escape(value)}\"");
+
                 response = value;
+
                 invalidResponse = ResponseProcessor != null && !ResponseProcessor(response, ResponsesExpected - AwaitingResponses);
                 if (invalidResponse)
                 {
