@@ -5302,7 +5302,7 @@ public class Cegs : ProcessManager, ICegs
     [Description("Add carrier gas to all d13C splits that need it.")]
     protected virtual void AddCarrierTo_d13C()
     {
-        var ports = d13CPorts.Where(p => 
+        var ports = d13CPorts.Where(p =>
             p.State == LinePort.States.InProcess
             && p.Aliquot != null
         );
@@ -5325,31 +5325,33 @@ public class Cegs : ProcessManager, ICegs
         if (sample == null || !sample.Take_d13C) return;
 
         var manifold = Manifold(port);
+        var totalMilliliters = manifold.MilliLiters + port.MilliLiters;
+
         manifold.Evacuate();
-        port.Coldfinger.Freeze();
+        port.Coldfinger.FreezeWait();
+        port.Coldfinger.Raise();
 
         // Desired final vial pressure at room temperature.
         var pTarget = PressureOverAtm;
         var nTarget = Particles(pTarget, port.MilliLiters, RoomTemperature);
-        var nCO2 = sample.Micrograms_d13C * CarbonAtomsPerMicrogram;
-        var totalMilliliters = manifold.MilliLiters + port.MilliLiters;
-
         // How far the manifold pressure needs to fall to produce the nominal vial pressure.
-        var dropTarget = Pressure(nTarget, totalMilliliters, RoomTemperature);
+        var dropTarget = Math.Floor(Pressure(nTarget, totalMilliliters, manifold.Temperature));
 
-        // VPInitialHePressure is found empirically to produce
+        // VPInitialPressure is found empirically to produce
         // PressureOverAtm inside the vial when it is at room temperature.
         var pa = AdmitGasToPort(InertGasSupply(manifold), VPInitialPressure, port);
         var pHeInitial = pa[0];
         var pHeFinal = pa[1];
 
-        var manifoldTemperature = manifold.Thermometer?.Temperature ?? RoomTemperature;
         // This is what we actually got:
+        var manifoldTemperature = manifold.Thermometer?.Temperature ?? RoomTemperature;
         var nHe = Particles(pHeInitial - pHeFinal, manifold.MilliLiters, manifoldTemperature);
+        var nCO2 = sample.Micrograms_d13C * CarbonAtomsPerMicrogram;
         var n = nHe + nCO2;
+        var pVP = Pressure(n, port.MilliLiters, RoomTemperature);
+
         sample.d13CPartsPerMillion = 1e6 * nCO2 / n;
 
-        var pVP = Pressure(n, port.MilliLiters, RoomTemperature);
         SampleLog.Record(
             $"d13C measurement:\r\n\t{sample.LabId}\r\n" +
             $"\tGraphite {sample.Aliquots[0].Name}" +
@@ -5362,12 +5364,12 @@ public class Cegs : ProcessManager, ICegs
         if (Math.Abs(pError) > VPErrorPressure)
         {
             if (pError > 3 * VPErrorPressure || pError < -2 * VPErrorPressure)
-                SampleLog.Record("\tWarning: excessive vial pressure error: ");
+                SampleLog.Record($"\tWarning: excessive vial pressure error: {pError:0}");
             else
-                SampleLog.Record("\tVial pressure out of nominal range: ");
+                SampleLog.Record($"\tVial pressure out of nominal range: (pVP={pVP:0}; pTarget={pTarget:0})");
             SampleLog.Record(
                 $"\t\tpHeGM: ({pHeInitial:0} => {pHeFinal:0}) / " +
-                $"({VPInitialPressure:0} => {VPErrorPressure - dropTarget})");
+                $"({VPInitialPressure:0} => {(VPInitialPressure - dropTarget):0})");
             Tell($"Vial He pressure error: {pError:0}");
         }
         port.Coldfinger.Thaw();
@@ -5470,7 +5472,7 @@ public class Cegs : ProcessManager, ICegs
 
         InletPort.State = LinePort.States.Loaded;
         InletPort.Sample = sample;
-        if (sample is Sample) sample.State =Sample.States.Loaded;
+        if (sample is Sample) sample.State = Sample.States.Loaded;
     }
 
     /// <summary>
@@ -5824,53 +5826,63 @@ public class Cegs : ProcessManager, ICegs
         if (port == null)
         {
             Tell("No vial port available",
-                "One must be Loaded or Prepared to find VPInitialHePressure.", NoticeType.Error);
+                "One must be Loaded or Prepared to find VPInitialPressure.", NoticeType.Error);
             return;
         }
 
-        var param = CegsPreferences.DefaultParameters.Find(p => p.ParameterName == "VPInitialHePressure");
+        var param = CegsPreferences.DefaultParameters.Find(p => p.ParameterName == "VPInitialPressure");
 
         TestLog.WriteLine();
         TestLog.Record("d13C He Calibration");
-        TestLog.Record($"\tVPInitialHePressure = {param.Value:0}");
+        TestLog.Record($"\tVPInitialPressure = {param.Value:0}");
         TestLog.Record($"pInitial\tpFinal\tpTarget\tpVP\terror");
 
         var ftc = port.Coldfinger;
+
         var manifold = Manifold(port);
-        var gasSupply = InertGasSupply(manifold);
-        var vacuumSystem = manifold.VacuumSystem;
         var totalMilliLiters = manifold.MilliLiters + port.MilliLiters;
 
+        var vacuumSystem = manifold.VacuumSystem;
         vacuumSystem.OpenLine();
-        ftc.Freeze();
+        ftc.FreezeWait();
+        ftc.Raise();
 
         bool adjusted = false;
         do
         {
-            vacuumSystem.WaitForPressure(OkPressure);
-            port.Close();
-            var pa = AdmitGasToPort(gasSupply, VPInitialPressure, port);
-            port.Open();
-            manifold.Evacuate();
-
             var pTarget = PressureOverAtm;
             var nTarget = Particles(pTarget, port.MilliLiters, RoomTemperature);
             var dropTarget = Pressure(nTarget, totalMilliLiters, manifold.Temperature);
-            var n = Particles(pa[0] - pa[1], totalMilliLiters, manifold.Temperature);
-            var p = Pressure(n, port.MilliLiters, RoomTemperature);
 
-            var error = pTarget - p;
-            if (Math.Abs(error) / VPErrorPressure > 0.4)
+            vacuumSystem.WaitForPressure(OkPressure);
+            port.Close();
+
+            var pa = AdmitGasToPort(InertGasSupply(manifold), VPInitialPressure, port);
+            var pHeInitial = pa[0];
+            var pHeFinal = pa[1];
+
+            port.Open();
+            manifold.Evacuate();
+
+            // This is what we actually got:
+            var manifoldTemperature = manifold.Thermometer?.Temperature ?? RoomTemperature;
+            var nHe = Particles(pHeInitial - pHeFinal, totalMilliLiters, manifoldTemperature);
+            var nCO2 = 0;
+            var n = nHe + nCO2;
+            var pVP = Pressure(n, port.MilliLiters, RoomTemperature);
+
+            var pError = pVP - pTarget;
+            if (Math.Abs(pError) > 0.4 * VPErrorPressure)
             {
-                var multiplier = pTarget / p;       // no divide-by-zero check
-                param.Value = VPInitialPressure * multiplier;
+                var multiplier = pTarget / pVP;       // no divide-by-zero check
+                param.Value = Math.Ceiling(VPInitialPressure * multiplier);
                 adjusted = true;
             }
             else
             {
                 adjusted = false;
             }
-            SampleLog.Record($"{pa[0]:0}\t{pa[1]:0}\t{pTarget:0}\t{p:0}\t{error:0.0}");
+            TestLog.Record($"{pHeInitial:0}\t{pHeFinal:0}\t{pTarget:0}\t{pVP:0}\t{pError:0.0}");
 
         } while (adjusted);
 
