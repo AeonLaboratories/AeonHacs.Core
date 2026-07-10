@@ -5325,8 +5325,6 @@ public class Cegs : ProcessManager, ICegs
         if (sample == null || !sample.Take_d13C) return;
 
         var manifold = Manifold(port);
-        var totalMilliliters = manifold.MilliLiters + port.MilliLiters;
-
         manifold.Evacuate();
         port.Coldfinger.FreezeWait();
         port.Coldfinger.Raise();
@@ -5334,8 +5332,9 @@ public class Cegs : ProcessManager, ICegs
         // Desired final vial pressure at room temperature.
         var pTarget = PressureOverAtm;
         var nTarget = Particles(pTarget, port.MilliLiters, RoomTemperature);
+        var manifoldTemperature = manifold.Thermometer?.Temperature ?? RoomTemperature;
         // How far the manifold pressure needs to fall to produce the nominal vial pressure.
-        var dropTarget = Math.Floor(Pressure(nTarget, totalMilliliters, manifold.Temperature));
+        var dropTarget = Pressure(nTarget, manifold.MilliLiters, manifoldTemperature);
 
         // VPInitialPressure is found empirically to produce
         // PressureOverAtm inside the vial when it is at room temperature.
@@ -5344,7 +5343,6 @@ public class Cegs : ProcessManager, ICegs
         var pHeFinal = pa[1];
 
         // This is what we actually got:
-        var manifoldTemperature = manifold.Thermometer?.Temperature ?? RoomTemperature;
         var nHe = Particles(pHeInitial - pHeFinal, manifold.MilliLiters, manifoldTemperature);
         var nCO2 = sample.Micrograms_d13C * CarbonAtomsPerMicrogram;
         var n = nHe + nCO2;
@@ -5840,8 +5838,6 @@ public class Cegs : ProcessManager, ICegs
         var ftc = port.Coldfinger;
 
         var manifold = Manifold(port);
-        var totalMilliLiters = manifold.MilliLiters + port.MilliLiters;
-
         var vacuumSystem = manifold.VacuumSystem;
         vacuumSystem.OpenLine();
         ftc.FreezeWait();
@@ -5852,7 +5848,6 @@ public class Cegs : ProcessManager, ICegs
         {
             var pTarget = PressureOverAtm;
             var nTarget = Particles(pTarget, port.MilliLiters, RoomTemperature);
-            var dropTarget = Pressure(nTarget, totalMilliLiters, manifold.Temperature);
 
             vacuumSystem.WaitForPressure(OkPressure);
             port.Close();
@@ -5866,7 +5861,7 @@ public class Cegs : ProcessManager, ICegs
 
             // This is what we actually got:
             var manifoldTemperature = manifold.Thermometer?.Temperature ?? RoomTemperature;
-            var nHe = Particles(pHeInitial - pHeFinal, totalMilliLiters, manifoldTemperature);
+            var nHe = Particles(pHeInitial - pHeFinal, manifold.MilliLiters, manifoldTemperature);
             var nCO2 = 0;
             var n = nHe + nCO2;
             var pVP = Pressure(n, port.MilliLiters, RoomTemperature);
