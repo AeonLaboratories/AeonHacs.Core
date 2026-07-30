@@ -2700,6 +2700,10 @@ public class Cegs : ProcessManager, ICegs
             var substep = ProcessSubStep.Start($"Wait for {vs.Manometer.Name} < {basePressure: 0.00e0} Torr.");
             vs.WaitForStablePressure(basePressure);
             substep.End();
+            substep = ProcessSubStep.Start($"Venting high vacuum valve {vs.HighVacuumValve.Name}.");
+            vs.VentHV();
+            WaitSeconds(30);
+            substep.End();
         }
 
         var step = ProcessStep.Start($"Leak-check {section.Name}.");
