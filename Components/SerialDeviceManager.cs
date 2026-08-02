@@ -43,10 +43,8 @@ public class SerialDeviceManager : DeviceManager, ISerialDeviceManager,
         get => serialController;
         set
         {
-            if (serialController != value)
+            if (Ensure(ref serialController, value, OnSerialControllerPropertyChanged))
             {
-                // TODO: if serialController isn't null, first remove (restore??) the following properties?
-                serialController = value;
                 if (serialController != null)
                 {
                     UpdateSerialControllerLog();
@@ -55,11 +53,16 @@ public class SerialDeviceManager : DeviceManager, ISerialDeviceManager,
                     serialController.LostConnection -= OnControllerLost;
                     serialController.LostConnection += OnControllerLost;
                 }
-                NotifyPropertyChanged();
             }
         }
     }
     SerialController serialController;
+
+    /// <summary>
+    /// Handles property changes from the contained
+    /// <see cref="SerialController"/>.
+    /// </summary>
+    protected virtual void OnSerialControllerPropertyChanged(object sender, PropertyChangedEventArgs e) {}
 
     void UpdateSerialControllerLog()
     {
