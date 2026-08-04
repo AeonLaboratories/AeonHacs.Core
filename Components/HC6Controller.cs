@@ -1,5 +1,6 @@
 ﻿using AeonHacs.Utilities;
 using System;
+using System.Globalization;
 using System.Text;
 using static AeonHacs.Utilities.Utility;
 
@@ -321,15 +322,15 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
     protected virtual void ServiceHC6Heater(HC6Heater h)
     {
         var modeConfigured = h.Device.Mode == h.Config.Mode;
-        var MaximumPowerLevel = Math.Round(h.Config.MaximumPowerLevel, 2);
-        var powerLevel = Math.Round(h.Config.PowerLevel, 2);
+        var maximumPowerLevel = Round(h.Config.MaximumPowerLevel, 2);
+        var powerLevel = Round(h.Config.PowerLevel, 2);
 
         var sb = new StringBuilder();
         if (h.Device.ThermocoupleChannel != h.Config.ThermocoupleChannel)
             sb.Append($"ht{h.Config.ThermocoupleChannel} ");
 
-        if (h.Device.MaximumPowerLevel != MaximumPowerLevel)
-            sb.Append($"x{MaximumPowerLevel:0.00} ");
+        if (Round(h.Device.MaximumPowerLevel, 2) != maximumPowerLevel)
+            sb.Append($"x{maximumPowerLevel} ");
 
         if (h.Pid != null && !h.PidConfigured())
         {
@@ -353,12 +354,12 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
         }
         else if (!modeConfigured && h.Config.Mode == HC6Heater.Modes.Off)
             SetServiceValues($"n{ChannelNumber} 0 h", 1);
-        else if (h.Config.ManualMode && h.Device.PowerLevel != powerLevel)
-            SetServiceValues($"n{ChannelNumber} m{powerLevel:0.00} h", 1);
+        else if (h.Config.ManualMode && Round(h.Device.PowerLevel, 2) != powerLevel)
+            SetServiceValues($"n{ChannelNumber} m{powerLevel} h", 1);
         else if (!modeConfigured && h.Config.Mode == HC6Heater.Modes.Manual)
             SetServiceValues($"n{ChannelNumber} m h", 1);
-        else if (!h.Config.ManualMode && Math.Round(h.Device.Setpoint) != Math.Round(h.Config.Setpoint))
-            SetServiceValues($"n{ChannelNumber} s{Math.Round(h.Config.Setpoint)} h", 1);         // only ints are allowed
+        else if (!h.Config.ManualMode && Round(h.Device.Setpoint) != Round(h.Config.Setpoint))
+            SetServiceValues($"n{ChannelNumber} s{Round(h.Config.Setpoint)} h", 1);         // only ints are allowed
         else if (!modeConfigured && h.Config.Mode == HC6Heater.Modes.Auto)
             SetServiceValues($"n{ChannelNumber} a h", 1);
     }
@@ -371,6 +372,58 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
     }
 
     #region helper properties and methods for controller responses
+    /// <summary>
+    /// Checks whether the PID parameters of a heater device match those of its configuration.
+    /// </summary>
+    /// <param name="device">The heater device.</param>
+    /// <param name="config">The heater configuration.</param>
+    /// <returns>True if the PID parameters match; otherwise, false.</returns>
+    protected static bool PidsMatch(HC6Heater.IDevice device,HC6Heater.IConfig config) =>
+        device.PidGain == config.PidGain &&
+        device.PidIntegral == config.PidIntegral &&
+        device.PidDerivative == config.PidDerivative &&
+        device.PidPreset == config.PidPreset;
+
+    /// <summary>
+    /// Formats a double value as a string using the specified format and invariant culture.
+    /// </summary>
+    /// <param name="value">The double value to format.</param>
+    /// <param name="format">The format string.</param>
+    /// <returns>The formatted string.</returns>
+    protected static string Format(double value, string format) =>
+        value.ToString(format, CultureInfo.InvariantCulture);
+    
+    /// <summary>
+    /// Rounds a double value to the specified number of digits and formats it as a string.
+    /// </summary>
+    /// <param name="value">The double value to round and format.</param>
+    /// <param name="digits">The number of decimal digits to round to.</param>
+    /// <returns>The rounded and formatted string.</returns>
+    protected static string Round(double value, int digits = 0) =>
+        Format(Math.Round(value, digits), digits == 0 ? "0" : $"0.{new string('0', digits)}");
+
+    /// <summary>
+    /// Parses a string as an integer using invariant culture.
+    /// </summary>
+    /// <param name="value">The string to parse.</param>
+    /// <returns>The parsed integer.</returns>
+    protected static int ParseInt(string value) =>
+        int.Parse( value, NumberStyles.Integer, CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Parses a string as a double using invariant culture.
+    /// </summary>
+    /// <param name="value">The string to parse.</param>
+    /// <returns>The parsed double.</returns>
+    protected static double ParseDouble(string value) =>
+        double.Parse( value, NumberStyles.Float, CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Converts the controllers' thermocouple type code to ThermocoupleType.
+    /// </summary>
+    /// <param name="c">The thermocouple type code.</param>
+    /// <param name="tt">The output ThermocoupleType.</param>
+    /// <returns>True if the conversion is successful; otherwise, false.</returns>
     protected bool GetValidThermocoupleType(char c, out ThermocoupleType tt)
     {
         tt = ThermocoupleType.None;
@@ -379,6 +432,13 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
         else if (c != '~') return false;
         return true;
     }
+
+    /// <summary>
+    /// Converts the controllers' heater mode code to HC6Heater.Modes.
+    /// </summary>
+    /// <param name="c">The heater mode code.</param>
+    /// <param name="mode">The output HC6Heater.Modes.</param>
+    /// <returns>True if the conversion is successful; otherwise, false.</returns>
     protected bool GetValidHeaterMode(char c, out HC6Heater.Modes mode)
     {
         mode = HC6Heater.Modes.Off;
@@ -388,6 +448,12 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
         return true;
     }
 
+    /// <summary>
+    /// Checks for an error condition and logs the error message if the condition is true.
+    /// </summary>
+    /// <param name="errorCondition">The condition to check for an error.</param>
+    /// <param name="errorMessage">The error message to log if the condition is true.</param>
+    /// <returns>True if the error condition is true; otherwise, false.</returns>
     protected bool ErrorCheck(bool errorCondition, string errorMessage)
     {
         if (errorCondition)
@@ -398,6 +464,14 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
         }
         return false;
     }
+    /// <summary>
+    /// Checks whether an array has the expected length, and logs an error message if not.
+    /// </summary>
+    /// <param name="elements">The array to check.</param>
+    /// <param name="nExpected">The expected number of elements.</param>
+    /// <param name="elementDescription">A description of a singular element.</param>
+    /// <param name="where">An optional description of where the check is being performed.</param>
+    /// <returns>True if the length is not as expected; otherwise, false.</returns>
     protected bool LengthError(object[] elements, int nExpected, string elementDescription = "value", string where = "")
     {
         var n = elements.Length;
@@ -430,7 +504,7 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                     var key = $"t{i}";
                     if (Devices.ContainsKey(key) && Devices[key] is HC6Thermocouple t)
                     {
-                        t.Device.Temperature = double.Parse(values[i]);
+                        t.Device.Temperature = ParseDouble(values[i]);
                         t.Device.UpdatesReceived++;
                     }
                 }
@@ -446,7 +520,7 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                 {
                     var key = $"h{i}";
                     var c = values[j++][0];
-                    var pl = Math.Round(double.Parse(values[j++]), 2);
+                    var pl = Math.Round(ParseDouble(values[j++]), 2);
                     if (Devices.ContainsKey(key) && Devices[key] is HC6Heater h)
                     {
                         if (ErrorCheck(!GetValidHeaterMode(c, out HC6Heater.Modes mode),
@@ -466,7 +540,7 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                     return false;
 
                 // Update this controller's data
-                Device.CJTemperature = double.Parse(values[0]);
+                Device.CJTemperature = ParseDouble(values[0]);
 
                 values = lines[3].GetValues();
                 n = values.Length;
@@ -475,7 +549,7 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                     return false;
 
                 // Update this controller's data
-                Device.ReadingCounter = int.Parse(values[0]);
+                Device.ReadingCounter = ParseInt(values[0]);
                 Device.UpdatesReceived++;
                 DataAcquired = true;
             }
@@ -487,7 +561,7 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                 if (LengthError(values, 11, "heater report value"))
                     return false;
 
-                var i = int.Parse(values[0]);
+                var i = ParseInt(values[0]);
                 if (ErrorCheck(i < 0 || i >= HeaterChannels,
                         $"Invalid channel in heater report: {i}"))
                     return false;
@@ -508,16 +582,16 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                         $"Unsupported heater mode ({c}) on channel {key}"))
                     return false;
 
-                h.Device.Setpoint = int.Parse(values[1]);
+                h.Device.Setpoint = ParseInt(values[1]);
                 h.Device.Mode = mode;
-                h.Device.PowerLevel = Math.Round(double.Parse(values[3]), 2);
-                h.Device.MaximumPowerLevel = Math.Round(double.Parse(values[4]), 2);
-                h.Device.ThermocoupleChannel = int.Parse(values[5]);
-                h.Device.PidGain = int.Parse(values[6]);
-                h.Device.PidIntegral = int.Parse(values[7]);
-                h.Device.PidDerivative = int.Parse(values[8]);
-                h.Device.PidPreset = int.Parse(values[9]);
-                HC6ErrorCodes errors = (HC6ErrorCodes)int.Parse(values[10]);
+                h.Device.PowerLevel = Math.Round(ParseDouble(values[3]), 2);
+                h.Device.MaximumPowerLevel = Math.Round(ParseDouble(values[4]), 2);
+                h.Device.ThermocoupleChannel = ParseInt(values[5]);
+                h.Device.PidGain = ParseInt(values[6]);
+                h.Device.PidIntegral = ParseInt(values[7]);
+                h.Device.PidDerivative = ParseInt(values[8]);
+                h.Device.PidPreset = ParseInt(values[9]);
+                HC6ErrorCodes errors = (HC6ErrorCodes)ParseInt(values[10]);
 
                 h.Device.Errors = errors & HeaterErrorFilter;  // device-specific errors
                 Device.Errors = errors & ~HeaterErrorFilter;   // other (controller) errors
@@ -531,7 +605,7 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                 if (LengthError(values, 4, "thermocouple report value"))
                     return false;
 
-                var i = int.Parse(values[0]);
+                var i = ParseInt(values[0]);
                 if (ErrorCheck(i < 0 || i >= ThermocoupleChannels,
                         $"Invalid channel in thermocouple report: {i}"))
                     return false;
@@ -553,9 +627,9 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                     return false;
 
                 t.Device.Type = tt;
-                t.Device.Temperature = double.Parse(values[2]);
+                t.Device.Temperature = ParseDouble(values[2]);
 
-                HC6ErrorCodes errors = (HC6ErrorCodes)int.Parse(values[3]);
+                HC6ErrorCodes errors = (HC6ErrorCodes)ParseInt(values[3]);
 
                 t.Device.Errors = errors & ThermocoupleErrorFilter;  // device-specific errors
                 Device.Errors = errors & ~ThermocoupleErrorFilter;   // other (controller) errors
@@ -579,15 +653,15 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                 if (LengthError(values, 2, "value", "on controller data line 2"))
                     return false;
 
-                Device.SerialNumber = int.Parse(values[1]);
+                Device.SerialNumber = ParseInt(values[1]);
 
                 values = lines[2].GetValues();
                 n = values.Length;
                 if (LengthError(values, 4, "value", "on controller data line 3"))
                     return false;
 
-                Device.SelectedHeater = int.Parse(values[1]);
-                Device.SelectedThermocouple = int.Parse(values[3]);
+                Device.SelectedHeater = ParseInt(values[1]);
+                Device.SelectedThermocouple = ParseInt(values[3]);
 
                 values = lines[3].GetValues();
                 n = values.Length;
@@ -599,7 +673,7 @@ public class HC6Controller : SerialDeviceManager, IHC6Controller,
                 //Device.InterferenceSuppressionEnabled = s[s.Length - 1] == '!';
                 //if (Device.InterferenceSuppressionEnabled)
                 //    s = s.Substring(0, s.Length - 1);
-                Device.Adc = int.Parse(s);
+                Device.Adc = ParseInt(s);
                 Device.UpdatesReceived++;
             }
             else

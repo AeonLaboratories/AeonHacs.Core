@@ -1,6 +1,7 @@
 ﻿using AeonHacs.Utilities;
 using Newtonsoft.Json;
 using System;
+using System.Globalization;
 using System.Text;
 
 namespace AeonHacs.Components;
@@ -91,7 +92,7 @@ public class HC6ControllerB2 : HC6Controller, IHC6ControllerB2,
 
     public override string ToString()
     {
-        var sb = new StringBuilder(base.ToString());
+        var sb = new StringBuilder($"{Name}");
         sb.Append($": {Model} S/N: {SerialNumber} {Firmware}");
         var sb2 = new StringBuilder();
         sb2.Append($"\r\nHch: {SelectedHeater} Tch: {SelectedThermocouple} Adc: {AdcCount}");
@@ -120,7 +121,6 @@ public class HC6ControllerB2 : HC6Controller, IHC6ControllerB2,
 
     #region Controller commands
     #endregion Controller commands
-
 
     #region Controller interactions
 
@@ -158,7 +158,7 @@ public class HC6ControllerB2 : HC6Controller, IHC6ControllerB2,
                     var key = $"t{i}";
                     if (Devices.ContainsKey(key) && Devices[key] is HC6Thermocouple t)
                     {
-                        t.Device.Temperature = double.Parse(values[i]);
+                        t.Device.Temperature = ParseDouble(values[i]);
                         t.Device.UpdatesReceived++;
                     }
                 }
@@ -174,7 +174,7 @@ public class HC6ControllerB2 : HC6Controller, IHC6ControllerB2,
                 {
                     var key = $"h{i}";
                     var c = values[j++][0];
-                    var pl = Math.Round(double.Parse(values[j++]), 2);
+                    var pl = Math.Round(ParseDouble(values[j++]), 2);
                     if (Devices.ContainsKey(key) && Devices[key] is HC6Heater h)
                     {
                         if (ErrorCheck(!GetValidHeaterMode(c, out HC6Heater.Modes mode),
@@ -194,8 +194,8 @@ public class HC6ControllerB2 : HC6Controller, IHC6ControllerB2,
                     return false;
 
                 // Update this controller's data
-                Device.CJ0Temperature = double.Parse(values[0]);
-                Device.CJ1Temperature = double.Parse(values[1]);
+                Device.CJ0Temperature = ParseDouble(values[0]);
+                Device.CJ1Temperature = ParseDouble(values[1]);
 
                 values = lines[3].GetValues();
                 n = values.Length;
@@ -204,7 +204,7 @@ public class HC6ControllerB2 : HC6Controller, IHC6ControllerB2,
                     return false;
 
                 // Update this controller's data
-                Device.ReadingCounter = int.Parse(values[0]);
+                Device.ReadingCounter = ParseInt(values[0]);
                 Device.UpdatesReceived++;
                 DataAcquired = true;
             }
@@ -225,15 +225,15 @@ public class HC6ControllerB2 : HC6Controller, IHC6ControllerB2,
                 if (LengthError(values, 2, "value", "on controller data line 2"))
                     return false;
 
-                Device.SerialNumber = int.Parse(values[1]);
+                Device.SerialNumber = ParseInt(values[1]);
 
                 values = lines[2].GetValues();
                 n = values.Length;
                 if (LengthError(values, 4, "value", "on controller data line 3"))
                     return false;
 
-                Device.SelectedHeater = int.Parse(values[1]);
-                Device.SelectedThermocouple = int.Parse(values[3]);
+                Device.SelectedHeater = ParseInt(values[1]);
+                Device.SelectedThermocouple = ParseInt(values[3]);
 
                 values = lines[3].GetValues();
                 n = values.Length;
@@ -245,7 +245,7 @@ public class HC6ControllerB2 : HC6Controller, IHC6ControllerB2,
                 Device.InterferenceSuppressionEnabled = s[s.Length - 1] == '!';
                 if (Device.InterferenceSuppressionEnabled)
                     s = s.Substring(0, s.Length - 1);
-                Device.Adc = int.Parse(s);
+                Device.Adc = ParseInt(s);
                 Device.UpdatesReceived++;
             }
             else
