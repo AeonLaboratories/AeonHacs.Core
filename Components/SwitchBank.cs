@@ -167,6 +167,7 @@ public class SwitchBank : SerialDeviceManager, ISwitchBank,
     #region Controller commands
 
     string ControllerDataCommand => "z";
+    protected virtual int ControllerDataResponses => 1;
     string ControllerResetCommand => "x";
     bool ActionNeeded(ISwitch s) =>
         s.OnOffState.IsUnknown() || s.OnOffState.IsOn() != s.Config.State.IsOn();
@@ -185,7 +186,7 @@ public class SwitchBank : SerialDeviceManager, ISwitchBank,
         if (ServiceDevice == this)
         {
             if (Device.UpdatesReceived == 0)
-                SetServiceValues(ControllerDataCommand, 1);
+                SetServiceValues(ControllerDataCommand, ControllerDataResponses);
         }
         else if (ServiceDevice is IManagedSwitch s)
         {
@@ -232,20 +233,33 @@ public class SwitchBank : SerialDeviceManager, ISwitchBank,
         try
         {
             var lines = response.GetLines();
-            if (lines.Length == 0) return false;
-            var values = lines[0].GetValues();
-            var n = values.Length;
+            var values = lines.Length > 0
+                ? lines[0].GetValues()
+                : [];
 
             if (SerialController.CommandMessage[0] == ControllerDataCommand[0])       // Controller data
             {
-                if (LengthError(lines, 1, "controller data line"))
-                    return false;
+                switch (which)
+                {
+                    case 0:
+                        if (LengthError(lines, 1, "controller data line"))
+                            return false;
 
-                if (LengthError(values, 4, "value", "on controller data line 1"))
-                    return false;
+                        if (LengthError(values, 4, "value", "on controller data response 1"))
+                            return false;
 
-                Device.Model = values[2];
-                Device.Firmware = values[3];
+                        Device.Model = values[2];
+                        Device.Firmware = values[3];
+                        break;
+
+                    case 1 when ControllerDataResponses == 2:
+                        if (LengthError(values, 0, "value", "on controller data response 2"))
+                            return false;
+                        break;
+
+                    default:
+                        return false;
+                }
 
                 Device.UpdatesReceived++;
             }
