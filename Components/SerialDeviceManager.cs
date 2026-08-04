@@ -43,7 +43,7 @@ public class SerialDeviceManager : DeviceManager, ISerialDeviceManager,
         get => serialController;
         set
         {
-            if (Ensure(ref serialController, value, OnSerialControllerPropertyChanged))
+            if (Ensure(ref serialController, value))
             {
                 if (serialController != null)
                 {
@@ -57,12 +57,6 @@ public class SerialDeviceManager : DeviceManager, ISerialDeviceManager,
         }
     }
     SerialController serialController;
-
-    /// <summary>
-    /// Handles property changes from the contained
-    /// <see cref="SerialController"/>.
-    /// </summary>
-    protected virtual void OnSerialControllerPropertyChanged(object sender, PropertyChangedEventArgs e) {}
 
     void UpdateSerialControllerLog()
     {
