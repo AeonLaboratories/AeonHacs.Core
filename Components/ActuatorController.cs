@@ -31,14 +31,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
     }
 
     /// <summary>
-    /// The first controller and AeonServo firmware version which supports the clear command
-    /// and uses the current error-code layouts.
-    /// </summary>
-    const string LegacyFirmwareCutoff = "V.20200411";
-
-    /// <summary>
     /// Error codes which may be reported by this device's Controller.
-    /// Legacy controller errors are translated to this layout.
     /// </summary>
     [Flags]
     public enum ErrorCodes
@@ -71,50 +64,11 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         LowPower = 2048
     }
 
-    /// <summary>
-    /// Error-bit assignments used by actuator-controller firmware before V.20200411.
-    /// </summary>
-    [Flags]
-    enum LegacyControllerErrorCodes
-    {
-        /// <summary>No error; status is normal.</summary>
-        None = 0,
-        /// <summary>The analog-to-digital converter reported an out-of-range value.</summary>
-        AdcOutOfRange = 1,
-        /// <summary>The RS232 receive buffer overflowed; commands are too frequent.</summary>
-        RxBufferOverflow = 2,
-        /// <summary>An RS232 cyclical redundancy check failed (CRC error).</summary>
-        CRC = 4,
-        /// <summary>An unrecognized command was received.</summary>
-        BadCommand = 8,
-        /// <summary>Timer 1 still running when Timer 0 reset</summary>
-        Timer1Overrun = 16,
-        /// <summary>An invalid device channel was specified.</summary>
-        BadChannel = 32,
-        /// <summary>The datalogging interval was outside its allowed range.</summary>
-        BadDataLogInterval = 64,
-        /// <summary>Identical to BadChannel; invalid servo channel</summary>
-        ServoOutOfRange = 128,
-        /// <summary>Servo control pulse width (CPW) out of range</summary>
-        CpwOutOfRange = 256,
-        /// <summary>The time-limit setting was outside its allowed range.</summary>
-        TimeLimitOutOfRange = 512,
-        /// <summary>Both actuator limit switches were engaged.</summary>
-        BothLimitSwitchesEngaged = 1024,
-        /// <summary>Low servo power supply voltage.</summary>
-        LowPower = 2048,
-        /// <summary>The current-limit setting was outside its allowed range.</summary>
-        CurrentLimitOutOfRange = 4096,
-        /// <summary>An invalid limit switch configuration was requested.</summary>
-        BadStopLimit = 8192,
-    }
-
     static ErrorCodes ActuatorErrorFilter =
         ErrorCodes.BothLimitSwitchesEngaged;
 
     /// <summary>
     /// Error codes which may be reported by the AeonServo.
-    /// Legacy servo errors are translated to this layout.
     /// </summary>
     [Flags]
     public enum AeonServoErrorCodes
@@ -137,53 +91,32 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         BadPosition = 64,
     }
 
-    /// <summary>
-    /// Error-bit assignments used by AeonServo firmware before V.20200411.
-    /// </summary>
-    [Flags]
-    enum LegacyAeonServoErrorCodes
-    {
-        /// <summary>No error; status is normal.</summary>
-        None = 0,
-        /// <summary>An invalid position was commanded.</summary>
-        BadPosition = 1,
-        /// <summary>The RS232 receive buffer overflowed; commands are too frequent.</summary>
-        RxBufferOverflow = 2,
-        /// <summary>An RS232 cyclical redundancy check failed (CRC error).</summary>
-        CRC = 4,
-        /// <summary>An unrecognized command was received.</summary>
-        BadCommand = 8,
-        /// <summary>The datalogging interval was outside its allowed range.</summary>
-        BadDataLogInterval = 16,
-    }
-
-    // Beginning with firmware version V.20200411, actuator controllers 
-    // return a single three-line response to the ControllerDataCommand.
-    // "Legacy" controllers with earlier firmware, return three separate
-    // one-line responses.
-    // The SerialController requires the number of expected responses
-    // to a command. To accommodate both types of controller, this
-    // class initially expects one response. From that, it determines
-    // whether it's a legacy controller, and if so, it maintains 
-    // UpdatesReceived = 0 and queries again with 3 responses expected, 
-    // in order to interpret the second and third lines.
-    // With a legacy controller, the second and third responses to the 
-    // first command will cause an error unless the SerialController has
-    // IgnoreUnexpectedResponses = true, so this is ensured by a
-    // NotifyPropertyChanged handler.
-
-    /// <summary>
-    /// Whether the connected actuator controller predates firmware V.20200411.
-    /// </summary>
-    bool LegacyController { get; set; }
-
+    string AeonServoModel { get; set; }
+    string AeonServoFirmware { get; set; }
     /// <summary>
     /// Whether the AeonServo on the currently selected channel predates firmware V.20200411.
     /// </summary>
     bool LegacyServo { get; set; }
 
-    string AeonServoModel { get; set; }
-    string AeonServoFirmware { get; set; }
+    // Beginning with firmware version V.20200411, actuator controllers
+    // return a single three-line response to the ControllerDataCommand,
+    // support the clear command and use the current error code flags.
+    // Legacy controllers return three separate one-line responses.
+    // New servos support the clear command and use the current error
+    // code flags. Legacy servos use a different error code layout.
+
+    /// <summary>
+    /// The earliest actuator controller and servo firmware version
+    /// which supports the clear command and uses the current error-code layouts.
+    /// </summary>
+    const string LegacyFirmwareCutoff = "V.20200411";
+
+    /// <summary>
+    /// Returns whether a firmware identifier predates V.20200411.
+    /// </summary>
+    /// <param name="firmware">A firmware identifier in the form V.YYYYMMDD-revision.</param>
+    static bool IsLegacyFirmware(string firmware) =>
+        string.CompareOrdinal(firmware, LegacyFirmwareCutoff) < 0;
 
     #endregion Device constants
 
@@ -256,25 +189,6 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         base.OnPropertyChanged(sender, e);
     }
 
-    /// <summary>
-    /// Ensures that unexpected responses are ignored, as required by the
-    /// legacy actuator-controller identification sequence.
-    /// </summary>
-    protected override void OnSerialControllerPropertyChanged(object sender, PropertyChangedEventArgs e)
-    {
-        base.OnSerialControllerPropertyChanged(sender, e);
-        if (e?.PropertyName == nameof(SerialController) ||
-            e?.PropertyName == nameof(SerialController.IgnoreUnexpectedResponses))
-        {
-            // Legacy actuator controllers identify themselves by first probing with a
-            // single expected response, then repeating the request expecting three
-            // responses when legacy firmware is detected. The two trailing probe
-            // responses must therefore be ignored. This means 
-            // SerialController.IgnoreUnexpectedResponses must be set to true.
-            if (SerialController != null && !SerialController.IgnoreUnexpectedResponses)
-                SerialController.IgnoreUnexpectedResponses = true;
-        }
-    }
     #endregion IDeviceManager
 
     #region Settings
@@ -863,7 +777,21 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
     }
 
     #region Controller commands
+
+    /// <summary>
+    /// This command requests the controller to identify itself.
+    /// </summary>
     string ControllerDataCommand => "z";
+
+    /// <summary>
+    /// The number of responses returned by the ControllerDataCommand.
+    /// </summary>
+    protected virtual int ControllerDataResponses => 1;
+
+    /// <summary>
+    /// The number of lines in the ControllerDataCommand response(s).
+    /// </summary>
+    protected virtual int ControllerDataLines => 3;
 
     #endregion Controller commands
 
@@ -877,9 +805,8 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
 
         if (ServiceDevice == this)
         {
-        	// Legacy controllers send 3 separate responses instead of one 3-line response.
             if (Device.UpdatesReceived == 0)
-                SetServiceValues(ControllerDataCommand, LegacyController ? 3 : 1);
+                SetServiceValues(ControllerDataCommand, ControllerDataResponses);
         }
         else if (ServiceDevice is ICpwActuator a)
         {
@@ -933,46 +860,48 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         try
         {
             var lines = response.GetLines();
-            if (lines.Length == 0) return false;
-            var values = lines[0].GetValues();
-            var n = values.Length;
+            var values = lines.Length > 0
+                ? lines[0].GetValues()
+                : [];
 
             if (LastCommand[0] == ControllerDataCommand[0])       // Controller data
             {
-                if (which > (LegacyController ? 2 : 0)) return false;
+                if (which >= ControllerDataResponses) return false;
                 var line = which;
                 if (line == 0)
                 {
-                    if (LengthError(values, 4, "value", $"on controller data line {line}"))
+                    if (LengthError(lines, ControllerDataLines, "controller data line"))
+                        return false;
+                    if (LengthError(values, 4, "value", "on controller data line 1"))
                         return false;
 
                     Device.Model = values[2];
                     Device.Firmware = values[3];
-                    LegacyController = IsLegacyFirmware(Device.Firmware);
 
-                    if (LengthError(lines, LegacyController ? 1 : 3, "controller data line"))
-                        return false;
-
-                    if (!LegacyController)
+                    if (ControllerDataResponses == 1)
                         values = lines[++line].GetValues();
+                    else
+                        Device.UpdatesReceived++;
                 }
                 else if (LengthError(lines, 1, "controller data line"))
                     return false;
 
                 if (line == 1)
                 {
-                    if (LengthError(values, 2, "value", $"on controller data line {line}"))
+                    if (LengthError(values, 2, "value", $"on controller data line 2"))
                         return false;
 
                     Device.SerialNumber = int.Parse(values[1]);
 
-                    if (!LegacyController)
+                    if (ControllerDataResponses == 1)
                         values = lines[++line].GetValues();
+                    else
+                        Device.UpdatesReceived++;
                 }
 
                 if (line == 2)
                 {
-                    if (LengthError(values, 4, "value", $"on controller data line {line}"))
+                    if (LengthError(values, 4, "value", $"on controller data line 3"))
                         return false;
 
                     Device.CpwMin = int.Parse(values[1]);
@@ -1033,9 +962,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
                     cpw, limit0Enabled, limit1Enabled, currentLimit, timeLimit);
                 Device.Voltage = double.Parse(values[9]);
                 var errors = int.Parse(values[10]);
-                Device.Errors = !LegacyController
-                    ? (ErrorCodes)errors
-                    : DecodeLegacyControllerErrors(errors);
+                Device.Errors = EncodeErrors(errors);
                 a.Device.UpdatesReceived++;
             }
             else
@@ -1056,103 +983,7 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         }
     }
 
-    /// <summary>
-    /// Parses the actuator-controller identity line returned by the <c>z</c> command.
-    /// </summary>
-    /// <param name="values">The whitespace-delimited values from the identity line.</param>
-    /// <returns><see langword="true"/> if the line has the expected structure; otherwise, <see langword="false"/>.</returns>
-    bool ParseControllerIdentity(string[] values)
-    {
-        if (LengthError(values, 4, "value", "on controller data line 0"))
-            return false;
-
-        Device.Model = values[2];
-        Device.Firmware = values[3];
-        LegacyController = IsLegacyFirmware(Device.Firmware);
-        return true;
-    }
-
-    /// <summary>
-    /// Parses the actuator-controller serial-number line returned by the <c>z</c> command.
-    /// </summary>
-    /// <param name="values">The whitespace-delimited values from the serial-number line.</param>
-    /// <returns><see langword="true"/> if the line has the expected structure; otherwise, <see langword="false"/>.</returns>
-    bool ParseControllerSerialNumber(string[] values)
-    {
-        if (LengthError(values, 2, "value", "on controller data line 1"))
-            return false;
-
-        Device.SerialNumber = int.Parse(values[1]);
-        return true;
-    }
-
-    /// <summary>
-    /// Parses the actuator-controller control-pulse-width limits returned by the <c>z</c> command.
-    /// </summary>
-    /// <param name="values">The whitespace-delimited values from the control-pulse-width limits line.</param>
-    /// <returns><see langword="true"/> if the line has the expected structure; otherwise, <see langword="false"/>.</returns>
-    bool ParseControllerCpwLimits(string[] values)
-    {
-        if (LengthError(values, 4, "value", "on controller data line 2"))
-            return false;
-
-        Device.CpwMin = int.Parse(values[1]);
-        Device.CpwMax = int.Parse(values[3]);
-        return true;
-    }
-
-    /// <summary>
-    /// Returns whether a firmware identifier predates V.20200411.
-    /// </summary>
-    /// <param name="firmware">A firmware identifier in the form V.YYYYMMDD-revision.</param>
-    static bool IsLegacyFirmware(string firmware) =>
-        string.CompareOrdinal(firmware, LegacyFirmwareCutoff) < 0;
-
-    /// <summary>
-    /// Translates an actuator-controller error value from the legacy bit layout
-    /// to the current <see cref="ErrorCodes"/> layout.
-    /// </summary>
-    /// <param name="value">The legacy controller error value.</param>
-    ErrorCodes DecodeLegacyControllerErrors(int value)
-    {
-        var legacy = (LegacyControllerErrorCodes)value;
-        var decoded = ErrorCodes.None;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.AdcOutOfRange)) decoded |= ErrorCodes.AdcOutOfRange;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.RxBufferOverflow)) decoded |= ErrorCodes.RxBufferOverflow;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.CRC)) decoded |= ErrorCodes.CRC;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.BadCommand)) decoded |= ErrorCodes.BadCommand;
-        // Ignore this obsolete flag
-        //if (legacy.HasFlag(LegacyControllerErrorCodes.Timer1Overrun)) decoded |= ErrorCodes.Timer1Overrun;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.BadChannel)) decoded |= ErrorCodes.BadChannel;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.BadDataLogInterval)) decoded |= ErrorCodes.BadDataLogInterval;
-        // ServoOutOfRange predated BadChannel, but meant the same thing.
-        if (legacy.HasFlag(LegacyControllerErrorCodes.ServoOutOfRange)) decoded |= ErrorCodes.BadChannel;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.CpwOutOfRange)) decoded |= ErrorCodes.CpwOutOfRange;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.TimeLimitOutOfRange)) decoded |= ErrorCodes.TimeLimitOutOfRange;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.BothLimitSwitchesEngaged)) decoded |= ErrorCodes.BothLimitSwitchesEngaged;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.LowPower)) decoded |= ErrorCodes.LowPower;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.CurrentLimitOutOfRange)) decoded |= ErrorCodes.CurrentLimitOutOfRange;
-        if (legacy.HasFlag(LegacyControllerErrorCodes.BadStopLimit)) decoded |= ErrorCodes.BadStopLimit;
-        return decoded;
-    }
-
-    /// <summary>
-    /// Translates an AeonServo error value from the legacy bit layout
-    /// to the current <see cref="AeonServoErrorCodes"/> layout.
-    /// </summary>
-    /// <param name="value">The legacy AeonServo error value.</param>
-    AeonServoErrorCodes DecodeLegacyAeonServoErrors(int value)
-    {
-        var legacy = (LegacyAeonServoErrorCodes)value;
-        var decoded = AeonServoErrorCodes.None;
-        if (legacy.HasFlag(LegacyAeonServoErrorCodes.BadPosition)) decoded |= AeonServoErrorCodes.BadPosition;
-        if (legacy.HasFlag(LegacyAeonServoErrorCodes.RxBufferOverflow)) decoded |= AeonServoErrorCodes.RxBufferOverflow;
-        if (legacy.HasFlag(LegacyAeonServoErrorCodes.CRC)) decoded |= AeonServoErrorCodes.CRC;
-        if (legacy.HasFlag(LegacyAeonServoErrorCodes.BadCommand)) decoded |= AeonServoErrorCodes.BadCommand;
-        if (legacy.HasFlag(LegacyAeonServoErrorCodes.BadDataLogInterval)) decoded |= AeonServoErrorCodes.BadDataLogInterval;
-        return decoded;
-    }
-
+    protected virtual ErrorCodes EncodeErrors(int errors) => (ErrorCodes)errors;
     #region controller response validation helpers
 
     // TODO: These two helper methods are present in multiple places.
@@ -1329,9 +1160,8 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
                 if (LogEverything)
                     Log?.Record($"{nameof(AeonServo)}: ConsecutiveMatches = {v.ConsecutiveMatches}");
                 var errors = int.Parse(values[3]);
-                Device.AeonServoErrors = !LegacyServo
-                    ? (AeonServoErrorCodes)errors
-                    : DecodeLegacyAeonServoErrors(errors);
+                Device.AeonServoErrors = 
+                    EncodeAeonServoErrors(errors);
 
                 // StateSignal.Set()?
                 // SerialController.Hurry = true;    // cue the controller, to monitor servo current and time limits
@@ -1384,6 +1214,50 @@ public class ActuatorController : SerialDeviceManager, IActuatorController,
         if (LogEverything) Log?.Record($"SerialController {AeonServo.Name} lost connection");
         // do nothing?
     }
+
+    protected virtual AeonServoErrorCodes EncodeAeonServoErrors(int errors)
+    {
+        if (LegacyServo) return EncodeLegacyAeonServoErrors(errors);
+        return (AeonServoErrorCodes)errors;
+    }
+
+    #region Legacy AeonServo error codes
+    /// <summary>
+    /// Error-bit assignments used by AeonServo firmware before V.20200411.
+    /// </summary>
+    [Flags]
+    enum LegacyAeonServoErrorCodes
+    {
+        /// <summary>No error; status is normal.</summary>
+        None = 0,
+        /// <summary>An invalid position was commanded.</summary>
+        BadPosition = 1,
+        /// <summary>The RS232 receive buffer overflowed; commands are too frequent.</summary>
+        RxBufferOverflow = 2,
+        /// <summary>An RS232 cyclical redundancy check failed (CRC error).</summary>
+        CRC = 4,
+        /// <summary>An unrecognized command was received.</summary>
+        BadCommand = 8,
+        /// <summary>The datalogging interval was outside its allowed range.</summary>
+        BadDataLogInterval = 16,
+    }
+    /// <summary>
+    /// Translates an AeonServo error value from the legacy bit layout
+    /// to the current <see cref="AeonServoErrorCodes"/> layout.
+    /// </summary>
+    /// <param name="errors">The legacy AeonServo error value.</param>
+    protected virtual AeonServoErrorCodes EncodeLegacyAeonServoErrors(int errors)
+    {
+        var legacy = (LegacyAeonServoErrorCodes)errors;
+        var decoded = AeonServoErrorCodes.None;
+        if (legacy.HasFlag(LegacyAeonServoErrorCodes.BadPosition)) decoded |= AeonServoErrorCodes.BadPosition;
+        if (legacy.HasFlag(LegacyAeonServoErrorCodes.RxBufferOverflow)) decoded |= AeonServoErrorCodes.RxBufferOverflow;
+        if (legacy.HasFlag(LegacyAeonServoErrorCodes.CRC)) decoded |= AeonServoErrorCodes.CRC;
+        if (legacy.HasFlag(LegacyAeonServoErrorCodes.BadCommand)) decoded |= AeonServoErrorCodes.BadCommand;
+        if (legacy.HasFlag(LegacyAeonServoErrorCodes.BadDataLogInterval)) decoded |= AeonServoErrorCodes.BadDataLogInterval;
+        return decoded;
+    }
+    #endregion Legacy AeonServo error codes
 
     #endregion AeonServo
 }
