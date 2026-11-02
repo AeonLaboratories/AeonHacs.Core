@@ -121,7 +121,7 @@ public class NamedObject : BindableObject, INamedObject
             {
                 if (t.IsAssignableTo(cachedType))
                 {
-                    cachedLists[cachedType].Add(o);
+                    cachedLists[cachedType].Remove(o);
                 }
             }
         }
