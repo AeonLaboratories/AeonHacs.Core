@@ -1,14 +1,19 @@
 ﻿using System;
 using System.Text;
 
-namespace AeonHacs.Core;
+namespace AeonHacs;
 
 public class IntEncodableDouble : BindableObject
 {
     public static bool operator ==(IntEncodableDouble n, IntEncodableDouble m)
         => n.Precision == m.Precision && n.IntValue == m.IntValue;
+
     public static bool operator !=(IntEncodableDouble n, IntEncodableDouble m)
         => n.Precision != m.Precision || n.IntValue != m.IntValue;
+
+    public static implicit operator double(IntEncodableDouble x) => x.DoubleValue;
+
+    public static implicit operator int(IntEncodableDouble x) => x.IntValue;
 
     public static bool Equals(IntEncodableDouble n, IntEncodableDouble m) =>
         n == m;
@@ -19,10 +24,8 @@ public class IntEncodableDouble : BindableObject
     public static bool Equals(IntEncodableDouble n, double d) =>
         Equals(n, new IntEncodableDouble(d, n.Precision));
 
-    public static implicit operator double(IntEncodableDouble x) => x.DoubleValue;
-    public static implicit operator int(IntEncodableDouble x) => x.IntValue;
-
     public static int EncodeAsInt(double d, double multipler) => (d * multipler).ToInt();
+
     public static double DecodeAsDouble(int i, double multipler) => i / multipler;
 
     public double DoubleValue
@@ -123,13 +126,5 @@ public class IntEncodableDouble : BindableObject
         return sb.ToString();
     }
 
-    // TODO: replace with System.HashCode technique once this
-    // project can target .NET Core
-    public override int GetHashCode()
-    {
-        int hashCode = -1473892434;
-        hashCode = hashCode * -1521134295 + IntValue.GetHashCode();
-        hashCode = hashCode * -1521134295 + Precision.GetHashCode();
-        return hashCode;
-    }
+    public override int GetHashCode() => HashCode.Combine(IntValue, Precision);
 }
